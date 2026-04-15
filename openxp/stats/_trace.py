@@ -11,10 +11,14 @@ Usage
 -----
     from openxp.stats._trace import set_trace, is_trace_enabled, trace_dict
 
-    set_trace(True)
+    # Tracing is ON by default (D.9 audit-trail contract).
     result = welch_test(control, treatment)
     # result["computation_trace"] is now present
+
+    # Disable only if a caller explicitly wants slimmer return dicts:
     set_trace(False)
+    result = welch_test(control, treatment)
+    # result has no "computation_trace" key
 
 The trace dict shape is stable and documented here so agents can validate it:
 
@@ -31,9 +35,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-# Module-level flag. Defaults to OFF so production calls stay backward
-# compatible and don't pay the dict-construction cost.
-_TRACE_ENABLED: bool = False
+# Module-level flag. Defaults to ON because the `/experiment` skill and the
+# D.9 audit-trail contract expect every stats return dict to carry a
+# `computation_trace`. The `interpret` mode validates traces before advancing
+# state, so turning this off silently breaks the analyze -> interpret handoff.
+# Callers that want slimmer return dicts can `set_trace(False)` explicitly.
+_TRACE_ENABLED: bool = True
 
 
 def set_trace(enabled: bool) -> None:

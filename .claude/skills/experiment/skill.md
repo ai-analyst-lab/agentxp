@@ -15,6 +15,8 @@ One skill, eight modes. The entire OpenXP product surface. This file is the **di
 3. Never skip Type C checkpoints (power viability, SRM gate, guardrail violation, ship decision).
 4. Never mutate files outside the current experiment directory.
 5. Every state transition is written to `experiment.yaml` `status` field and `timeline` block.
+6. Always import stats functions from the top-level `openxp.stats` namespace — never from submodules (`from openxp.stats import welch_test`, not `from openxp.stats.ab_tests import welch_test`).
+7. Stats functions return a `computation_trace` dict by default (the D.9 audit trail). The `interpret` mode validates this field — do not disable trace via `openxp.stats.set_trace(False)` unless the user explicitly asks.
 
 ## When to Use
 
@@ -146,18 +148,24 @@ When a mode invokes an agent, follow this contract (inherited from the repo's ag
 
 ## Stats Function Quick Reference
 
-(All modules under `openxp.stats`; every function returns a dict with `interpretation` and `computation_trace` fields.)
+(All functions are re-exported at the top-level `openxp.stats` namespace. Import every function from there — never from a submodule. When tracing is enabled (default), every function returns a dict with `interpretation` and `computation_trace` fields.)
 
 | Category | Import | Functions |
 |----------|--------|-----------|
-| Data prep | `openxp.stats.prep` | `prepare_experiment_data`, `winsorize` |
-| A/B tests | `openxp.stats.ab_tests` | `welch_test`, `proportion_test`, `fishers_exact_test`, `ratio_metric_test`, `guardrail_test` |
-| Power | `openxp.stats.power` | `power_proportion`, `power_mean`, `power_ratio`, `detectable_effect`, `duration_estimate`, `extension_estimate`, `power_sensitivity_table` |
-| Health | `openxp.stats.srm` | `srm_check`, `srm_diagnose`, `denominator_srm` |
-| Effect size | `openxp.stats.effect_size` | `cohens_d`, `cohens_h`, `relative_lift` |
-| Corrections | `openxp.stats.corrections` | `adjust_pvalues` |
+| Data prep | `from openxp.stats import ...` | `prepare_experiment_data(df, treatment_col, metric_cols, segment_cols, winsorize_spec)`, `winsorize(series, lower, upper)` |
+| A/B tests | `from openxp.stats import ...` | `welch_test(control, treatment, alpha)` (two-sided only), `proportion_test(c_success, c_n, t_success, t_n, alpha)`, `fishers_exact_test`, `ratio_metric_test(num_c, den_c, num_t, den_t, alpha)` |
+| Power | `from openxp.stats import ...` | `power_proportion(baseline_rate, mde_relative, alpha, power)`, `power_mean(baseline_mean, baseline_std, mde_relative, alpha, power)`, `power_ratio(baseline_num_mean, baseline_den_mean, baseline_num_std, baseline_den_std, correlation_num_den, mde_relative, alpha, power)`, `detectable_effect(n_per_group, baseline_rate=, baseline_std=, alpha, power)`, `duration_estimate(n_required, daily_traffic, allocation)`, `power_sensitivity_table(baseline_rate, mde_values, daily_traffic_values, alpha, power)` |
+| SRM | `from openxp.stats import ...` | `srm_check(observed_counts, expected_ratios, threshold)` — library default `threshold=0.01`; orchestrator always passes `threshold=0.0005`. `srm_diagnose(assignments_df, group_col, segments)` |
+| Guardrails | `from openxp.stats import ...` | `guardrail_test(control, treatment, metric_type, nim_relative, alpha, invert)` — implicit one-sided non-inferiority, no `alternative=` kwarg. `denominator_srm(num_c, den_c, num_t, den_t, expected_ratio, threshold)` — requires all four counts |
+| Effect size | `from openxp.stats import ...` | `cohens_d(control, treatment)`, `cohens_h(p_control, p_treatment)` — point estimate only, no CI. `relative_lift(control_mean, treatment_mean)` |
+| Corrections | `from openxp.stats import ...` | `adjust_pvalues(pvalues, method="holm", alpha)` |
+| Extension | `from openxp.stats import ...` | `extension_estimate(current_n, current_mde_observed, required_power, baseline_variance, daily_traffic, alpha)` |
+| CUPED | `from openxp.stats import ...` | `cuped_adjust(y_pre, y_post, treatment=None)`, `cuped_welch_test(control_pre, control_post, treatment_pre, treatment_post, alpha)`, `variance_reduction(y_pre, y_post)` |
+| Sequential | `from openxp.stats import ...` | `msprt_test`, `always_valid_ci`, `group_sequential_boundaries`, `sequential_proportion_test` |
+| Bayesian | `from openxp.stats import ...` | `beta_binomial_test`, `normal_normal_test`, `expected_loss`, `probability_to_beat` |
+| Tracing | `from openxp.stats import ...` | `set_trace(enabled)`, `is_trace_enabled()` — controls D.9 `computation_trace` emission (default: on) |
 
-Agents must import from these paths. If a function is missing, stop and report — **never improvise**.
+Agents must import from the top-level `openxp.stats` namespace only. If a function is missing, stop and report — **never improvise**.
 
 ## Data Discovery Protocol (delegated)
 

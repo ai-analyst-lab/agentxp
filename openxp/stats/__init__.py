@@ -80,6 +80,9 @@ from openxp.stats.extension import extension_estimate
 # Data preparation
 from openxp.stats.prep import prepare_experiment_data
 
+# Tracing flag (D.9 audit-trail contract)
+from openxp.stats._trace import set_trace, is_trace_enabled
+
 __all__ = [
     # A/B testing
     "welch_test",
@@ -127,4 +130,7 @@ __all__ = [
     "extension_estimate",
     # Data preparation
     "prepare_experiment_data",
+    # Tracing
+    "set_trace",
+    "is_trace_enabled",
 ]

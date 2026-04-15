@@ -13,12 +13,24 @@ from pydantic import BaseModel, Field
 
 
 class ExperimentStatus(str, Enum):
+    """Experiment lifecycle states.
+
+    Canonical 11-state superset matching `openxp.storage.lifecycle.ALL_STATES`.
+    The state machine (forward/backward transitions, retreats-require-amendment)
+    is enforced by the storage layer — this enum is only the Pydantic-validated
+    surface used when loading/serializing `experiment.yaml`.
+    """
     DESIGNING = "DESIGNING"
     POWERED = "POWERED"
     COLLECTING = "COLLECTING"
     ANALYZING = "ANALYZING"
     INTERPRETED = "INTERPRETED"
     REPORTED = "REPORTED"
+    SHIPPED = "SHIPPED"
+    COMPLETED = "COMPLETED"
+    ABANDONED = "ABANDONED"
+    INVALID = "INVALID"
+    BLOCKED = "BLOCKED"
 
 
 class Viability(str, Enum):

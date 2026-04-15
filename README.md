@@ -22,8 +22,10 @@ OpenXP is an open-source, agentic experimentation platform that runs inside [Cla
 
 ## Quick Start
 
+OpenXP is local-install only for now — PyPI publication is pending.
+
 ```bash
-# Clone and install
+# Clone and install from source (no `pip install openxp` yet)
 git clone https://github.com/ai-analyst-lab/openxp.git
 cd openxp
 pip install -e .
@@ -113,7 +115,17 @@ Practice datasets in `sample-data/` (nothing depends on these — delete them fr
 | [Power Calculation](walkthroughs/power-calculation.md) | Sample size, duration, sensitivity |
 | [Reading Results](walkthroughs/reading-results.md) | p-values, CIs, effect sizes |
 | [Pre-Registration](walkthroughs/pre-registration.md) | Why and how to write experiment.yaml |
+| [State Machine](walkthroughs/state-machine.md) | 11-state experiment lifecycle DAG |
+| [Monitoring](walkthroughs/monitoring.md) | SRM trend, guardrail health, sample accumulation |
+| [CUPED](walkthroughs/cuped.md) | Variance reduction via pre-period covariates |
+| [Sequential Testing](walkthroughs/sequential.md) | mSPRT + always-valid CIs |
+| [Bayesian A/B](walkthroughs/bayesian.md) | Beta-binomial and normal-normal tests |
+| [Data Connectors](walkthroughs/data-connectors.md) | CSV / DuckDB / Snowflake loading |
+| [Metric Definitions](walkthroughs/metric-definitions.md) | MetricDefinition + registry |
 | [Stats Cheat Sheet](templates/stats-cheat-sheet.md) | Quick reference |
+| [DEMO.md](DEMO.md) | Scripted end-to-end demo walkthrough |
+| [PRD_COVERAGE.md](PRD_COVERAGE.md) | Full PRD-to-code coverage matrix |
+| [FINAL_STATUS.md](FINAL_STATUS.md) | End-of-wave review and known gaps |
 
 ## Development
 
@@ -124,29 +136,43 @@ pip install -e ".[dev]"
 # Run tests
 pytest tests/ -v
 
-# 55 tests covering A/B tests, power analysis, SRM detection, effect sizes
+# 391 tests covering A/B tests (welch/proportion/ratio/fishers), power analysis,
+# SRM detection, effect sizes, CUPED, sequential testing, Bayesian A/B,
+# monitoring, amendments, validators, storage/lifecycle, schemas, and traces
 ```
 
 ## Roadmap
 
-### v0.1 (current) — Working MVP
-- A/B test analysis (welch, proportion, ratio, delta method)
-- Power calculations + duration estimation
-- SRM detection and diagnosis
-- Effect sizes and multiple comparison correction
-- 5 agent prompts + skill orchestrator
-- experiment.yaml lifecycle
+### v0.1 — Working MVP (shipped)
+- [x] A/B test analysis (welch, proportion, ratio, delta method, Fisher's exact)
+- [x] Power calculations + duration estimation + sensitivity tables
+- [x] SRM detection and diagnosis (chi-squared + segment breakdown)
+- [x] Effect sizes (Cohen's d, Cohen's h, relative lift) + Holm correction
+- [x] 5 agent prompts + `/experiment` skill orchestrator (8 modes)
+- [x] experiment.yaml lifecycle (11-state DAG)
 
-### v0.5 — Full Pipeline + Monitoring
-- End-to-end `/experiment full` orchestration
-- Running experiment monitoring
-- DuckDB connector
+### v0.5 — Full Pipeline + Monitoring (shipped)
+- [x] End-to-end `/experiment full` orchestration
+- [x] Running experiment monitoring (`run_monitor` with SRM trend, guardrail health, sample accumulation)
+- [x] DuckDB connector
+- [x] Amendments tracker + change classification
+- [x] Validators for experiment.yaml and metric.yaml
+- [x] `OpenXPError` envelope + 17 error codes
 
-### v1.0 — Production Release
-- CUPED variance reduction
-- Sequential testing (always-valid CIs)
-- Bayesian A/B testing
-- Snowflake MCP connector
+### v1.0 — Production Release (shipped code; polish pending)
+- [x] CUPED variance reduction (`cuped_welch_test`, `variance_reduction`)
+- [x] Sequential testing — mSPRT, always-valid CIs, group-sequential boundaries
+- [x] Bayesian A/B testing — beta-binomial, normal-normal, expected loss
+- [x] Snowflake connector (direct driver; MCP wrapper deferred to v1.1)
+- [ ] PyPI publication (currently local-install only)
+- [ ] Hero GIF + Power GIF for README
+
+### Planned (v1.1+)
+- [ ] `bootstrap_test` and `mann_whitney_test` (nonparametric path)
+- [ ] `monitor_trend` (novelty/primacy detector, D.37)
+- [ ] `experiment-program` agent (velocity, win rate, EQ scoring)
+- [ ] Teaching mode / first-time-user detection
+- [ ] Multi-armed bandits, interaction effects (v2.0)
 
 ## License
 
