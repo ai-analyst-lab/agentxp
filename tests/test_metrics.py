@@ -216,3 +216,70 @@ def test_tags_must_be_list() -> None:
     bad["tags"] = "conversion,checkout"
     with pytest.raises(MetricValidationError, match="tags"):
         validate(bad)
+
+
+# ---------------------------------------------------------------------------
+# _default_metrics_dir HOME fallback
+# ---------------------------------------------------------------------------
+
+def test_default_metrics_dir_falls_back_to_home(tmp_path, monkeypatch) -> None:
+    """When ./metrics doesn't exist, the default dir should resolve to
+    ~/.openxp/metrics by way of Path.home()."""
+    from openxp.metrics.registry import _default_metrics_dir
+
+    # Point HOME at a fresh tmp directory with a populated .openxp/metrics.
+    fake_home = tmp_path / "home"
+    openxp_metrics = fake_home / ".openxp" / "metrics"
+    openxp_metrics.mkdir(parents=True)
+
+    # Move cwd somewhere without a ./metrics directory.
+    empty_cwd = tmp_path / "cwd"
+    empty_cwd.mkdir()
+    monkeypatch.chdir(empty_cwd)
+
+    # Patch HOME env + Path.home() so both lookups agree.
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setattr("pathlib.Path.home", lambda: fake_home)
+
+    resolved = _default_metrics_dir()
+    assert resolved == openxp_metrics
+
+
+def test_default_metrics_dir_returns_none_when_neither_exists(
+    tmp_path, monkeypatch
+) -> None:
+    """If neither ./metrics nor ~/.openxp/metrics exists, return None."""
+    from openxp.metrics.registry import _default_metrics_dir
+
+    fake_home = tmp_path / "nowhere"
+    fake_home.mkdir()
+    empty_cwd = tmp_path / "cwd"
+    empty_cwd.mkdir()
+    monkeypatch.chdir(empty_cwd)
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setattr("pathlib.Path.home", lambda: fake_home)
+
+    assert _default_metrics_dir() is None
+
+
+def test_registry_autoloads_from_home_when_cwd_empty(tmp_path, monkeypatch) -> None:
+    """A MetricRegistry() with default args should discover metric YAMLs in
+    ~/.openxp/metrics when the current working directory has no ./metrics."""
+    fake_home = tmp_path / "home"
+    home_metrics = fake_home / ".openxp" / "metrics"
+    home_metrics.mkdir(parents=True)
+    (home_metrics / "dummy_rate.yaml").write_text(
+        "name: dummy_rate\n"
+        "type: proportion\n"
+        "numerator: converted\n"
+        "description: a test metric\n"
+    )
+
+    empty_cwd = tmp_path / "cwd"
+    empty_cwd.mkdir()
+    monkeypatch.chdir(empty_cwd)
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setattr("pathlib.Path.home", lambda: fake_home)
+
+    registry = MetricRegistry()  # default metrics_dir, autoload on
+    assert "dummy_rate" in registry

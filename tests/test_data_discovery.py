@@ -133,6 +133,50 @@ class TestDiscoverySynthetic:
         with pytest.raises(TypeError):
             discover_schema([1, 2, 3])
 
+    def test_schema_discovery_to_dict_roundtrip(self):
+        # Exercise SchemaDiscovery.to_dict directly on a hand-built instance.
+        sd = SchemaDiscovery(
+            treatment_column="variant",
+            control_value="control",
+            treatment_values=["treatment"],
+            metric_columns=["revenue", "converted"],
+            segment_columns=["platform"],
+            timestamp_columns=["assigned_at"],
+            unit_columns=["user_id"],
+            confidence={"treatment_column": "high"},
+            needs_disambiguation=[],
+            n_rows=1000,
+            n_columns=6,
+            interpretation="test",
+        )
+        d = sd.to_dict()
+        # Every field on the dataclass shows up in the dict, values preserved.
+        assert d["treatment_column"] == "variant"
+        assert d["control_value"] == "control"
+        assert d["treatment_values"] == ["treatment"]
+        assert d["metric_columns"] == ["revenue", "converted"]
+        assert d["segment_columns"] == ["platform"]
+        assert d["timestamp_columns"] == ["assigned_at"]
+        assert d["unit_columns"] == ["user_id"]
+        assert d["confidence"] == {"treatment_column": "high"}
+        assert d["needs_disambiguation"] == []
+        assert d["n_rows"] == 1000
+        assert d["n_columns"] == 6
+        assert d["interpretation"] == "test"
+        # to_dict must be a plain dict (JSON-serializable container).
+        assert isinstance(d, dict)
+
+    def test_schema_discovery_to_dict_empty_defaults(self):
+        # Default-constructed instance still produces a full dict.
+        sd = SchemaDiscovery()
+        d = sd.to_dict()
+        assert d["treatment_column"] is None
+        assert d["control_value"] is None
+        assert d["treatment_values"] == []
+        assert d["metric_columns"] == []
+        assert d["n_rows"] == 0
+        assert d["n_columns"] == 0
+
     def test_detects_numeric_zero_as_control(self):
         df = pd.DataFrame(
             {

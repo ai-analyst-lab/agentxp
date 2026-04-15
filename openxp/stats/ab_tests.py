@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from openxp.stats._trace import is_trace_enabled, trace_dict
+
 
 def welch_test(control, treatment, alpha=0.05):
     """Two-sample Welch's t-test for comparing means between experiment groups.
@@ -90,7 +92,7 @@ def welch_test(control, treatment, alpha=0.05):
             f"p = {p_value:.4f}. Cannot reject the null hypothesis."
         )
 
-    return {
+    result = {
         "test": "welch_t_test",
         "t_stat": float(t_stat),
         "p_value": float(p_value),
@@ -108,6 +110,23 @@ def welch_test(control, treatment, alpha=0.05):
         "alpha": alpha,
         "interpretation": interp,
     }
+    if is_trace_enabled():
+        result["computation_trace"] = trace_dict(
+            inputs={"n_control": n_c, "n_treatment": n_t, "alpha": alpha},
+            intermediate={
+                "mean_control": mean_c,
+                "mean_treatment": mean_t,
+                "var_control": var_c,
+                "var_treatment": var_t,
+                "se": se,
+                "df": float(df),
+                "t_crit": float(t_crit),
+                "pooled_std": pooled_std,
+                "cohens_d": float(d),
+            },
+            formula="welch_t = (mean_t - mean_c) / sqrt(var_c/n_c + var_t/n_t); df via Welch-Satterthwaite",
+        )
+    return result
 
 
 def proportion_test(c_success, c_n, t_success, t_n, alpha=0.05):
@@ -172,7 +191,7 @@ def proportion_test(c_success, c_n, t_success, t_n, alpha=0.05):
             f"p = {p_value:.4f}."
         )
 
-    return {
+    result = {
         "test": "proportion_z_test",
         "z_stat": float(z_stat),
         "p_value": float(p_value),
@@ -188,6 +207,26 @@ def proportion_test(c_success, c_n, t_success, t_n, alpha=0.05):
         "alpha": alpha,
         "interpretation": interp,
     }
+    if is_trace_enabled():
+        result["computation_trace"] = trace_dict(
+            inputs={
+                "c_success": c_success,
+                "c_n": c_n,
+                "t_success": t_success,
+                "t_n": t_n,
+                "alpha": alpha,
+            },
+            intermediate={
+                "rate_control": float(rate_c),
+                "rate_treatment": float(rate_t),
+                "pooled_rate": float(pooled),
+                "se_test": float(se_test),
+                "se_ci": float(se_ci),
+                "z_crit": float(z_crit),
+            },
+            formula="z = (p_t - p_c) / sqrt(p_pooled*(1-p_pooled)*(1/n_c + 1/n_t))",
+        )
+    return result
 
 
 def ratio_metric_test(num_c, den_c, num_t, den_t, alpha=0.05):
@@ -277,7 +316,7 @@ def ratio_metric_test(num_c, den_c, num_t, den_t, alpha=0.05):
             f"p = {p_value:.4f}."
         )
 
-    return {
+    result = {
         "test": "ratio_delta_method",
         "z_stat": float(z_stat),
         "p_value": float(p_value),
@@ -293,6 +332,19 @@ def ratio_metric_test(num_c, den_c, num_t, den_t, alpha=0.05):
         "alpha": alpha,
         "interpretation": interp,
     }
+    if is_trace_enabled():
+        result["computation_trace"] = trace_dict(
+            inputs={"n_control": n_c, "n_treatment": n_t, "alpha": alpha},
+            intermediate={
+                "ratio_control": float(ratio_c),
+                "ratio_treatment": float(ratio_t),
+                "var_control": float(var_c),
+                "var_treatment": float(var_t),
+                "se": float(se),
+            },
+            formula="delta-method: Var(R) ~ (1/D^2)[Var(N) - 2R*Cov(N,D) + R^2*Var(D)]",
+        )
+    return result
 
 
 def winsorize(series, lower=0.01, upper=0.99):

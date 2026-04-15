@@ -90,6 +90,28 @@ class TestCupedAdjust:
         with pytest.raises(ValueError, match="NaN"):
             cuped_adjust([1.0, 2.0, 3.0], [1.0, np.nan, 3.0])
 
+    def test_zero_variance_covariate_returns_theta_zero(self):
+        # Covariate constant => Var(y_pre) = 0 => theta is undefined.
+        # Documented behavior: _compute_theta returns 0.0, so the adjusted
+        # outcome equals y_post unchanged and correlation is 0.
+        pre = np.array([5.0, 5.0, 5.0, 5.0, 5.0])
+        post = np.array([10.0, 11.0, 12.0, 13.0, 14.0])
+        result = cuped_adjust(pre, post)
+        assert result["theta"] == 0.0
+        assert result["correlation"] == 0.0
+        assert result["variance_reduction_pct"] == 0.0
+        # Adjusted outcome collapses to raw post when theta is 0.
+        np.testing.assert_allclose(result["y_adjusted"], post)
+
+    def test_zero_variance_covariate_variance_reduction(self):
+        # variance_reduction helper on a constant covariate: rho = 0, no
+        # variance reduction expected.
+        pre = np.array([5.0, 5.0, 5.0, 5.0, 5.0])
+        post = np.array([10.0, 11.0, 12.0, 13.0, 14.0])
+        result = variance_reduction(pre, post)
+        assert result["correlation"] == 0.0
+        assert result["variance_reduction_pct"] == 0.0
+
 
 class TestCupedWelchTest:
     def test_cuped_narrower_ci_than_raw_when_correlated(self):

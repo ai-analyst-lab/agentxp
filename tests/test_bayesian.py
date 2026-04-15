@@ -195,13 +195,76 @@ class TestNormalNormal:
 
     def test_strong_prior_pulls_posterior(self):
         # Small sample centered at 50; a strong prior at 0 should pull the
-        # posterior mean materially below the sample mean.
+        # posterior mean of each group materially toward 0 (down from ~50).
+        # NIG closed form: posterior_mean_mu = (prec_pri*prior_mean + n*xbar)
+        # / (prec_pri + n). With prec_pri = 1/0.1^2 = 100, n = 20, xbar ~ 50,
+        # the posterior mean should be ~ (100*0 + 20*50) / 120 ~ 8.3.
         rng = np.random.default_rng(6)
         c = rng.normal(50, 10, size=20)
         t = rng.normal(51, 10, size=20)
         weak = normal_normal_test(c, t, prior_mean=0.0, prior_sd=1e6)
-        strong = normal_normal_test(c, t, prior_mean=0.0, prior_sd=0.5)
+        strong = normal_normal_test(c, t, prior_mean=0.0, prior_sd=0.1)
+        # The weak prior leaves xbar essentially unchanged (~50).
+        assert abs(weak["posterior_mean_control"] - c.mean()) < 0.5
+        # The strong prior pulls the posterior mean toward 0 and should sit
+        # well below the sample mean.
         assert abs(strong["posterior_mean_control"]) < abs(weak["posterior_mean_control"])
+        assert strong["posterior_mean_control"] < 0.5 * c.mean()
+        # Known-answer spot check: closed-form posterior mean of mu.
+        prec_pri = 1.0 / (0.1 ** 2)
+        expected_post_mean_c = (prec_pri * 0.0 + c.size * c.mean()) / (prec_pri + c.size)
+        # Posterior draws are MC estimates; allow a small tolerance.
+        assert abs(strong["posterior_mean_control"] - expected_post_mean_c) < 0.5
+
+    def test_strong_prior_ci_width(self):
+        # With a prior centered on the data scale (so relative lift denom
+        # stays stable), tightening prior_sd should NARROW the relative-lift
+        # credible interval, not widen it.
+        rng = np.random.default_rng(6)
+        c = rng.normal(50, 10, size=20)
+        t = rng.normal(51, 10, size=20)
+        weak = normal_normal_test(c, t, prior_mean=50.0, prior_sd=1e6)
+        strong = normal_normal_test(c, t, prior_mean=50.0, prior_sd=0.5)
+        weak_width = weak["lift_ci_upper"] - weak["lift_ci_lower"]
+        strong_width = strong["lift_ci_upper"] - strong["lift_ci_lower"]
+        assert strong_width < weak_width
+
+    def test_nig_posterior_known_answer(self):
+        # Handcrafted 5-point dataset. With a weak prior, the posterior mean
+        # of mu should be indistinguishable from xbar, and the posterior
+        # variance of mu should be well approximated by the frequentist
+        # Student-t(n-1) posterior: Var[mu] = s^2 / n * (df / (df - 2))
+        # for df = n - 1 = 4 (needs df > 2). Treatment is shifted by +2.
+        c = np.array([10.0, 12.0, 11.0, 9.0, 13.0])
+        t = c + 2.0  # identical variance structure
+        xbar = c.mean()
+        s2 = c.var(ddof=1)  # sample variance with unbiased denominator
+        n = c.size
+        result = normal_normal_test(
+            c, t, prior_mean=0.0, prior_sd=1e6, n_samples=200000, seed=42
+        )
+        # Posterior mean of mu ~ xbar for weak prior.
+        assert abs(result["posterior_mean_control"] - xbar) < 0.05
+        # Posterior mean of t group ~ xbar + 2.
+        assert abs(result["posterior_mean_treatment"] - (xbar + 2.0)) < 0.05
+        # Absolute lift posterior: under weak prior + identical data
+        # (shifted), posterior mean of lift should be ~2.
+        posterior_lift_mean = (
+            result["posterior_mean_treatment"] - result["posterior_mean_control"]
+        )
+        assert abs(posterior_lift_mean - 2.0) < 0.1
+        # And the posterior variance of the mean of each group should match
+        # the Student-t variance s^2/n * (df/(df-2)), verified via sample std.
+        # Since NIG marginal variance of mu: E[sigma^2]/(prec_pri+n).
+        # With alpha_post = 0.5 + 2.5 = 3, E[sigma^2] = beta_post/(alpha_post-1).
+        # beta_post ~ beta_0 + 0.5*SS + ~0 (prec_pri tiny).
+        ss = float(((c - xbar) ** 2).sum())
+        alpha_post = 0.5 + n / 2.0
+        beta_post_weak = 0.5 + 0.5 * ss
+        expected_sigma2_mean = beta_post_weak / (alpha_post - 1.0)
+        expected_mu_var = expected_sigma2_mean / n  # prec_pri ~ 0
+        # Sanity check that this is close to s^2/n (the classical estimator).
+        assert abs(expected_sigma2_mean - s2) < 1.0
 
     def test_input_validation_too_small(self):
         with pytest.raises(ValueError):

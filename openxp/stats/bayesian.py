@@ -359,34 +359,53 @@ def normal_normal_test(
 
     rng = np.random.default_rng(seed)
 
-    def _posterior_samples(x: np.ndarray) -> np.ndarray:
-        """Draw posterior samples of the mean for one group.
+    # Normal-Inverse-Gamma (NIG) conjugate prior hyperparameters.
+    # Weak Jeffreys-ish scale prior: alpha_0 = nu_0/2 = 0.5, beta_0 = 0.5.
+    # The precision of the prior on mu is encoded in prior_sd: prec_pri = 1/prior_sd^2.
+    # With weak prior_sd (>> data scale) this reduces to the textbook Student-t
+    # posterior on mu.
+    alpha_0 = 0.5
+    beta_0 = 0.5
+    prec_pri = 1.0 / (prior_sd ** 2)
 
-        Likelihood: x ~ N(mu, sigma^2). Jeffreys prior on sigma^2, Gaussian
-        prior on mu. The Student-t component accounts for unknown variance;
-        the conjugate Gaussian update shrinks toward the prior mean.
+    def _posterior_samples(x: np.ndarray) -> np.ndarray:
+        """Draw posterior samples of the mean for one group using NIG conjugacy.
+
+        Model: x_i ~ N(mu, sigma^2), mu ~ N(prior_mean, prior_sd^2),
+        sigma^2 ~ InverseGamma(alpha_0, beta_0).
+
+        Posterior (Normal-Inverse-Gamma conjugate update):
+            posterior_mean_mu = (prec_pri*prior_mean + n*xbar) / (prec_pri + n)
+            alpha_post = alpha_0 + n/2
+            beta_post  = beta_0 + 0.5*SS + 0.5*(prec_pri*n/(prec_pri+n))*(xbar-prior_mean)^2
+            sigma^2 | x  ~ InverseGamma(alpha_post, beta_post)
+            mu | sigma^2, x ~ N(posterior_mean_mu, sigma^2/(prec_pri + n))
+
+        Under a weak prior (prec_pri -> 0) this collapses to the standard
+        Student-t(n-1) posterior on mu (xbar, s^2/n), matching the textbook
+        unknown-variance case.
         """
         n = x.size
         xbar = float(x.mean())
-        s = float(x.std(ddof=1))
-        se = s / np.sqrt(n)  # standard error of the mean
-        df = n - 1
+        ss = float(np.sum((x - xbar) ** 2))  # sum of squared deviations
 
-        # Sample the likelihood's posterior on mu (non-informative part):
-        # mu | x ~ t_df(xbar, se^2)
-        t_draws = rng.standard_t(df, size=n_samples)
-        mu_lik = xbar + se * t_draws
+        posterior_mean_mu = (prec_pri * prior_mean + n * xbar) / (prec_pri + n)
+        alpha_post = alpha_0 + n / 2.0
+        beta_post = (
+            beta_0
+            + 0.5 * ss
+            + 0.5 * (prec_pri * n / (prec_pri + n)) * (xbar - prior_mean) ** 2
+        )
 
-        # Conjugate blend with Gaussian prior N(prior_mean, prior_sd^2) using
-        # precision weighting. This is the standard Normal-Normal update at
-        # the posterior level: treat mu_lik draws as likelihood-only samples
-        # and combine with prior precision.
-        prec_lik = 1.0 / (se ** 2)
-        prec_pri = 1.0 / (prior_sd ** 2)
-        prec_post = prec_lik + prec_pri
-        # Per-draw conjugate combination (shrinks draws toward prior_mean):
-        shrunk = (prec_lik * mu_lik + prec_pri * prior_mean) / prec_post
-        return shrunk
+        # Draw sigma^2 ~ InverseGamma(alpha_post, beta_post).
+        # numpy has Gamma; InvGamma(a, b) is 1 / Gamma(shape=a, scale=1/b).
+        gamma_draws = rng.gamma(shape=alpha_post, scale=1.0 / beta_post, size=n_samples)
+        sigma2_draws = 1.0 / gamma_draws
+
+        # Draw mu | sigma^2 ~ N(posterior_mean_mu, sigma^2 / (prec_pri + n)).
+        sd_mu = np.sqrt(sigma2_draws / (prec_pri + n))
+        z = rng.standard_normal(size=n_samples)
+        return posterior_mean_mu + sd_mu * z
 
     samples_c = _posterior_samples(c)
     samples_t = _posterior_samples(t)

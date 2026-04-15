@@ -62,6 +62,24 @@ from openxp.stats.sequential import (
     sequential_proportion_test,
 )
 
+# Ratio power analysis
+from openxp.stats.ratio_power import power_ratio
+
+# Fisher's exact test (small-sample fallback)
+from openxp.stats.fishers import fishers_exact_test
+
+# Guardrail (non-inferiority) testing and denominator SRM
+from openxp.stats.guardrails import guardrail_test, denominator_srm
+
+# Additional effect sizes
+from openxp.stats.effect_size_extras import cohens_h
+
+# Experiment extension estimation
+from openxp.stats.extension import extension_estimate
+
+# Data preparation
+from openxp.stats.prep import prepare_experiment_data
+
 __all__ = [
     # A/B testing
     "welch_test",
@@ -96,4 +114,17 @@ __all__ = [
     "always_valid_ci",
     "group_sequential_boundaries",
     "sequential_proportion_test",
+    # Ratio power
+    "power_ratio",
+    # Small-sample proportion fallback
+    "fishers_exact_test",
+    # Guardrails
+    "guardrail_test",
+    "denominator_srm",
+    # Additional effect sizes
+    "cohens_h",
+    # Extension estimation
+    "extension_estimate",
+    # Data preparation
+    "prepare_experiment_data",
 ]

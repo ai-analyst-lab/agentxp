@@ -384,6 +384,51 @@ def test_delete_missing_experiment_raises(store: ExperimentStore):
         store.delete_experiment("nope", confirm=True)
 
 
+def test_delete_removes_log_jsonl_too(store: ExperimentStore):
+    """delete_experiment should take the entire dir with it, log.jsonl included."""
+    exp_id = "doomed3"
+    store.save_experiment(exp_id, _basic_yaml(exp_id))
+    store.save_analysis(exp_id, _basic_analysis())
+
+    log_path = store.root / exp_id / "log.jsonl"
+    assert log_path.exists()
+
+    store.delete_experiment(exp_id, confirm=True)
+
+    # Entire directory (log included) is gone.
+    assert not log_path.exists()
+    assert not (store.root / exp_id).exists()
+
+
+# --------------------------------------------------------------- corrupt yaml
+
+
+def test_load_experiment_corrupt_yaml_raises(store: ExperimentStore):
+    """Garbage bytes in an experiment.yaml should produce a clear RuntimeError."""
+    exp_id = "corrupt-1"
+    exp_dir = store.root / exp_id
+    exp_dir.mkdir(parents=True, exist_ok=True)
+    yaml_path = exp_dir / "experiment.yaml"
+    # `{:\n[` is malformed YAML.
+    yaml_path.write_text("{:\n[\n")
+
+    with pytest.raises(RuntimeError, match="corrupt"):
+        store.load_experiment(exp_id)
+
+
+def test_save_experiment_corrupt_existing_yaml_raises(store: ExperimentStore):
+    """save_experiment reads the existing file to validate transitions; if
+    that file is corrupt it should raise a clear RuntimeError rather than
+    silently clobber."""
+    exp_id = "corrupt-2"
+    exp_dir = store.root / exp_id
+    exp_dir.mkdir(parents=True, exist_ok=True)
+    (exp_dir / "experiment.yaml").write_text("{:\n[\n")
+
+    with pytest.raises(RuntimeError, match="corrupt"):
+        store.save_experiment(exp_id, _basic_yaml(exp_id))
+
+
 # ------------------------------------------------------------- atomic writes
 
 

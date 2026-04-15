@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from openxp.stats._trace import is_trace_enabled, trace_dict
+
 
 def srm_check(observed_counts, expected_ratios=None, threshold=0.01):
     """Chi-squared goodness-of-fit test for sample ratio mismatch.
@@ -70,7 +72,7 @@ def srm_check(observed_counts, expected_ratios=None, threshold=0.01):
         f"Verdict: {verdict}. {note}"
     )
 
-    return {
+    result = {
         "test": "srm_chi_squared",
         "chi2_stat": float(chi2_stat),
         "p_value": float(p_value),
@@ -83,6 +85,22 @@ def srm_check(observed_counts, expected_ratios=None, threshold=0.01):
         "threshold": threshold,
         "interpretation": interp,
     }
+    if is_trace_enabled():
+        result["computation_trace"] = trace_dict(
+            inputs={
+                "observed_counts": observed.astype(int).tolist(),
+                "expected_ratios": expected_ratios.tolist(),
+                "threshold": threshold,
+            },
+            intermediate={
+                "total": int(total),
+                "expected_counts": expected.astype(int).tolist(),
+                "chi2_stat": float(chi2_stat),
+                "degrees_of_freedom": int(k - 1),
+            },
+            formula="chi^2 = sum((obs - exp)^2 / exp); p from chi2(df=k-1)",
+        )
+    return result
 
 
 def srm_diagnose(assignments_df, group_col="variant", segments=None):

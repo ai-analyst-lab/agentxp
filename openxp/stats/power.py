@@ -10,6 +10,8 @@ import math
 from scipy import stats as sp_stats
 from statsmodels.stats.power import NormalIndPower, TTestIndPower
 
+from openxp.stats._trace import is_trace_enabled, trace_dict
+
 
 def power_proportion(baseline_rate, mde_relative, alpha=0.05, power=0.80):
     """Sample size for a two-sample proportion test.
@@ -56,7 +58,7 @@ def power_proportion(baseline_rate, mde_relative, alpha=0.05, power=0.80):
         f"{treatment_rate:.1%} (alpha={alpha}, power={power:.0%})."
     )
 
-    return {
+    result = {
         "sample_size_per_group": n_per_group,
         "total_sample_size": total,
         "baseline_rate": float(baseline_rate),
@@ -67,6 +69,22 @@ def power_proportion(baseline_rate, mde_relative, alpha=0.05, power=0.80):
         "power": power,
         "interpretation": interp,
     }
+    if is_trace_enabled():
+        result["computation_trace"] = trace_dict(
+            inputs={
+                "baseline_rate": float(baseline_rate),
+                "mde_relative": float(mde_relative),
+                "alpha": alpha,
+                "power": power,
+            },
+            intermediate={
+                "treatment_rate": float(treatment_rate),
+                "absolute_difference": float(abs_diff),
+                "cohens_h": float(h),
+            },
+            formula="h = 2*(arcsin(sqrt(p2)) - arcsin(sqrt(p1))); n solved via NormalIndPower",
+        )
+    return result
 
 
 def power_mean(baseline_mean, baseline_std, mde_relative, alpha=0.05, power=0.80):
@@ -105,7 +123,7 @@ def power_mean(baseline_mean, baseline_std, mde_relative, alpha=0.05, power=0.80
         f"Cohen's d = {d:.3f} (alpha={alpha}, power={power:.0%})."
     )
 
-    return {
+    result = {
         "sample_size_per_group": n_per_group,
         "total_sample_size": total,
         "baseline_mean": float(baseline_mean),
@@ -117,6 +135,22 @@ def power_mean(baseline_mean, baseline_std, mde_relative, alpha=0.05, power=0.80
         "power": power,
         "interpretation": interp,
     }
+    if is_trace_enabled():
+        result["computation_trace"] = trace_dict(
+            inputs={
+                "baseline_mean": float(baseline_mean),
+                "baseline_std": float(baseline_std),
+                "mde_relative": float(mde_relative),
+                "alpha": alpha,
+                "power": power,
+            },
+            intermediate={
+                "absolute_difference": float(abs_diff),
+                "cohens_d": float(d),
+            },
+            formula="d = |baseline_mean * mde_relative| / baseline_std; n solved via TTestIndPower",
+        )
+    return result
 
 
 def detectable_effect(n_per_group, baseline_rate=None, baseline_std=None,
