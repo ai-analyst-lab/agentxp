@@ -62,6 +62,31 @@ def sample_accumulation(
             "interpretation": "Invalid required_n — cannot evaluate pacing.",
         }
 
+    # Day-0 edge case: no elapsed time yet → pace is genuinely unknowable.
+    # Returning GREEN silently would hide a stalled-on-day-0 experiment, so we
+    # surface an explicit "too early to tell" YELLOW instead.
+    if days_elapsed is None or float(days_elapsed) < 1.0:
+        return {
+            "test": "sample_accumulation",
+            "current_n": int(current_n),
+            "required_n": int(required_n),
+            "daily_traffic": float(daily_traffic),
+            "days_elapsed": float(days_elapsed or 0.0),
+            "fraction_complete": float(current_n) / float(required_n),
+            "expected_fraction": 0.0,
+            "pace_ratio": None,
+            "days_remaining": None,
+            "projected_completion": None,
+            "on_pace": False,
+            "verdict": "WARNING",
+            "internal_verdict": "INSUFFICIENT_DATA",
+            "traffic_light": "YELLOW",
+            "interpretation": (
+                "Experiment is on day 0 — not enough elapsed time to assess "
+                "pace yet. Check back after 1+ full day of data."
+            ),
+        }
+
     fraction_complete = float(current_n) / float(required_n)
     remaining_needed = max(0, required_n - current_n)
 

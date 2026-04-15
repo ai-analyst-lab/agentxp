@@ -112,6 +112,7 @@ def run_monitor(
     experiment_id: str,
     data_loader: DataLoaderLike,
     store: Any | None = None,
+    current_n_fn: Callable[[Any], int] | None = None,
 ) -> MonitorReport:
     """Orchestrate the three monitoring checks and return a ``MonitorReport``.
 
@@ -121,10 +122,22 @@ def run_monitor(
             See module docstring for the required keys.
         store: Optional ``ExperimentStore``. If provided, the report is
             persisted via ``store.save_analysis``.
+        current_n_fn: Optional callable ``(df) -> int`` used to compute the
+            current enrolled user count when the context dict does not
+            supply ``current_n`` explicitly. If ``None``, falls back to
+            ``len(df)``, which is row count — correct for one-row-per-user
+            tables but WRONG for panel data (repeat events per user).
+            Panel-data callers should pass either an explicit ``current_n``
+            in the context or a ``current_n_fn`` that counts unique users
+            (e.g. ``lambda df: df["user_id"].nunique()``).
 
     Returns:
         ``MonitorReport`` with aggregated status, per-check results,
-        recommendations, and interpretation.
+        recommendations, and interpretation. If persistence fails with
+        ``FileNotFoundError`` (experiment dir not registered in the store),
+        the returned report has ``persistence_error`` set and a
+        recommendation line noting the failure. Other I/O errors
+        (``PermissionError``, ``OSError``) are re-raised.
     """
     ctx = _resolve_context(data_loader)
 
@@ -183,7 +196,12 @@ def run_monitor(
     daily_traffic = float(ctx.get("daily_traffic", 0.0))
     days_elapsed = float(ctx.get("days_elapsed", 0.0))
     planned_duration_days = ctx.get("planned_duration_days")
-    current_n = int(ctx.get("current_n", len(df)))
+    if "current_n" in ctx:
+        current_n = int(ctx["current_n"])
+    elif current_n_fn is not None:
+        current_n = int(current_n_fn(df))
+    else:
+        current_n = int(len(df))
     sample_result = sample_accumulation(
         current_n=current_n,
         required_n=required_n,
@@ -230,10 +248,19 @@ def run_monitor(
     if store is not None:
         try:
             store.save_analysis(experiment_id, report.to_dict())
-        except FileNotFoundError:
-            # Caller passed a store but the experiment dir doesn't exist —
-            # surface by leaving the report unsaved. Not an error path for
-            # the monitor itself.
-            pass
+        except FileNotFoundError as e:
+            # Narrow expected case: caller passed a store but the experiment
+            # dir doesn't exist (unregistered experiment id). Surface it on
+            # the report so agents can see the persistence failure instead
+            # of silently getting a success-looking report back.
+            err_msg = str(e)
+            report.persistence_error = err_msg
+            report.recommendations.append(
+                f"Persistence failed: {err_msg}; report was not saved. "
+                "Hint: call store.save_experiment(experiment_id, ...) first "
+                "or double-check the experiment id."
+            )
+            # Other I/O errors (PermissionError, OSError, etc.) are NOT
+            # swallowed — they indicate a real bug and should propagate.
 
     return report

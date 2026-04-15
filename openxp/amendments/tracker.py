@@ -9,10 +9,9 @@ Each line is a JSON Amendment record. We also emit an 'amendment_recorded'
 event to the existing log.jsonl so amendments are visible from store.history().
 
 Design notes:
-- We never modify store.py. AmendmentTracker takes an ExperimentStore and
-  reaches into its public/semi-public attributes (root, load_experiment,
-  _log_path) — _log_path is prefixed with an underscore but is stable and
-  used internally by store.py itself.
+- AmendmentTracker takes an ExperimentStore and uses its public accessors
+  (root, load_experiment, log_path) to resolve experiment directories
+  without reaching into underscored helpers.
 - Amendment records are the source of truth for diffs; the log event is a
   lightweight breadcrumb that points back to the amendment id.
 """
@@ -27,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ..storage.lifecycle import is_backward
+from ..storage.lifecycle import BACKWARD_TARGETS, is_backward
 from ..storage.store import ExperimentStore, _extract_status
 from .diff import classify_change, diff_experiments
 
@@ -101,11 +100,24 @@ class Amendment:
 def require_amendment_for_transition(from_state: str, to_state: str) -> bool:
     """True if the lifecycle transition is a retreat that requires an amendment.
 
-    Mirrors lifecycle._BACKWARD: POWERED->DESIGNING, ANALYZING->COLLECTING,
-    INTERPRETED->COLLECTING, INVALID->DESIGNING. Delegates to is_backward to
-    stay in sync with the state machine.
+    Delegates to ``lifecycle.is_backward`` so the tracker stays in sync with
+    the state machine automatically — if Wave 3 adds a new backward edge, the
+    tracker picks it up without code changes. The canonical backward map is
+    ``lifecycle.BACKWARD_TARGETS``; at time of writing it contains
+    ``POWERED -> {DESIGNING}``, ``ANALYZING -> {COLLECTING}``,
+    ``INTERPRETED -> {COLLECTING}``, and ``INVALID -> {DESIGNING, ABANDONED}``.
     """
     return is_backward(from_state, to_state)
+
+
+def backward_transitions_snapshot() -> dict[str, list[str]]:
+    """Return the current backward-transition map, derived from lifecycle.
+
+    Useful for agents that want to surface "which retreats require an
+    amendment" without hardcoding a list. Always reflects the runtime state
+    of ``lifecycle.BACKWARD_TARGETS``.
+    """
+    return {src: sorted(targets) for src, targets in BACKWARD_TARGETS.items()}
 
 
 class AmendmentTracker:
@@ -119,9 +131,9 @@ class AmendmentTracker:
     # ------------------------------------------------------------------ paths
 
     def _amendments_path(self, experiment_id: str) -> Path:
-        # Reuse store validation by resolving via a public call. Use the same
-        # directory convention store.py uses for log.jsonl.
-        exp_dir = self.store._log_path(experiment_id).parent  # type: ignore[attr-defined]
+        # Use the store's public log_path accessor to resolve the experiment
+        # directory (same directory convention store.py uses for log.jsonl).
+        exp_dir = self.store.log_path(experiment_id).parent
         return exp_dir / self.FILENAME
 
     # ------------------------------------------------------------------- write
@@ -171,7 +183,7 @@ class AmendmentTracker:
             os.fsync(f.fileno())
 
         # Breadcrumb in the existing event log so store.history() shows it.
-        log_path = self.store._log_path(experiment_id)  # type: ignore[attr-defined]
+        log_path = self.store.log_path(experiment_id)
         event: dict[str, Any] = {
             "ts": amendment.timestamp,
             "event": "amendment_recorded",

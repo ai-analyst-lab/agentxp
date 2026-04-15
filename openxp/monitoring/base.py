@@ -67,6 +67,7 @@ class MonitorReport:
     timestamp: str = field(default_factory=_iso_now)
     interpretation: str = ""
     experiment_id: str | None = None
+    persistence_error: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -77,4 +78,5 @@ class MonitorReport:
             "timestamp": self.timestamp,
             "interpretation": self.interpretation,
             "experiment_id": self.experiment_id,
+            "persistence_error": self.persistence_error,
         }

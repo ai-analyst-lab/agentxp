@@ -156,6 +156,15 @@ class ExperimentStore:
     def _log_path(self, experiment_id: str) -> Path:
         return self._exp_dir(experiment_id) / "log.jsonl"
 
+    def log_path(self, experiment_id: str) -> Path:
+        """Public accessor for the event-log path for an experiment.
+
+        Used by sibling packages (e.g. openxp.amendments) that need to
+        locate or write into the same experiment directory without reaching
+        into the underscored ``_log_path`` helper.
+        """
+        return self._log_path(experiment_id)
+
     # ------------------------------------------------------------- experiment
 
     def save_experiment(

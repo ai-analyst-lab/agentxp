@@ -316,6 +316,24 @@ def test_sample_accumulation_invalid_required_n_blocks():
     assert result["verdict"] == "BLOCK"
 
 
+def test_sample_accumulation_day_zero_returns_yellow_insufficient_data():
+    # Day-0 edge case: elapsed time is zero, so pace cannot be computed yet.
+    # Prior behavior silently returned GREEN because expected_fraction=0
+    # collapsed the pace_ratio to 1.0. New behavior surfaces a YELLOW
+    # "too early to tell" verdict instead.
+    result = sample_accumulation(
+        current_n=0,
+        required_n=1000,
+        daily_traffic=500,
+        days_elapsed=0,
+    )
+    assert result["verdict"] == "WARNING"
+    assert result["traffic_light"] == "YELLOW"
+    assert result.get("internal_verdict") == "INSUFFICIENT_DATA"
+    assert "day 0" in result["interpretation"].lower() or "too early" in result["interpretation"].lower()
+    assert result["on_pace"] is False
+
+
 # ------------------- run_monitor ------------------------------------------- #
 
 
@@ -399,6 +417,38 @@ def test_run_monitor_persists_via_store(tmp_path):
     # Confirm at least one analysis file was written.
     analyses = list((tmp_path / "exp-persist" / "analyses").glob("*.json"))
     assert len(analyses) == 1
+
+
+def test_run_monitor_persistence_error_on_unregistered_experiment(tmp_path):
+    # Store exists but experiment id was never registered via save_experiment.
+    # run_monitor should still return a valid report, but with persistence_error
+    # set and a recommendation line noting the failure.
+    store = ExperimentStore(root=tmp_path)
+    df = _make_guardrail_df(n_per_arm=500)
+    ctx = _monitor_context(df)
+    report = run_monitor("never-registered", ctx, store=store)
+    assert isinstance(report, MonitorReport)
+    assert report.persistence_error is not None
+    assert "never-registered" in report.persistence_error or "experiment" in report.persistence_error.lower()
+    assert any(
+        "Persistence failed" in r and "was not saved" in r
+        for r in report.recommendations
+    )
+    # And to_dict should round-trip the persistence_error field.
+    assert report.to_dict()["persistence_error"] == report.persistence_error
+
+
+def test_run_monitor_persistence_reraises_permission_error(tmp_path):
+    # Unexpected I/O errors (e.g., PermissionError) must NOT be swallowed —
+    # they indicate a real bug and should propagate.
+    class BoomStore:
+        def save_analysis(self, experiment_id, payload):
+            raise PermissionError(f"no write access to {experiment_id}")
+
+    df = _make_guardrail_df(n_per_arm=500)
+    ctx = _monitor_context(df)
+    with pytest.raises(PermissionError, match="no write access"):
+        run_monitor("exp-perm", ctx, store=BoomStore())
 
 
 def test_run_monitor_context_as_callable():

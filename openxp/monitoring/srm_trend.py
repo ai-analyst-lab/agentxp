@@ -38,7 +38,7 @@ def srm_trend(
     treatment_col: str,
     timestamp_col: str,
     window: str = "1d",
-    threshold: float = 0.01,
+    threshold: float = 0.0005,
     expected_ratios: list[float] | None = None,
 ) -> dict:
     """Bin data into time windows, run SRM per window, summarize trend.
@@ -50,6 +50,10 @@ def srm_trend(
         window: Pandas offset alias or convenience alias (``"1d"``,
             ``"1h"``, ``"1w"``). Default ``"1d"``.
         threshold: SRM p-value threshold passed through to ``srm_check``.
+            Default ``0.0005`` — matches the ``run_monitor`` orchestrator
+            default, which is stricter than a single-look SRM check because
+            the trend view performs many per-window looks and needs a
+            tighter per-window bound to keep family-wise error in check.
         expected_ratios: Optional expected allocation ratios (defaults to
             equal split inside ``srm_check``).
 
