@@ -1,0 +1,14 @@
+metric:
+  name: checkout_completion_rate
+  type: proportion
+  description: "Fraction of users who complete checkout after starting the checkout flow."
+  numerator: "orders_completed"
+  unit: "user_id"
+  baseline_range: [0.30, 0.55]
+  winsorize: false
+  winsorize_bounds: [0.01, 0.99]
+  invert: false
+  tags:
+    - conversion
+    - checkout
+    - revenue

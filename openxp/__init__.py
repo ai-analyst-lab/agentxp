@@ -32,4 +32,8 @@ Usage:
         print("HALT: SRM detected —", srm["interpretation"])
 """
 
+from openxp.data import load_data, discover_schema
+
 __version__ = "0.1.0"
+
+__all__ = ["load_data", "discover_schema"]

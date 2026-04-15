@@ -1,0 +1,14 @@
+metric:
+  name: d7_retention
+  type: proportion
+  description: "Fraction of users who return on day 7 after first activation."
+  numerator: "returned_d7"
+  unit: "user_id"
+  baseline_range: [0.10, 0.40]
+  winsorize: false
+  winsorize_bounds: [0.01, 0.99]
+  invert: false
+  tags:
+    - retention
+    - engagement
+    - lifecycle

@@ -39,6 +39,29 @@ from openxp.stats.corrections import (
     adjust_pvalues,
 )
 
+# CUPED variance reduction
+from openxp.stats.cuped import (
+    cuped_adjust,
+    cuped_welch_test,
+    variance_reduction,
+)
+
+# Bayesian A/B testing
+from openxp.stats.bayesian import (
+    beta_binomial_test,
+    normal_normal_test,
+    expected_loss,
+    probability_to_beat,
+)
+
+# Sequential testing
+from openxp.stats.sequential import (
+    msprt_test,
+    always_valid_ci,
+    group_sequential_boundaries,
+    sequential_proportion_test,
+)
+
 __all__ = [
     # A/B testing
     "welch_test",
@@ -59,4 +82,18 @@ __all__ = [
     "relative_lift",
     # Multiple comparisons
     "adjust_pvalues",
+    # CUPED variance reduction
+    "cuped_adjust",
+    "cuped_welch_test",
+    "variance_reduction",
+    # Bayesian A/B testing
+    "beta_binomial_test",
+    "normal_normal_test",
+    "expected_loss",
+    "probability_to_beat",
+    # Sequential testing
+    "msprt_test",
+    "always_valid_ci",
+    "group_sequential_boundaries",
+    "sequential_proportion_test",
 ]
