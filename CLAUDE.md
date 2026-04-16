@@ -78,11 +78,12 @@ All functions live in `openxp/stats/`. Every function returns a dict with result
 | `srm_check` | `(observed_counts, expected_ratios=None, threshold=0.01)` | `SRMResult` | First check in any analysis. Returns `verdict`: PASS/WARNING/BLOCK |
 | `srm_diagnose` | `(assignments_df, group_col="variant", segments=None)` | `DiagnosisResult` | After SRM detected — find which segment has the mismatch |
 
-### Effect Sizes (`openxp.stats.effect_size`)
+### Effect Sizes (`openxp.stats.effect_size`, `effect_size_extras`)
 
 | Function | Signature | Returns | Use When |
 |----------|-----------|---------|----------|
-| `cohens_d` | `(control, treatment)` | `EffectSizeResult` | Standardized effect size. Returns `magnitude`: Negligible/Small/Medium/Large |
+| `cohens_d` | `(control, treatment)` | `EffectSizeResult` | Standardized effect size for continuous metrics. Returns `magnitude`: Negligible/Small/Medium/Large |
+| `cohens_h` | `(p_control, p_treatment)` | `dict` | Cohen's h for proportions (arcsine transform). Returns `magnitude` thresholds. |
 | `relative_lift` | `(control_mean, treatment_mean)` | `LiftResult` | Percentage change from control to treatment |
 
 ### Multiple Comparisons (`openxp.stats.corrections`)
@@ -90,6 +91,70 @@ All functions live in `openxp/stats/`. Every function returns a dict with result
 | Function | Signature | Returns | Use When |
 |----------|-----------|---------|----------|
 | `adjust_pvalues` | `(pvalues, method="holm", alpha=0.05)` | `CorrectionResult` | Testing multiple metrics. Methods: `holm` (default), `bonferroni`, `fdr_bh` |
+
+### Fisher's Exact Test (`openxp.stats.fishers`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `fishers_exact_test` | `(c_success, c_n, t_success, t_n, alpha=0.05, alternative="two-sided")` | `dict` | Small-sample fallback when any cell count < 5. Haldane-Anscombe CI. |
+
+### Guardrails (`openxp.stats.guardrails`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `guardrail_test` | `(control, treatment, metric_type="mean", nim_relative=0.02, alpha=0.05, invert=False)` | `dict` | Non-inferiority test for guardrail metrics. One-sided. Returns `verdict`: PASS/WARNING/BLOCK |
+| `denominator_srm` | `(num_c, den_c, num_t, den_t, expected_ratio=1.0, threshold=0.05)` | `dict` | Sanity check ratio-metric denominators before ratio_metric_test |
+
+### Power — Ratio Metrics (`openxp.stats.ratio_power`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `power_ratio` | `(baseline_num_mean, baseline_den_mean, baseline_num_std, baseline_den_std, correlation_num_den, mde_relative, alpha=0.05, power=0.80)` | `dict` | Delta-method sample size for ratio metrics |
+
+### Extension Estimate (`openxp.stats.extension`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `extension_estimate` | `(current_n, current_mde_observed, required_power, baseline_variance, daily_traffic, alpha=0.05)` | `dict` | After underpowered null: how many more days to reach power at observed effect? |
+
+### Data Preparation (`openxp.stats.prep`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `prepare_experiment_data` | `(df, treatment_col=None, metric_cols=None, segment_cols=None, winsorize_spec=None)` | `dict` | Canonical data prep step: schema discovery + cleaning + winsorization |
+
+### CUPED Variance Reduction (`openxp.stats.cuped`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `cuped_adjust` | `(y_pre, y_post, treatment=None)` | `dict` | Compute θ and return adjusted outcomes |
+| `cuped_welch_test` | `(control_pre, control_post, treatment_pre, treatment_post, alpha=0.05)` | `dict` | End-to-end CUPED-adjusted Welch test. Returns variance_reduction_pct. |
+| `variance_reduction` | `(y_pre, y_post)` | `dict` | Standalone: correlation + expected variance reduction % |
+
+### Sequential Testing (`openxp.stats.sequential`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `msprt_test` | `(control, treatment, tau=None, alpha=0.05)` | `dict` | Mixture SPRT — peek anytime. Returns `decision`: STOP_REJECT/STOP_ACCEPT/CONTINUE |
+| `always_valid_ci` | `(control, treatment, alpha=0.05, tau=None)` | `dict` | Always-valid confidence interval (wider than fixed-horizon) |
+| `group_sequential_boundaries` | `(n_interims, alpha=0.05, spending="obrien_fleming")` | `dict` | O'Brien-Fleming or Pocock alpha-spending boundaries |
+| `sequential_proportion_test` | `(c_success, c_n, t_success, t_n, alpha=0.05)` | `dict` | mSPRT variant for binary metrics |
+
+### Bayesian A/B Testing (`openxp.stats.bayesian`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `beta_binomial_test` | `(c_success, c_n, t_success, t_n, prior_alpha=1, prior_beta=1, n_samples=50000, seed=42)` | `dict` | Bayesian test for proportions. Returns P(T>C), expected loss, credible intervals. |
+| `normal_normal_test` | `(control, treatment, prior_mean=0, prior_sd=1e6, n_samples=50000, seed=42)` | `dict` | Bayesian test for continuous metrics (NIG conjugate posterior). |
+| `expected_loss` | `(posterior_samples_c, posterior_samples_t, loss_type="absolute")` | `dict` | Expected loss under wrong ship decision |
+| `probability_to_beat` | `(posterior_samples_c, posterior_samples_t)` | `float` | P(treatment > control) from posterior samples |
+
+### Tracing (`openxp.stats._trace`)
+
+| Function | Signature | Returns | Use When |
+|----------|-----------|---------|----------|
+| `set_trace` | `(enabled: bool)` | `None` | Toggle computation_trace in stats function returns (default: ON) |
+| `is_trace_enabled` | `()` | `bool` | Check if trace is currently enabled |
 
 ## Data Discovery Protocol
 

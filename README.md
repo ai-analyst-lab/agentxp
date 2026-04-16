@@ -136,7 +136,7 @@ pip install -e ".[dev]"
 # Run tests
 pytest tests/ -v
 
-# 391 tests covering A/B tests (welch/proportion/ratio/fishers), power analysis,
+# 431 tests covering A/B tests (welch/proportion/ratio/fishers), power analysis,
 # SRM detection, effect sizes, CUPED, sequential testing, Bayesian A/B,
 # monitoring, amendments, validators, storage/lifecycle, schemas, and traces
 ```
