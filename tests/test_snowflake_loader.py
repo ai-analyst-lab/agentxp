@@ -309,3 +309,242 @@ class TestContextManager:
         loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
         loader.close()
         loader.close()  # second call must not raise
+
+
+# ---------------------------------------------------------------------------
+# Filters parameter (parameterized queries)
+# ---------------------------------------------------------------------------
+class TestFilters:
+    def test_filters_builds_parameterized_query(self, monkeypatch):
+        """filters= should build WHERE col = %s with bound params."""
+        cursor = _make_fake_cursor(
+            [("treatment", 5.0)],
+            ["variant", "revenue"],
+        )
+        conn = _make_fake_conn(cursor)
+        _install_fake_snowflake(monkeypatch, conn)
+
+        loader = SnowflakeLoader({"account": "a", "user": "u"})
+        df = loader.load_experiment(
+            table="analytics.events",
+            treatment_col="variant",
+            metric_cols=["revenue"],
+            filters={"platform": "ios", "country": "US"},
+        )
+
+        # Verify the SQL and params passed to cursor.execute
+        call_args = cursor.execute.call_args
+        executed_sql = call_args[0][0]
+        bound_params = call_args[0][1]
+        assert "WHERE platform = %s AND country = %s" in executed_sql
+        assert bound_params == ["ios", "US"]
+        assert len(df) == 1
+        loader.close()
+
+    def test_filters_empty_dict_skips_where(self, monkeypatch):
+        """Empty filters dict should produce no WHERE clause."""
+        cursor = _make_fake_cursor(
+            [("control", 1.0)],
+            ["variant", "revenue"],
+        )
+        cursor.fetchone.return_value = (1,)
+        conn = _make_fake_conn(cursor)
+        _install_fake_snowflake(monkeypatch, conn)
+
+        loader = SnowflakeLoader({"account": "a", "user": "u"})
+        loader.load_experiment(
+            table="t",
+            treatment_col="variant",
+            metric_cols=["revenue"],
+            filters={},
+        )
+
+        # The real query (2nd call) should not contain WHERE
+        executed_sqls = [c.args[0] for c in cursor.execute.call_args_list]
+        real_sql = executed_sqls[-1]
+        assert "WHERE" not in real_sql
+        loader.close()
+
+    def test_filters_validates_column_names(self):
+        """Filter keys must be valid identifiers."""
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            loader.load_experiment(
+                table="t",
+                treatment_col="variant",
+                metric_cols=["revenue"],
+                filters={"variant; DROP TABLE x": "bad"},
+            )
+
+    def test_filters_mcp_mode_returns_stub(self):
+        """In MCP mode, filters path returns empty DataFrame."""
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        df = loader.load_experiment(
+            table="t",
+            treatment_col="variant",
+            metric_cols=["revenue"],
+            filters={"platform": "ios"},
+        )
+        assert isinstance(df, pd.DataFrame)
+        assert df.empty
+
+
+# ---------------------------------------------------------------------------
+# where= deprecation warning
+# ---------------------------------------------------------------------------
+class TestWhereDeprecation:
+    def test_where_emits_deprecation_warning(self, monkeypatch):
+        cursor = _make_fake_cursor(
+            [("control", 1.0)],
+            ["variant", "revenue"],
+        )
+        cursor.fetchone.return_value = (1,)
+        conn = _make_fake_conn(cursor)
+        _install_fake_snowflake(monkeypatch, conn)
+
+        loader = SnowflakeLoader({"account": "a", "user": "u"})
+        with pytest.warns(DeprecationWarning, match="deprecated"):
+            loader.load_experiment(
+                table="t",
+                treatment_col="variant",
+                metric_cols=["revenue"],
+                where="ts > '2026-01-01'",
+            )
+        loader.close()
+
+    def test_where_still_works(self, monkeypatch):
+        """Deprecated where= should still produce correct SQL."""
+        cursor = _make_fake_cursor(
+            [("control", 1.0)],
+            ["variant", "revenue"],
+        )
+        cursor.fetchone.return_value = (1,)
+        conn = _make_fake_conn(cursor)
+        _install_fake_snowflake(monkeypatch, conn)
+
+        loader = SnowflakeLoader({"account": "a", "user": "u"})
+        with pytest.warns(DeprecationWarning):
+            loader.load_experiment(
+                table="t",
+                treatment_col="variant",
+                metric_cols=["revenue"],
+                where="ts > '2026-01-01'",
+            )
+
+        executed_sqls = [c.args[0] for c in cursor.execute.call_args_list]
+        assert any("WHERE ts > '2026-01-01'" in s for s in executed_sqls)
+        loader.close()
+
+
+# ---------------------------------------------------------------------------
+# where + filters conflict
+# ---------------------------------------------------------------------------
+class TestWhereFiltersConflict:
+    def test_both_filters_and_where_raises(self):
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Cannot specify both"):
+            loader.load_experiment(
+                table="t",
+                treatment_col="variant",
+                metric_cols=["revenue"],
+                where="x = 1",
+                filters={"y": 2},
+            )
+
+
+# ---------------------------------------------------------------------------
+# SQL injection via identifiers
+# ---------------------------------------------------------------------------
+class TestIdentifierInjection:
+    def test_evil_table_name_semicolon(self):
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            loader.load_experiment(
+                table="t; DROP TABLE users;--",
+                treatment_col="variant",
+                metric_cols=["revenue"],
+            )
+
+    def test_evil_table_name_drop(self):
+        """Table name 'DROP' alone is technically valid regex, but
+        'DROP TABLE x' is not (contains space)."""
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            loader.load_experiment(
+                table="DROP TABLE users",
+                treatment_col="variant",
+                metric_cols=["revenue"],
+            )
+
+    def test_evil_table_name_comment(self):
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            loader.load_experiment(
+                table="t--comment",
+                treatment_col="variant",
+                metric_cols=["revenue"],
+            )
+
+    def test_evil_column_name_semicolon(self):
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            loader.load_experiment(
+                table="t",
+                treatment_col="variant; DROP TABLE x",
+                metric_cols=["revenue"],
+            )
+
+    def test_evil_column_name_in_metric_cols(self):
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            loader.load_experiment(
+                table="t",
+                treatment_col="variant",
+                metric_cols=["revenue; DELETE FROM t"],
+            )
+
+    def test_evil_column_name_union(self):
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            loader.load_experiment(
+                table="t",
+                treatment_col="variant",
+                metric_cols=["revenue UNION SELECT password FROM users"],
+            )
+
+    def test_evil_filter_key(self):
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            loader.load_experiment(
+                table="t",
+                treatment_col="variant",
+                metric_cols=["revenue"],
+                filters={"1=1; --": "bad"},
+            )
+
+    def test_identifier_too_long(self):
+        loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
+        long_name = "a" * 129
+        with pytest.raises(ValueError, match="exceeds 128 characters"):
+            loader.load_experiment(
+                table=long_name,
+                treatment_col="variant",
+                metric_cols=["revenue"],
+            )
+
+    def test_identifier_at_max_length_ok(self, monkeypatch):
+        """128-char identifier should be accepted."""
+        cursor = _make_fake_cursor([("c", 1.0)], ["variant", "revenue"])
+        cursor.fetchone.return_value = (1,)
+        conn = _make_fake_conn(cursor)
+        _install_fake_snowflake(monkeypatch, conn)
+
+        loader = SnowflakeLoader({"account": "a", "user": "u"})
+        long_name = "a" * 128
+        # Should not raise
+        loader.load_experiment(
+            table=long_name,
+            treatment_col="variant",
+            metric_cols=["revenue"],
+        )
+        loader.close()

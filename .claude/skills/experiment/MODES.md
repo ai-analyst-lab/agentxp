@@ -182,7 +182,7 @@ All stats calls use the top-level import path (e.g., `from openxp.stats import p
     - Update `experiment.yaml` results block: `srm_verdict`, `primary_significant`, `primary_lift`, `primary_p_value`, `guardrail_violations`, `analysis_file`. Set `status: ANALYZING`, `timeline.analyzed: <today>`.
 11. **Checkpoint: Analyzer draft review (Type B).** Show the analysis summary. Skippable with `--just-do-it`.
 
-> **NOTE:** PRD-literal contract not met: `welch_test` has no `alternative=` kwarg — it is always two-sided. The PRD's D.1 "one-sided Welch" path is not directly reachable. For one-sided non-inferiority on continuous metrics, use `guardrail_test(..., metric_type="mean", nim_relative=..., invert=...)`, which is an implicit one-sided test against the margin. Flag as TODO on `welch_test` if a symmetric-hypothesis one-sided test is ever required.
+> **Design decision (Q7):** `welch_test` is permanently two-sided. One-sided non-inferiority for guardrail metrics routes through `guardrail_test(metric_type="mean", nim_relative=..., invert=...)`. This is intentional — keeping `welch_test` simple and routing specialized use cases to specialized functions.
 
 ### Checkpoints
 | # | Name | Type | Skippable |

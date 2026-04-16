@@ -30,6 +30,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import warnings
 from typing import Any
 
 import pandas as pd
@@ -254,6 +255,7 @@ class SnowflakeLoader:
         treatment_col: str,
         metric_cols: list[str],
         where: str | None = None,
+        filters: dict[str, Any] | None = None,
     ) -> pd.DataFrame:
         """
         Load experiment data from ``table`` via a SELECT query.
@@ -262,20 +264,39 @@ class SnowflakeLoader:
         ----------
         table : str
             Fully-qualified table name (``db.schema.table`` or ``schema.table``
-            or ``table``). Must match ``[A-Za-z_][A-Za-z0-9_]*`` per segment.
+            or ``table``). Must match ``[A-Za-z_][A-Za-z0-9_]*`` per segment,
+            max 128 characters.
         treatment_col : str
             Column that identifies treatment assignment.
         metric_cols : list[str]
             Metric columns to select alongside ``treatment_col``.
         where : str, optional
-            Raw WHERE clause (without the ``WHERE`` keyword). **Not validated.**
-            Only pass trusted, static values here.
+            **Deprecated.** Raw WHERE clause (without the ``WHERE`` keyword).
+            Use ``filters`` instead for safe parameterized queries.
+        filters : dict[str, Any], optional
+            Safe filter conditions as ``{column_name: value}`` pairs. Builds a
+            parameterized WHERE clause with ``AND``-joined equality predicates.
+            Column names are validated as safe identifiers; values are passed
+            as bound parameters (never interpolated into SQL).
 
         Returns
         -------
         pandas.DataFrame
             One row per observation with ``treatment_col`` and each metric.
+
+        Raises
+        ------
+        ValueError
+            If both ``where`` and ``filters`` are provided, or if any
+            identifier fails validation.
         """
+        if where is not None and filters is not None:
+            raise ValueError(
+                "Cannot specify both 'where' and 'filters'. Use 'filters' "
+                "for safe parameterized queries (preferred), or 'where' for "
+                "raw SQL (deprecated)."
+            )
+
         self._validate_ident(table, "table")
         self._validate_ident(treatment_col, "treatment_col")
         if not metric_cols:
@@ -285,16 +306,84 @@ class SnowflakeLoader:
 
         col_list = ", ".join([treatment_col, *metric_cols])
         sql = f"SELECT {col_list} FROM {table}"
+
         if where:
+            warnings.warn(
+                "The 'where' parameter is deprecated and will be removed in a "
+                "future version. Use 'filters' for safe parameterized queries "
+                "instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             sql += f" WHERE {where}"
+            return self.query(sql)
+
+        if filters:
+            clauses = []
+            params: list[Any] = []
+            for col_name, value in filters.items():
+                self._validate_ident(col_name, "filters key")
+                clauses.append(f"{col_name} = %s")
+                params.append(value)
+            sql += " WHERE " + " AND ".join(clauses)
+            return self._query_parameterized(sql, params)
+
         return self.query(sql)
+
+    def _query_parameterized(
+        self, sql: str, params: list[Any]
+    ) -> pd.DataFrame:
+        """
+        Execute a parameterized SQL query and return the result as a DataFrame.
+
+        Parameters
+        ----------
+        sql : str
+            SQL with ``%s`` placeholders.
+        params : list
+            Bound parameter values corresponding to placeholders.
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
+        if not isinstance(sql, str) or not sql.strip():
+            raise ValueError("sql must be a non-empty string")
+
+        if self.mcp_mode:
+            logger.info(
+                "SnowflakeLoader in MCP mode: parameterized query not "
+                "executed directly."
+            )
+            return pd.DataFrame()
+
+        conn = self._ensure_conn()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            columns = (
+                [c[0] for c in cursor.description]
+                if cursor.description
+                else []
+            )
+        finally:
+            cursor.close()
+
+        return pd.DataFrame(rows, columns=columns)
 
     @staticmethod
     def _validate_ident(value: str, field: str) -> None:
         if not isinstance(value, str) or not _IDENT_RE.match(value):
             raise ValueError(
                 f"Invalid SQL identifier for {field}: must match "
-                f"[A-Za-z_][A-Za-z0-9_]* (dotted qualifiers allowed)."
+                f"[A-Za-z_][A-Za-z0-9_]* (dotted qualifiers allowed). "
+                f"Got: {value!r}"
+            )
+        if len(value) > 128:
+            raise ValueError(
+                f"SQL identifier for {field} exceeds 128 characters "
+                f"(got {len(value)}). This is rejected as a safety measure."
             )
 
     # ------------------------------------------------------------------
