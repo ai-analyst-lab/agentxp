@@ -58,4 +58,19 @@ def test_transpile_unparseable_raises():
 
 
 def test_supported_dialects_set():
-    assert SUPPORTED_DIALECTS == frozenset({"duckdb", "snowflake", "bigquery"})
+    assert SUPPORTED_DIALECTS == frozenset(
+        {"duckdb", "snowflake", "bigquery", "databricks"}
+    )
+
+
+def test_transpile_to_databricks_window_function():
+    sql = (
+        "SELECT user_id, "
+        "ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY ts) AS rn "
+        "FROM events"
+    )
+    out = transpile(sql, "duckdb", "databricks")
+    upper = out.upper()
+    assert "ROW_NUMBER()" in upper
+    assert "OVER" in upper
+    assert "PARTITION BY" in upper

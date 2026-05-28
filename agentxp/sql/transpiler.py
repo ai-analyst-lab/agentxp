@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import sqlglot
 
-SUPPORTED_DIALECTS: frozenset[str] = frozenset({"duckdb", "snowflake", "bigquery"})
+SUPPORTED_DIALECTS: frozenset[str] = frozenset(
+    {"duckdb", "snowflake", "bigquery", "databricks"}
+)
 
 
 class TranspileError(Exception):

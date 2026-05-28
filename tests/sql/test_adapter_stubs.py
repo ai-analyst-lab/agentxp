@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from agentxp.sql.adapters.bigquery_adapter import BigQueryAdapter
+from agentxp.sql.adapters.databricks_adapter import DatabricksAdapter
 from agentxp.sql.adapters.snowflake_adapter import SnowflakeAdapter
 
 
@@ -31,3 +32,13 @@ def test_bigquery_execute_raises_not_implemented():
 
 def test_bigquery_get_dialect():
     assert BigQueryAdapter().get_dialect() == "bigquery"
+
+
+def test_databricks_execute_raises_not_implemented():
+    adapter = DatabricksAdapter(server_hostname="h", http_path="/p")
+    with pytest.raises(NotImplementedError, match="v0.1.1"):
+        adapter.execute("SELECT 1")
+
+
+def test_databricks_get_dialect():
+    assert DatabricksAdapter().get_dialect() == "databricks"

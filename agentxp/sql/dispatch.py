@@ -104,7 +104,7 @@ class SqlIntent(BaseModel):
     auth_kind: Literal[
         "pwd", "externalbrowser", "oauth", "keypair", "adc", "sa", "none"
     ] = "none"
-    adapter_type: Literal["duckdb", "snowflake", "bigquery"] = "duckdb"
+    adapter_type: Literal["duckdb", "snowflake", "bigquery", "databricks"] = "duckdb"
     profile_name: str = "default"
 
 
