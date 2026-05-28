@@ -24,7 +24,7 @@ SUBCOMMANDS: dict[str, tuple[str, str] | str] = {
     "list":       ("agentxp.cli.list", "main"),       # W5.6 — wired
     "unlock":     ("agentxp.cli.unlock", "main"),     # W5.7 — wired
     "resume":     ("agentxp.cli.resume", "main"),     # W5.3 — wired
-    "connect":    "W_sql (sql-w_sql-19/23/24)",       # placeholder
+    "connect":    ("agentxp.cli.connect", "main"),    # W2.A — wired
     "audit":      ("agentxp.cli.audit", "main"),       # §15 — wired
     "experiment": ("agentxp.cli.experiment", "main"), # W5.2 — wired
 }

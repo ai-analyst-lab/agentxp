@@ -51,10 +51,26 @@ def test_unknown_subcommand_returns_user_error(capsys):
 
 
 def test_placeholder_subcommand_returns_user_error(capsys):
-    rc = dispatcher.main(["connect"])
+    # `connect` is now wired (W2.A), so inject a synthetic placeholder row to
+    # exercise the "not yet implemented" dispatch path.
+    with patch.dict(
+        dispatcher.SUBCOMMANDS,
+        {"future": "W_future (placeholder)"},
+        clear=False,
+    ):
+        rc = dispatcher.main(["future"])
     captured = capsys.readouterr()
     assert rc == EXIT_USER_ERROR
-    assert "ships in W_sql" in captured.err
+    assert "ships in W_future" in captured.err
+
+
+def test_connect_is_wired(capsys):
+    # `connect` dispatches to the connect router; with no dialect it prints
+    # help and exits OK (the router's own help path).
+    rc = dispatcher.main(["connect"])
+    captured = capsys.readouterr()
+    assert rc == EXIT_OK
+    assert "connect <dialect>" in captured.out
 
 
 def test_dispatch_to_profile_main():
