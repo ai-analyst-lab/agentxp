@@ -4,6 +4,8 @@ This file is the spec the `/experiment` skill's orchestration loop reads on ever
 
 Closed-set callouts throughout name the source of truth in Python. `Stage` values come from `agentxp.schemas.state::Stage`; `PendingDecisionKind` values from `agentxp.schemas.state::PendingDecisionKind`; `EventName` values from `agentxp.audit.events::EventName`; `Verdict` values from `agentxp.interpret.tree::Verdict`; `ConfidenceLabel` values from `agentxp.interpret.confidence::ConfidenceLabel`.
 
+**Voice calibration before dispatch.** Each agent has a sample dialog at `agents/fixtures/voice_samples/<agent>_sample.md`. Before composing the user-facing summary for any dispatched agent, read that agent's sample for tone calibration. This applies to every sampled agent named in the per-stage sections below; it is stated here once rather than repeated per stage.
+
 ---
 
 ## Section 1 — Stage 0 (`data_loaded`)
@@ -12,7 +14,7 @@ Closed-set callouts throughout name the source of truth in Python. `Stage` value
 
 **Precondition check.** The `source_ref` resolves through whichever adapter the wizard selected (`duckdb`, `snowflake`, or `bigquery` in v0.1; `postgres`, `mysql`, `redshift`, `databricks` defer to v0.1.1). DuckDB paths must exist and be readable; Snowflake three-level names and BigQuery `project.dataset.table` references must round-trip through `adapter.describe(source_ref)` without an `AuthExpiredError`. If the auth probe fails, route through §10.5.5 (the `auth_expired` failure mode) and exit.
 
-**Agent.** `profiler` at `agentxp/agents/profiler.system.md`. Dispatched once. The agent receives the adapter preamble, the `source_ref`, and the result of `SUMMARIZE` (DuckDB) or its adapter equivalent — column name, type, null %, approximate distinct count, two-to-three sample values per column.
+**Agent.** `profiler` at `agentxp/agents/profiler.system.md`. Dispatched once. The agent receives the adapter preamble, the `source_ref`, and the result of `SUMMARIZE` (DuckDB) or its adapter equivalent — column name, type, null %, approximate distinct count, two-to-three sample values per column. Read `agents/fixtures/voice_samples/profiler_sample.md` for tone calibration before composing the summary (per the voice-calibration note above).
 
 **Bundle assembly.** `bundles/profiler.ctx.yaml` carries `source_ref`, `adapter_kind` (`Literal["duckdb", "snowflake", "bigquery"]`), `summarize_rows` (the table the orchestrator pre-computed), `turns_so_far` (per stage), and the brief if one was provided. No project-level YAML dependencies — Stage 0 runs before `semantic_models/` exists. The profiler writes `bundles/profiler.out.yaml` as a `ProfileReport` (`agentxp.schemas.profiler::ProfileReport`).
 
