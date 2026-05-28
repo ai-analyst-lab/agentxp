@@ -28,7 +28,7 @@ from agentxp.cli import (
     connect_duckdb,
     connect_snowflake,
 )
-from agentxp.cli.exit_codes import EXIT_OK, EXIT_USER_ERROR
+from agentxp.cli.exit_codes import EXIT_FATAL, EXIT_OK, EXIT_USER_ERROR
 
 
 # ---------------------------------------------------------------------------
@@ -324,6 +324,38 @@ def test_probe_failure_does_not_write_profile(
     assert rc == EXIT_USER_ERROR
     written = tmp_path / ".agentxp" / "credentials" / "duckdb" / "prod.yaml"
     assert not written.exists()
+
+
+# ---------------------------------------------------------------------------
+# Wizard main() catch-all must not surface a raw secret (MINOR fix)
+#
+# After collect(), conn_params can hold a raw secret. An unexpected exception
+# whose message echoes that secret must NOT be printed by the `unexpected
+# error:` catch-all — it now prints only `type(e).__name__`.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "module",
+    [connect_duckdb, connect_snowflake, connect_bigquery, connect_databricks],
+)
+def test_wizard_catch_all_does_not_surface_raw_secret(
+    module, monkeypatch, patch_registry, capsys
+):
+    planted = "pwd_LEAKED_in_unexpected_error_9999"
+
+    def _boom(*a, **k):
+        raise RuntimeError(f"backend exploded with password={planted} embedded")
+
+    # Force the unexpected (non-ValueError / non-FileNotFoundError) path.
+    monkeypatch.setattr(module, "run_wizard", _boom)
+    rc = module.main(["prod"])
+    assert rc == EXIT_FATAL
+    captured = capsys.readouterr()
+    assert planted not in captured.out
+    assert planted not in captured.err
+    # The friendly class-name framing is still present.
+    assert "RuntimeError" in captured.err
 
 
 # ---------------------------------------------------------------------------

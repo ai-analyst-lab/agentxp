@@ -14,9 +14,10 @@ requires both). On top of that this wizard collects one of two auth surfaces
 ``_resolve_auth_method`` picks the surface directly. The wizard live-probes via
 :func:`connect_common.live_probe` and writes a redacted profile (chmod 600).
 
-Note: the shared ``adapter._SENSITIVE_KEYS`` does not list ``access_token`` /
-``client_secret``; ``connect_common._safe_for_log`` (via ``_EXTRA_SECRET_KEYS``)
-scrubs them, so confirmation prints never echo either secret.
+Note: the shared ``adapter._SENSITIVE_KEYS`` is the single canonical secret-key
+set and lists ``access_token`` / ``client_secret``, so the shared
+``_redact_creds_for_log`` scrubs them and confirmation prints never echo either
+secret.
 
 Source spec: experimentation-platform/OPENXP_V01_PLAN.md §12 / §18.
 Ground truth: research/v0.1.1-warehouse-auth/WAREHOUSE_AUTH_BRIEF.md §3.
@@ -90,9 +91,9 @@ def collect(name: str) -> tuple[dict[str, Any], dict[str, Any]]:
 
     if auth_method == "pat":
         # Raw PAT stays in conn_params (in-memory, for the live probe); the
-        # profile records an env-var reference by default. access_token is not
-        # in adapter._SENSITIVE_KEYS, so connect_common._safe_for_log scrubs it
-        # from any confirmation print via _EXTRA_SECRET_KEYS.
+        # profile records an env-var reference by default. access_token is in
+        # the canonical adapter._SENSITIVE_KEYS, so _redact_creds_for_log
+        # scrubs it from any confirmation print.
         raw, stored = collect_secret(
             "Personal Access Token (PAT)",
             profile_name=name,
@@ -175,7 +176,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         print("\naborted", file=sys.stderr)
         return EXIT_USER_ERROR
     except Exception as e:
-        print(f"unexpected error: {type(e).__name__}: {e}", file=sys.stderr)
+        print(f"unexpected error: {type(e).__name__}", file=sys.stderr)
         return EXIT_FATAL
 
     if not ok:

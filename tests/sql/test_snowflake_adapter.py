@@ -73,7 +73,10 @@ class _FakeCursor:
         if behavior == "auth":
             raise _FakeSnowflakeError("Authentication token has expired", errno=390114)
         if behavior == "boom":
-            raise _FakeSnowflakeError("syntax error somewhere", errno=1003)
+            raise _FakeSnowflakeError(
+                getattr(self._conn, "_boom_message", "syntax error somewhere"),
+                errno=1003,
+            )
         if sql.upper().startswith("EXPLAIN"):
             self.description = [("plan",)]
             self._rows = [("GlobalStats: rows=1",)]
@@ -113,6 +116,9 @@ class _FakeConnector(types.ModuleType):
         self.last_connect_kwargs: dict[str, Any] | None = None
         self.connect_behavior = "ok"  # or "auth"
         self.execute_behavior = "ok"  # propagated onto each connection
+        # Optional custom message for the "boom" generic exception, used by the
+        # BLOCKER-1 tests to plant a secret INSIDE the raw driver exception.
+        self.boom_message = "syntax error somewhere"
 
     def connect(self, **kwargs: Any) -> _FakeConnection:
         self.last_connect_kwargs = kwargs
@@ -121,9 +127,13 @@ class _FakeConnector(types.ModuleType):
                 "Incorrect username or password was specified", errno=390100
             )
         if self.connect_behavior == "boom":
-            raise _FakeSnowflakeError("could not connect to Snowflake", errno=250001)
+            raise _FakeSnowflakeError(
+                getattr(self, "boom_message", "could not connect to Snowflake"),
+                errno=250001,
+            )
         conn = _FakeConnection(**kwargs)
         conn._execute_behavior = self.execute_behavior
+        conn._boom_message = self.boom_message
         return conn
 
 
@@ -449,3 +459,49 @@ def test_redacted_dict_used_in_connect_error_message(fake_connector):
     msg = str(excinfo.value)
     assert "[REDACTED]" in msg
     assert "hunter2" not in msg
+
+
+def _chain_text(exc: BaseException) -> str:
+    text = ""
+    err: BaseException | None = exc
+    while err is not None:
+        text += str(err)
+        err = err.__cause__
+    return text
+
+
+# BLOCKER-1: the RAW driver exception (which can embed the connection string +
+# secret) must not be interpolated into the new query-path error message.
+_PLANTED = "password=pwd_LEAKED_9999"
+
+
+def test_planted_secret_in_driver_exc_never_leaks_on_execute(fake_connector, caplog):
+    fake_connector.execute_behavior = "boom"
+    fake_connector.boom_message = (
+        f"connect string account=myorg {_PLANTED} failed at backend"
+    )
+    adapter = SnowflakeAdapter(account="myorg", user="u", password="p")
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(AdapterError) as excinfo:
+            adapter.execute("SELECT 1")
+    # The NEW exception's str (the bar) must not echo the planted secret …
+    assert _PLANTED not in str(excinfo.value)
+    assert "pwd_LEAKED_9999" not in str(excinfo.value)
+    assert "pwd_LEAKED_9999" not in caplog.text
+    # … but the chained cause may still carry it (local debugging).
+    assert excinfo.value.__cause__ is not None
+
+
+def test_planted_secret_in_driver_exc_never_leaks_on_explain(fake_connector, caplog):
+    fake_connector.execute_behavior = "boom"
+    fake_connector.boom_message = (
+        f"connect string account=myorg {_PLANTED} failed at backend"
+    )
+    adapter = SnowflakeAdapter(account="myorg", user="u", password="p")
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(AdapterError) as excinfo:
+            adapter.explain("SELECT 1")
+    assert _PLANTED not in str(excinfo.value)
+    assert "pwd_LEAKED_9999" not in str(excinfo.value)
+    assert "pwd_LEAKED_9999" not in caplog.text
+    assert excinfo.value.__cause__ is not None

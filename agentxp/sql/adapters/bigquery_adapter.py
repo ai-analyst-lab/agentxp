@@ -67,26 +67,6 @@ from agentxp.sql.adapter import (
 logger = logging.getLogger(__name__)
 
 
-def _safe_conn(conn_params: dict[str, Any]) -> dict[str, Any]:
-    """Redact a connection dict for logs/exceptions, including the nested
-    service-account dict.
-
-    ``_redact_creds_for_log`` only scrubs *top-level* string values; a BigQuery
-    SA dict arrives nested under ``credentials_info`` / ``service_account_info``
-    and would otherwise pass through with its ``private_key`` intact. Replace
-    any inline SA dict wholesale before delegating to the shared redactor.
-    """
-    cleaned: dict[str, Any] = {}
-    for key, value in conn_params.items():
-        if key in ("credentials_info", "service_account_info") and isinstance(
-            value, dict
-        ):
-            cleaned[key] = "[REDACTED]"
-        else:
-            cleaned[key] = value
-    return _redact_creds_for_log(cleaned)
-
-
 _BIGQUERY_INSTALL_HINT = (
     "google-cloud-bigquery is an optional dependency. Install it with:\n"
     "    pip install 'agentxp[bigquery]'\n"
@@ -240,7 +220,9 @@ class BigQueryAdapter:
             return bigquery.Client(project=project)
         except Exception as e:
             # Redact before the message ever crosses a log / exception boundary.
-            safe = _safe_conn(conn_params)
+            # The shared redactor scrubs the nested inline SA dict
+            # (``credentials_info`` / ``service_account_info``) wholesale.
+            safe = _redact_creds_for_log(conn_params)
             if _is_auth_error(e):
                 raise AuthExpiredError(
                     f"BigQuery authentication failed for conn={safe}: "
@@ -400,7 +382,7 @@ class BigQueryAdapter:
         The redacted conn dict is included so the byte ceiling is visible in
         logs WITHOUT leaking the SA private key.
         """
-        safe = _safe_conn(self._conn_params)
+        safe = _redact_creds_for_log(self._conn_params)
         if _is_bytes_limit_error(exc):
             return BytesLimitExceededError(
                 f"BigQuery {where} exceeded maximum_bytes_billed for conn={safe}: "

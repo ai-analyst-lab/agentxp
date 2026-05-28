@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from agentxp.sql.adapter import (
+    AdapterError,
     AdapterResult,
     BaseAdapter,
     PreviewResult,
@@ -147,3 +148,54 @@ def test_bytes_scanned_is_none_for_duckdb():
         assert result.bytes_scanned is None
     finally:
         adapter.close()
+
+
+# ----------------------------------------------------------------------
+# Credential-leakage bar (BLOCKER-1): the RAW driver exception must not be
+# interpolated into the new query-path error message.
+# ----------------------------------------------------------------------
+
+_PLANTED = "password=pwd_LEAKED_9999"
+
+
+class _BoomConn:
+    """A fake DuckDB connection whose execute/fetchall raise with a planted
+    secret in the message — the adapter must not echo it in the new exception."""
+
+    def __init__(self, where: str):
+        self._where = where  # "execute" | "explain"
+
+    def execute(self, sql: str):
+        if self._where == "explain" and not sql.upper().startswith("EXPLAIN"):
+            return self  # only the EXPLAIN call should boom
+        raise RuntimeError(f"duckdb backend died: {_PLANTED} in conn string")
+
+    def fetchall(self):
+        raise RuntimeError(f"duckdb backend died: {_PLANTED} in conn string")
+
+    def close(self):
+        pass
+
+
+def test_planted_secret_in_driver_exc_never_leaks_on_execute(caplog):
+    adapter = DuckDBAdapter()
+    adapter._conn = _BoomConn("execute")
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(AdapterError) as excinfo:
+            adapter.execute("SELECT 1")
+    assert _PLANTED not in str(excinfo.value)
+    assert "pwd_LEAKED_9999" not in str(excinfo.value)
+    assert "pwd_LEAKED_9999" not in caplog.text
+    assert excinfo.value.__cause__ is not None
+
+
+def test_planted_secret_in_driver_exc_never_leaks_on_explain(caplog):
+    adapter = DuckDBAdapter()
+    adapter._conn = _BoomConn("explain")
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(AdapterError) as excinfo:
+            adapter.explain("SELECT 1")
+    assert _PLANTED not in str(excinfo.value)
+    assert "pwd_LEAKED_9999" not in str(excinfo.value)
+    assert "pwd_LEAKED_9999" not in caplog.text
+    assert excinfo.value.__cause__ is not None

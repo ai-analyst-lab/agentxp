@@ -332,7 +332,9 @@ class SnowflakeAdapter:
                     "Snowflake rejected credentials during execute "
                     "(token expired / revoked)"
                 ) from e
-            raise AdapterError(f"Snowflake execute failed: {e}") from e
+            raise AdapterError(
+                f"Snowflake execute failed: {type(e).__name__}"
+            ) from e
         finally:
             elapsed = time.monotonic() - started
 
@@ -361,7 +363,9 @@ class SnowflakeAdapter:
                 raise AuthExpiredError(
                     "Snowflake rejected credentials during EXPLAIN"
                 ) from e
-            raise AdapterError(f"Snowflake EXPLAIN failed: {e}") from e
+            raise AdapterError(
+                f"Snowflake EXPLAIN failed: {type(e).__name__}"
+            ) from e
         cursor.close()
 
         # EXPLAIN USING TEXT returns rows of plan text; flatten to one string.

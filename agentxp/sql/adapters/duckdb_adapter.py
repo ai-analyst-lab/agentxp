@@ -81,7 +81,8 @@ class DuckDBAdapter:
             self._conn = duckdb.connect(target)
         except Exception as e:  # pragma: no cover — driver-specific
             raise AdapterError(
-                f"DuckDB failed to open connection at {target!r}: {e}"
+                f"DuckDB failed to open connection at {target!r}: "
+                f"{type(e).__name__}"
             ) from e
         return self._conn
 
@@ -116,14 +117,18 @@ class DuckDBAdapter:
         try:
             cursor = conn.execute(sql)
         except Exception as e:
-            raise AdapterError(f"DuckDB execute failed: {e}") from e
+            raise AdapterError(
+                f"DuckDB execute failed: {type(e).__name__}"
+            ) from e
 
         # Drain rows + capture column names. DuckDB returns Python objects
         # via fetchall(); we zip with description to materialise dicts.
         try:
             raw_rows = cursor.fetchall()
         except Exception as e:
-            raise AdapterError(f"DuckDB fetchall failed: {e}") from e
+            raise AdapterError(
+                f"DuckDB fetchall failed: {type(e).__name__}"
+            ) from e
         elapsed = time.monotonic() - started
 
         # Post-hoc timeout check — see module docstring.
@@ -156,7 +161,9 @@ class DuckDBAdapter:
             cursor = conn.execute(f"EXPLAIN {sql}")
             rows = cursor.fetchall()
         except Exception as e:
-            raise AdapterError(f"DuckDB EXPLAIN failed: {e}") from e
+            raise AdapterError(
+                f"DuckDB EXPLAIN failed: {type(e).__name__}"
+            ) from e
 
         # DuckDB EXPLAIN returns rows like [(phase, plan_text), ...]. Flatten
         # to a single string for the audit anchor.

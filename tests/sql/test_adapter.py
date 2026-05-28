@@ -101,6 +101,63 @@ def test_redact_preserves_non_string_fields():
     assert scrubbed == {"port": 5432, "ssl": True, "timeout": 30, "retries": None}
 
 
+def test_redact_creds_for_log_scrubs_bytes_private_key():
+    # A Snowflake key-pair private_key arrives as DER bytes, not str — it must
+    # still be blanket-redacted (BLOCKER-2).
+    der = b"\x30\x82SECRET-DER-BYTES"
+    creds = {"account": "myorg", "private_key": der}
+    scrubbed = _redact_creds_for_log(creds)
+    assert scrubbed["private_key"] == "[REDACTED]"
+    assert b"SECRET-DER-BYTES" not in str(scrubbed).encode()
+    assert "SECRET-DER-BYTES" not in str(scrubbed)
+
+
+def test_redact_creds_for_log_recurses_into_nested_sa_dict():
+    # An inline service-account dict under a non-sensitive key must be recursed
+    # into so its nested private_key is scrubbed (BLOCKER-2 nested recursion).
+    creds = {
+        "project": "p",
+        # Outer key is sensitive → whole value blanket-redacted.
+        "credentials_info": {
+            "type": "service_account",
+            "private_key": "-----BEGIN PRIVATE KEY-----\nLEAKED\n-----END PRIVATE KEY-----",
+        },
+        # Outer key NON-sensitive → recurse, scrub nested private_key only.
+        "extra": {
+            "private_key": "nested_LEAKED_value",
+            "region": "us-central1",
+        },
+    }
+    scrubbed = _redact_creds_for_log(creds)
+    assert scrubbed["credentials_info"] == "[REDACTED]"
+    assert scrubbed["extra"]["private_key"] == "[REDACTED]"
+    assert scrubbed["extra"]["region"] == "us-central1"
+    assert "LEAKED" not in str(scrubbed)
+
+
+def test_redact_creds_for_log_passes_through_non_sensitive_int():
+    creds = {"port": 5432}
+    scrubbed = _redact_creds_for_log(creds)
+    assert scrubbed["port"] == 5432
+
+
+def test_redact_creds_for_log_knows_consolidated_secret_keys():
+    # The consolidated canonical set covers every per-dialect secret key.
+    creds = {
+        "access_token": "dapi_x",            # Databricks PAT
+        "client_secret": "sp_secret",        # Databricks M2M
+        "private_key_file_pwd": "passphrase",  # Snowflake key-file passphrase
+        "service_account_info": {"private_key": "k"},  # BigQuery SA dict
+        "client_id": "app-id",               # NOT a secret — must pass through
+    }
+    scrubbed = _redact_creds_for_log(creds)
+    assert scrubbed["access_token"] == "[REDACTED]"
+    assert scrubbed["client_secret"] == "[REDACTED]"
+    assert scrubbed["private_key_file_pwd"] == "[REDACTED]"
+    assert scrubbed["service_account_info"] == "[REDACTED]"
+    assert scrubbed["client_id"] == "app-id"
+
+
 def test_baseadapter_is_protocol():
     # BaseAdapter is decorated with @runtime_checkable, so isinstance checks
     # against any object work and a structurally-conforming class passes.

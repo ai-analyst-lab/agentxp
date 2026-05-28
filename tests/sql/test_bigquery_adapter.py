@@ -87,7 +87,9 @@ class _FakeQueryJob:
         if behavior == "auth":
             raise Unauthorized("Request had invalid authentication credentials.")
         if behavior == "boom":
-            raise BadRequest("Syntax error: unexpected token")
+            raise BadRequest(
+                getattr(self._client, "boom_message", "Syntax error: unexpected token")
+            )
         rows = [_FakeRow({"x": 1, "name": "alice"})]
         return rows
 
@@ -101,6 +103,7 @@ class _FakeClient:
         self.total_bytes_processed = 4096
         self.result_behavior = "ok"      # ok|timeout|bytes_limit|auth|boom
         self.query_behavior = "ok"       # ok|bytes_limit|auth|boom (at submit time)
+        self.boom_message = "Syntax error"  # custom "boom" message (BLOCKER-1)
         self.last_query: tuple[str, Any] | None = None
 
     def query(self, sql: str, job_config: Any = None):
@@ -113,7 +116,7 @@ class _FakeClient:
         if self.query_behavior == "auth":
             raise Unauthorized("invalid authentication credentials")
         if self.query_behavior == "boom":
-            raise BadRequest("Syntax error")
+            raise BadRequest(self.boom_message)
         return _FakeQueryJob(self, sql, job_config)
 
     def close(self):
@@ -148,6 +151,7 @@ class _FakeBigQueryModule(types.ModuleType):
         c.result_behavior = self.result_behavior
         c.query_behavior = self.query_behavior
         c.total_bytes_processed = self.total_bytes_processed
+        c.boom_message = self.boom_message
         self.last_client = c
         return c
 
@@ -155,6 +159,7 @@ class _FakeBigQueryModule(types.ModuleType):
     result_behavior = "ok"
     query_behavior = "ok"
     total_bytes_processed = 4096
+    boom_message = "Syntax error"
 
 
 class _FakeCredentials:
@@ -524,3 +529,35 @@ def test_redacted_dict_used_in_query_error_message(fake_bq):
     assert "[REDACTED]" in msg
     assert _FAKE_SA_PRIVATE_KEY not in msg
     assert "fakefakefake" not in msg
+
+
+# BLOCKER-1: the RAW driver exception must not be interpolated into the new
+# query-path error message.
+_PLANTED = "access_token=tok_LEAKED_9999"
+
+
+def test_planted_secret_in_driver_exc_never_leaks_on_execute(fake_bq, caplog):
+    fake_bq.bigquery.query_behavior = "boom"
+    fake_bq.bigquery.boom_message = f"backend rejected {_PLANTED} on request"
+    adapter = BigQueryAdapter(project="p")
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(AdapterError) as excinfo:
+            adapter.execute("SELECT 1")
+    assert _PLANTED not in str(excinfo.value)
+    assert "tok_LEAKED_9999" not in str(excinfo.value)
+    assert "tok_LEAKED_9999" not in caplog.text
+    assert excinfo.value.__cause__ is not None
+
+
+def test_planted_secret_in_driver_exc_never_leaks_on_explain(fake_bq, caplog):
+    # explain() routes through dry_run() -> client.query() -> _map_query_error.
+    fake_bq.bigquery.query_behavior = "boom"
+    fake_bq.bigquery.boom_message = f"backend rejected {_PLANTED} on request"
+    adapter = BigQueryAdapter(project="p")
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(AdapterError) as excinfo:
+            adapter.explain("SELECT 1")
+    assert _PLANTED not in str(excinfo.value)
+    assert "tok_LEAKED_9999" not in str(excinfo.value)
+    assert "tok_LEAKED_9999" not in caplog.text
+    assert excinfo.value.__cause__ is not None

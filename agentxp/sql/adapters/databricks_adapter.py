@@ -89,34 +89,6 @@ _DATABRICKS_INSTALL_HINT = (
 #: principal (client_id/client_secret). Never logged in the clear.
 _AUTH_SURFACES: tuple[str, ...] = ("pat", "oauth_u2m", "oauth_m2m")
 
-#: Databricks-specific secret keys. The shared ``_redact_creds_for_log`` only
-#: blanket-redacts keys in :data:`agentxp.sql.adapter._SENSITIVE_KEYS`, which
-#: does NOT include ``access_token`` / ``client_secret``; their values
-#: (``dapi...`` PATs, SP secrets) have no internal structure the regex redactor
-#: catches, so they would otherwise pass through. :func:`_safe_conn` scrubs
-#: them before delegating to the shared redactor (the same pattern the BigQuery
-#: adapter uses for its nested service-account dict).
-_DATABRICKS_SECRET_KEYS: frozenset[str] = frozenset(
-    {"access_token", "client_secret"}
-)
-
-
-def _safe_conn(conn_params: dict[str, Any]) -> dict[str, Any]:
-    """Redact a Databricks connection dict for logs / exceptions.
-
-    Blanket-redacts the Databricks-specific secret keys
-    (:data:`_DATABRICKS_SECRET_KEYS`) — which the shared
-    :func:`agentxp.sql.adapter._redact_creds_for_log` does not know about — then
-    delegates to the shared redactor for everything else.
-    """
-    cleaned: dict[str, Any] = {}
-    for key, value in conn_params.items():
-        if key.lower() in _DATABRICKS_SECRET_KEYS and isinstance(value, str):
-            cleaned[key] = "[REDACTED]"
-        else:
-            cleaned[key] = value
-    return _redact_creds_for_log(cleaned)
-
 
 def _import_databricks_sql():
     """Import ``databricks.sql`` lazily so this module imports cleanly without
@@ -348,7 +320,8 @@ class DatabricksAdapter:
             self._conn = sql.connect(**connect_kwargs)
         except Exception as e:
             # Redact the connection dict before it can reach any log/exception.
-            safe = _safe_conn(self._conn_params)
+            # The shared redactor knows ``access_token`` / ``client_secret``.
+            safe = _redact_creds_for_log(self._conn_params)
             if _is_auth_error(e):
                 raise AuthExpiredError(
                     f"Databricks authentication failed for connection {safe!r}"
@@ -406,7 +379,9 @@ class DatabricksAdapter:
                     "Databricks rejected credentials during execute "
                     "(token expired / revoked)"
                 ) from e
-            raise AdapterError(f"Databricks execute failed: {e}") from e
+            raise AdapterError(
+                f"Databricks execute failed: {type(e).__name__}"
+            ) from e
         finally:
             elapsed = time.monotonic() - started
 
@@ -439,7 +414,9 @@ class DatabricksAdapter:
                 raise AuthExpiredError(
                     "Databricks rejected credentials during EXPLAIN"
                 ) from e
-            raise AdapterError(f"Databricks EXPLAIN failed: {e}") from e
+            raise AdapterError(
+                f"Databricks EXPLAIN failed: {type(e).__name__}"
+            ) from e
         cursor.close()
 
         chunks: list[str] = []

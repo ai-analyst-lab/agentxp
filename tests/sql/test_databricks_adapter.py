@@ -81,7 +81,9 @@ class _FakeCursor:
         if behavior == "auth":
             raise RequestError("HTTP 403 Forbidden: invalid access token")
         if behavior == "boom":
-            raise OperationalError("syntax error near 'SELCT'")
+            raise OperationalError(
+                getattr(self._conn, "_boom_message", "syntax error near 'SELCT'")
+            )
         if sql.upper().startswith("EXPLAIN"):
             self.description = [("plan",)]
             self._rows = [("== Physical Plan ==",)]
@@ -120,15 +122,19 @@ class _FakeSqlModule(types.ModuleType):
         self.last_connect_kwargs: dict[str, Any] | None = None
         self.connect_behavior = "ok"  # ok|auth|boom (at connect time)
         self.execute_behavior = "ok"  # propagated onto each connection
+        # Optional custom message for the "boom" generic exception, used by the
+        # BLOCKER-1 tests to plant a secret INSIDE the raw driver exception.
+        self.boom_message = "could not establish connection"
 
     def connect(self, **kwargs: Any) -> _FakeConnection:
         self.last_connect_kwargs = kwargs
         if self.connect_behavior == "auth":
             raise RequestError("HTTP 401 Unauthorized: invalid access token")
         if self.connect_behavior == "boom":
-            raise OperationalError("could not establish connection")
+            raise OperationalError(self.boom_message)
         conn = _FakeConnection(**kwargs)
         conn._execute_behavior = self.execute_behavior
+        conn._boom_message = self.boom_message
         return conn
 
 
@@ -503,3 +509,42 @@ def test_redacted_dict_used_in_connect_error_message(fake_databricks):
     msg = str(excinfo.value)
     assert "[REDACTED]" in msg
     assert "dapi_secret" not in msg
+
+
+# BLOCKER-1: the RAW driver exception must not be interpolated into the new
+# query-path error message.
+_PLANTED = "access_token=dapi_LEAKED_9999"
+
+
+def test_planted_secret_in_driver_exc_never_leaks_on_execute(
+    fake_databricks, caplog
+):
+    fake_databricks.execute_behavior = "boom"
+    fake_databricks.boom_message = f"backend rejected {_PLANTED} on host"
+    adapter = DatabricksAdapter(
+        server_hostname=_HOST, http_path=_PATH, access_token="dapi_x"
+    )
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(AdapterError) as excinfo:
+            adapter.execute("SELECT 1")
+    assert _PLANTED not in str(excinfo.value)
+    assert "dapi_LEAKED_9999" not in str(excinfo.value)
+    assert "dapi_LEAKED_9999" not in caplog.text
+    assert excinfo.value.__cause__ is not None
+
+
+def test_planted_secret_in_driver_exc_never_leaks_on_explain(
+    fake_databricks, caplog
+):
+    fake_databricks.execute_behavior = "boom"
+    fake_databricks.boom_message = f"backend rejected {_PLANTED} on host"
+    adapter = DatabricksAdapter(
+        server_hostname=_HOST, http_path=_PATH, access_token="dapi_x"
+    )
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(AdapterError) as excinfo:
+            adapter.explain("SELECT 1")
+    assert _PLANTED not in str(excinfo.value)
+    assert "dapi_LEAKED_9999" not in str(excinfo.value)
+    assert "dapi_LEAKED_9999" not in caplog.text
+    assert excinfo.value.__cause__ is not None

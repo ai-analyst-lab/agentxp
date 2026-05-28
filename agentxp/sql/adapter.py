@@ -84,6 +84,15 @@ class BaseAdapter(Protocol):
 # These get blanket-redacted; the regex-based `redact` only catches values
 # with internal structure (Bearer tokens, JWTs, URLs with creds, etc.) and
 # would otherwise pass a bare `"secret123"` through unchanged.
+#
+# THIS IS THE SINGLE CANONICAL SET. Adapters and connect wizards MUST NOT keep
+# their own local secret-key sets — every secret-bearing connection-dict key
+# that any adapter's ``_build_connect_kwargs`` / ``_build_client`` or any
+# wizard's ``collect()`` accepts is listed here so the shared
+# :func:`_redact_creds_for_log` scrubs it. (A drift between three local sets is
+# exactly how ``access_token`` / ``client_secret`` / ``credentials_info`` once
+# fell out of the canonical set and leaked.) ``client_id`` is intentionally
+# absent — a client id is not a secret.
 _SENSITIVE_KEYS: frozenset[str] = frozenset(
     {
         "password",
@@ -101,6 +110,15 @@ _SENSITIVE_KEYS: frozenset[str] = frozenset(
         "private_key_path",
         "auth",
         "authorization",
+        # BigQuery inline service-account dicts (carry a private key).
+        "credentials_info",
+        "service_account_info",
+        # Databricks PAT.
+        "access_token",
+        # Databricks OAuth M2M service-principal secret.
+        "client_secret",
+        # Snowflake key-pair file passphrase.
+        "private_key_file_pwd",
     }
 )
 
@@ -108,22 +126,31 @@ _SENSITIVE_KEYS: frozenset[str] = frozenset(
 def _redact_creds_for_log(creds: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of ``creds`` safe to write to the audit log.
 
-    Apply :func:`agentxp.audit.redactor.redact` to every string value (so
-    embedded JWTs, bearer tokens, URLs with creds, etc. get scrubbed). On
-    top of that, any key whose name matches a known-sensitive marker
-    (``password``, ``token``, ``api_key`` …) has its value replaced with
-    ``[REDACTED]`` regardless of contents, because the regex redactor only
-    fires on values with recognisable structure.
+    Redaction rules, applied per key/value:
 
-    Non-string values pass through untouched (ports, booleans, ints).
+    * Any key whose name is in :data:`_SENSITIVE_KEYS` is replaced with
+      ``"[REDACTED]"`` REGARDLESS of value type — ``str``, ``bytes`` (a
+      Snowflake key-pair ``private_key`` is DER bytes), ``dict`` (an inline
+      service-account dict), anything. The regex redactor only fires on values
+      with recognisable structure, so a bare ``"secret123"`` — or raw key bytes
+      — would otherwise pass through.
+    * A nested ``dict`` value (e.g. an inline service-account dict stored under
+      a NON-sensitive key) is recursed into, so its own sensitive entries
+      (``private_key`` …) are scrubbed by the same rules.
+    * Non-sensitive ``str`` values go through :func:`agentxp.audit.redactor.redact`
+      (so embedded JWTs, bearer tokens, URLs with creds, etc. are scrubbed).
+    * Non-sensitive non-str values pass through untouched (ports, booleans).
     """
     out: dict[str, Any] = {}
     for key, value in creds.items():
-        if isinstance(value, str):
-            if key.lower() in _SENSITIVE_KEYS:
-                out[key] = "[REDACTED]"
-            else:
-                out[key] = redact(value)
+        if key.lower() in _SENSITIVE_KEYS:
+            # Blanket-redact: any type, including bytes / dict.
+            out[key] = "[REDACTED]"
+        elif isinstance(value, dict):
+            # Recurse so a nested dict's own sensitive entries are scrubbed.
+            out[key] = _redact_creds_for_log(value)
+        elif isinstance(value, str):
+            out[key] = redact(value)
         else:
             out[key] = value
     return out

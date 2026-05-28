@@ -124,7 +124,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         print("\naborted", file=sys.stderr)
         return EXIT_USER_ERROR
     except Exception as e:
-        print(f"unexpected error: {type(e).__name__}: {e}", file=sys.stderr)
+        print(f"unexpected error: {type(e).__name__}", file=sys.stderr)
         return EXIT_FATAL
 
     if not ok:

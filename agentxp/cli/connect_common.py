@@ -43,31 +43,6 @@ import yaml
 from agentxp.sql.adapter import AuthExpiredError, _redact_creds_for_log
 from agentxp.sql.adapters import ADAPTER_REGISTRY
 
-# Nested dicts that carry credential material (a BigQuery inline service-account
-# dict holds a private key). ``_redact_creds_for_log`` only scrubs top-level
-# string values, so wholesale-replace these before delegating — mirrors the
-# bigquery_adapter._safe_conn guard.
-_SENSITIVE_NESTED_KEYS: frozenset[str] = frozenset(
-    {"credentials_info", "service_account_info"}
-)
-
-# Secret connection-dict keys that the shared ``adapter._SENSITIVE_KEYS`` does
-# NOT cover. ``_redact_creds_for_log`` only blanket-redacts the keys it knows
-# about (password / token / private_key / …); these per-dialect secret keys
-# carry credential material with no internal structure the regex redactor
-# catches (a Snowflake key-file passphrase, a Databricks PAT / SP secret), so
-# they would otherwise pass through in the clear. :func:`_safe_for_log` scrubs
-# them before delegating — mirroring the databricks_adapter._safe_conn guard.
-# W2.B (snowflake / databricks) relies on this so the wizard confirmation
-# prints never echo these secrets.
-_EXTRA_SECRET_KEYS: frozenset[str] = frozenset(
-    {
-        "private_key_file_pwd",  # Snowflake key-pair passphrase
-        "access_token",  # Databricks PAT
-        "client_secret",  # Databricks OAuth M2M service-principal secret
-    }
-)
-
 __all__ = [
     "prompt_text",
     "prompt_secret",
@@ -267,25 +242,6 @@ def live_probe(dialect: str, conn_params: dict[str, Any]) -> tuple[bool, str]:
                     pass
 
 
-def _safe_for_log(conn: dict[str, Any]) -> dict[str, Any]:
-    """Redact a conn / profile dict for printing, including nested SA dicts.
-
-    Replaces any inline service-account dict wholesale (it holds a private
-    key), then delegates to :func:`_redact_creds_for_log` for the top-level
-    string scrub. Use this before ANY confirmation / log print in the wizard.
-    """
-    cleaned: dict[str, Any] = {}
-    for key, value in conn.items():
-        if key in _SENSITIVE_NESTED_KEYS and isinstance(value, dict):
-            cleaned[key] = "[REDACTED]"
-        elif key.lower() in _EXTRA_SECRET_KEYS and isinstance(value, str):
-            # Per-dialect secret keys the shared redactor doesn't know about.
-            cleaned[key] = "[REDACTED]"
-        else:
-            cleaned[key] = value
-    return _redact_creds_for_log(cleaned)
-
-
 def _friendly(exc: BaseException) -> str:
     """A short, credential-free description of an auth failure.
 
@@ -366,7 +322,7 @@ def write_profile(
     os.chmod(target, 0o600)
 
     if not quiet:
-        safe = _safe_for_log(profile)
+        safe = _redact_creds_for_log(profile)
         print(f"wrote profile: {target}")
         print(f"  adapter={adapter} profile={name}")
         print(f"  contents (redacted): {safe}")
@@ -452,7 +408,7 @@ def run_wizard(
     if not quiet:
         # Confirmation BEFORE the probe — redacted so no secret is echoed.
         print(f"probing {dialect} connection (redacted): "
-              f"{_safe_for_log(conn_params)}", file=sys.stderr)
+              f"{_redact_creds_for_log(conn_params)}", file=sys.stderr)
 
     ok, message = live_probe(dialect, conn_params)
     if not quiet:
