@@ -51,10 +51,10 @@ def test_unknown_subcommand_returns_user_error(capsys):
 
 
 def test_placeholder_subcommand_returns_user_error(capsys):
-    rc = dispatcher.main(["list"])
+    rc = dispatcher.main(["connect"])
     captured = capsys.readouterr()
     assert rc == EXIT_USER_ERROR
-    assert "ships in W5" in captured.err
+    assert "ships in W_sql" in captured.err
 
 
 def test_dispatch_to_profile_main():

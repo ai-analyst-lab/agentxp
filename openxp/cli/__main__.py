@@ -21,12 +21,12 @@ from openxp.cli.exit_codes import EXIT_OK, EXIT_USER_ERROR
 #   - str             — wave id where the subcommand will ship (placeholder)
 SUBCOMMANDS: dict[str, tuple[str, str] | str] = {
     "profile":    ("openxp.cli.profile", "main"),    # W_pre2 — wired
-    "list":       "W5 (sys-w5-04)",                   # placeholder
-    "unlock":     "W5 (sys-w5-05)",                   # placeholder
-    "resume":     "W5",                                # placeholder
+    "list":       ("openxp.cli.list", "main"),       # W5.6 — wired
+    "unlock":     ("openxp.cli.unlock", "main"),     # W5.7 — wired
+    "resume":     ("openxp.cli.resume", "main"),     # W5.3 — wired
     "connect":    "W_sql (sql-w_sql-19/23/24)",       # placeholder
     "audit":      ("openxp.cli.audit", "main"),       # §15 — wired
-    "experiment": "W5 (sys-w5-02)",                   # placeholder
+    "experiment": ("openxp.cli.experiment", "main"), # W5.2 — wired
 }
 
 
