@@ -26,7 +26,7 @@ You receive a bundle from the orchestrator. The bundle is the source of truth fo
 - The intent string from `state.yaml.intent` (one paragraph of user prose).
 - The full list of `semantic_models/{entity}.yaml` files in the project (schema v1). You read `entity.primary`, `fields[].{name, type, role}`, and the assignment column.
 - The full list of `metrics/{name}.yaml` files in the project (schema v2). Per metric you read `name`, `type`, `direction`, `guardrail`, `mde_default_pct`, and the `flagged_for_review` flag if it carries forward from upstream.
-- The pre-registered segments from the elicitor's last turn (per §1.8.1).
+- The pre-registered segments from the elicitor's Stage-3 bundle output (`bundles/designer.elicitor.out.yaml`, `hypothesis.segments_to_examine[]`).
 - The `experiment_id` (orchestrator-supplied; e.g., `exp_001`).
 - The cohort timezone hint, default `UTC` per §1.7.
 
@@ -64,7 +64,7 @@ hypothesis:
 design:
   unit: <randomization_unit>           # from semantic_models/<entity>.yaml
   assignment: <assignment_column> (<level_a>=control, <level_b>=treatment)
-  mde: <float>                         # absolute, in metric's natural units
+  mde_pct: <float>                     # relative percent (same units as metrics/*.yaml's mde_default_pct)
   alpha: 0.05
   power: 0.80
   n_required: <int> per arm
@@ -135,7 +135,7 @@ Apply in order. Commit a default; ask only when an HG-D4 flag forces a pause.
 - `hypothesis.predicted_magnitude_pct`: from `state.yaml.hypothesis.predicted_magnitude_pct`. This is the user's guess, not the MDE.
 - `design.unit`: the semantic model's `entity.primary` (e.g., `session`, `user`).
 - `design.assignment`: the column with `role: assignment` from the semantic model. Pick a control/treatment direction from the column's distinct values; default to alphabetical first as control, with a one-clause reason in the dialog. Let the user flip.
-- `design.mde`: pull the primary metric's `mde_default_pct` from the catalog and translate to natural units. For a ratio metric, an `mde_default_pct: 1.0` on a baseline of 18% completion means `mde: 0.018` (absolute 1.8pp). Show the derivation in the dialog.
+- `design.mde_pct`: pull the primary metric's `mde_default_pct` from the catalog. The brief carries the relative percent directly (so a metric with `mde_default_pct: 1.0` produces `design.mde_pct: 1.0`, meaning 1.0% relative MDE). Show the natural-unit translation in the dialog (e.g., "1.0% relative on a baseline of 18% completion ≈ 0.18pp absolute"), but write `design.mde_pct` to the YAML.
 - `design.alpha`: `0.05`. Constant in v0.1.
 - `design.power`: `0.80`. Constant in v0.1.
 - `design.n_required`: compute from baseline, MDE, alpha, power. State the formula assumption in plain English in the dialog ("two-sample test, equal allocation").
@@ -145,7 +145,7 @@ Apply in order. Commit a default; ask only when an HG-D4 flag forces a pause.
 - `cohorts.timezone`: copy from the cohort-timezone hint in the bundle; default `UTC` if missing.
 - `cohorts.start`: today's date at 00:00:00 in the cohort timezone, ISO 8601 with offset.
 - `cohorts.end`: `null` — closes on Stage 5 commit per §3.
-- `decision_rule`: always `openxp_default` (the §22 8-step tree: SHIP if primary CI excludes zero AND every guardrail clear; else NO-SHIP / LEARN / ITERATE per the tree's terminal verdicts).
+- `decision_rule`: always `openxp_default` (the §22 8-step tree; see §1.8.17 for the 8 terminal verdicts).
 
 **Stage 4 — fields you commit.**
 

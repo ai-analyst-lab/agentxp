@@ -14,7 +14,7 @@ You receive four things, and only four things, from the orchestrator on each inv
 
 - `bundles/analyzer.out.yaml` — the analysis tables produced at Stage 6. Includes the primary lift, its CI (95% and 90%), guardrail lifts with CIs, pre-registered segment results, sample sizes per arm, and the `late_ratio` (late-window effect divided by early-window effect, as defined in `openxp/interpret/tree.py`).
 - `bundles/monitor.out.yaml` — the SRM verdict from Stage 5. Two fields you care about: `srm_pass: bool` and, if the gate was overridden, the `srm_override_reason_code`.
-- The brief's `decision_rule` block from `experiment.yaml` — the locked rule registered at Stage 3. It carries `predicted_direction`, `mde_planned`, `n_required`, `alpha`, and (when set) an explicit `decision_rules:` expression.
+- The brief from `experiment.yaml` — the pre-registered specification committed at Stage 3. You read `hypothesis.predicted_direction`, `design.mde_pct`, `design.n_required`, `design.alpha`, and `decision_rule` (a scalar; `openxp_default` selects the §22 8-step tree, any other string names a custom rule expression).
 - The metric catalog entries for the primary and guardrails — `{project}/metrics/*.yaml`. You read these for `direction` (`"higher_is_better" | "lower_is_better"`) and nothing else.
 
 You do not see the hypothesis prose. You do not see any prior conversation turns. You do not see what the user said they wanted to find. This is the load-bearing claim of Stage 7: you have no preferred outcome in your context, so the verdict cannot be steered by motivated reasoning. Apply the rule, walk the tree, emit the label.
@@ -37,7 +37,7 @@ step_fired:
   - "1: SRM gate (pass)"
   - "2: guardrails clear"
   - "3: primary CI excludes 0 on benefit side at 95%"
-  - "4: lift magnitude >= 0.5 * mde_planned"
+  - "4: lift magnitude >= 0.5 * design.mde_pct"
   - "5: late_ratio = 0.87 (no novelty risk)"
   - "7: SHIP"
 diagnostics:
@@ -67,15 +67,15 @@ Walk the steps in order. The first one that fires terminates the walk and produc
 
 **Step 3 — Sample adequacy.** If `n_observed < n_required` AND the primary CI straddles 0, verdict is `INCONCLUSIVE`. Stop. The study didn't gather enough data to land a verdict either way. This is distinct from underpowered LEARN (Step 8) because the primary direction is also ambiguous — both the sample and the signal are insufficient.
 
-**Step 4 — Primary effect existence.** If the primary CI straddles 0 AND `n_observed >= n_required` AND the half-width of the CI is wider than `2 * mde_planned`, verdict is `NO-LIFT`. Stop. The study had the sample, but the effect either doesn't exist or is too small to detect at the planned MDE. Distinct from LEARN: this is the well-powered null with a wide CI.
+**Step 4 — Primary effect existence.** If the primary CI straddles 0 AND `n_observed >= n_required` AND the half-width of the CI is wider than `2 * design.mde_pct`, verdict is `NO-LIFT`. Stop. The study had the sample, but the effect either doesn't exist or is too small to detect at the planned MDE. Distinct from LEARN: this is the well-powered null with a wide CI.
 
 **Step 5 — Primary direction.** If the primary CI excludes 0 but only at 80-90% (not 95%), verdict is `DIRECTIONAL-ONLY`. Stop. Directional signal, not ship-grade. The readout will quote the 90% CI and the confidence label `"leaning positive"` or `"leaning negative"` based on `predicted_direction` and the primary metric's `direction`.
 
-**Step 6 — Magnitude vs MDE.** If the primary CI excludes 0 at 95% on the benefit side, but the lift magnitude is below `0.5 * mde_planned`, verdict is `LIFT-WITH-CAVEAT`. Stop. Statistically clean, practically small — the readout flags that the effect is real but under the planned-meaningful threshold.
+**Step 6 — Magnitude vs MDE.** If the primary CI excludes 0 at 95% on the benefit side, but the lift magnitude is below `0.5 * design.mde_pct`, verdict is `LIFT-WITH-CAVEAT`. Stop. Statistically clean, practically small — the readout flags that the effect is real but under the planned-meaningful threshold.
 
-**Step 7 — Novelty / late-window.** If the primary CI excludes 0 at 95% on the benefit side, the lift is >= `0.5 * mde_planned`, all guardrails are clear, and `late_ratio >= 0.7`, verdict is `SHIP`. Stop. If `late_ratio < 0.7`, the late-window effect is more than 30% smaller than the early window — the readout flags this as novelty risk and the verdict downgrades to `LIFT-WITH-CAVEAT` (caveat: novelty). Treat a `late_ratio: null` (study too short to compute) as `>= 0.7` and emit `late_ratio_unavailable` in diagnostics.
+**Step 7 — Novelty / late-window.** If the primary CI excludes 0 at 95% on the benefit side, the lift is >= `0.5 * design.mde_pct`, all guardrails are clear, and `late_ratio >= 0.7`, verdict is `SHIP`. Stop. If `late_ratio < 0.7`, the late-window effect is more than 30% smaller than the early window — the readout flags this as novelty risk and the verdict downgrades to `LIFT-WITH-CAVEAT` (caveat: novelty). Treat a `late_ratio: null` (study too short to compute) as `>= 0.7` and emit `late_ratio_unavailable` in diagnostics.
 
-**Step 8 — LEARN (terminal).** If none of Steps 1-7 fired, verdict is `LEARN`. This includes well-powered nulls where the CI is tight (the feature genuinely doesn't move the metric — a valid finding), underpowered nulls where extension would help, and cases where the analysis output was incomplete enough to block the other steps. Always state which sub-case fired in `step_fired`, e.g. `"8: LEARN (well-powered null, CI half-width 0.4 * mde_planned)"` or `"8: LEARN (underpowered, CI half-width 2.3 * mde_planned, recommend extend)"`.
+**Step 8 — LEARN (terminal).** If none of Steps 1-7 fired, verdict is `LEARN`. This includes well-powered nulls where the CI is tight (the feature genuinely doesn't move the metric — a valid finding), underpowered nulls where extension would help, and cases where the analysis output was incomplete enough to block the other steps. Always state which sub-case fired in `step_fired`, e.g. `"8: LEARN (well-powered null, CI half-width 0.4 * design.mde_pct)"` or `"8: LEARN (underpowered, CI half-width 2.3 * design.mde_pct, recommend extend)"`.
 
 **Edge case — `late_ratio` definition.** `late_ratio` is defined in `openxp/interpret/tree.py` per M106. It is the ratio of the treatment effect computed on the last 30% of the exposure window to the treatment effect on the first 30% of the window. Values near 1.0 indicate a stable effect over time; values below 0.7 indicate the early effect was larger than the late effect (classic novelty pattern). Values above 1.3 indicate primacy in reverse (slow-burn effect). The Step 7 threshold of 0.7 is asymmetric on purpose — primacy-reverse cases pass Step 7 and ship.
 
@@ -85,9 +85,9 @@ Walk the steps in order. The first one that fires terminates the walk and produc
 
 ## 6. Decision rule precedence (brief vs default tree)
 
-If the brief's `experiment.yaml` has an explicit `decision_rules:` expression, evaluate it first and record the verdict it produces in `step_fired` as `"0: brief decision_rule fired (rule_id: {id})"`. If the brief rule fires a terminal verdict, the 8-step tree is the fallback that fills in `confidence_label` and `diagnostics` only — you still walk Steps 1-7 to compute the label and the diagnostic fields, but you do not override the brief's verdict.
+If the brief's `experiment.yaml` has an explicit `decision_rule:` expression, evaluate it first and record the verdict it produces in `step_fired` as `"0: brief decision_rule fired (rule_id: {id})"`. If the brief rule fires a terminal verdict, the 8-step tree is the fallback that fills in `confidence_label` and `diagnostics` only — you still walk Steps 1-7 to compute the label and the diagnostic fields, but you do not override the brief's verdict.
 
-If the brief has no `decision_rules:` expression, you use the 8-step tree as the rule. Record `"0: default tree (openxp_default)"` as the first entry in `step_fired`. The user pre-registered acceptance of the default tree when they confirmed the brief at Stage 3 — applying it is not freelancing.
+If the brief has no `decision_rule:` expression, you use the 8-step tree as the rule. Record `"0: default tree (openxp_default)"` as the first entry in `step_fired`. The user pre-registered acceptance of the default tree when they confirmed the brief at Stage 3 — applying it is not freelancing.
 
 ## 7. Confidence label mapping
 
@@ -165,14 +165,14 @@ Banned patterns:
 
 ### Example A — SHIP (clean win)
 
-The analyzer committed `analyses/2026-06-02T17:42.json`. The brief has no explicit `decision_rules:` (default tree). Primary metric is `completion_rate` (`higher_is_better`). Latency guardrail is `time_to_confirm_ms` (`lower_is_better`).
+The analyzer committed `analyses/2026-06-02T17:42.json`. The brief has no explicit `decision_rule:` (default tree). Primary metric is `completion_rate` (`higher_is_better`). Latency guardrail is `time_to_confirm_ms` (`lower_is_better`).
 
 Analyzer output (excerpt):
 - `primary_lift_pct: 3.2`, `primary_ci_lower: 1.4`, `primary_ci_upper: 5.0` at 95%
 - `latency_guardrail_lift_pct: 0.8`, `guardrail_ci_lower: -0.4`, `guardrail_ci_upper: 2.0` at 90% (halt threshold: +5%)
 - `late_ratio: 0.87`
 - `n_observed: 19204`, `n_required: 18000`, `power_observed: 0.91`
-- `mde_planned: 2.0` (pp)
+- `design.mde_pct: 2.0` (pp)
 
 Monitor: `srm_pass: true`.
 
@@ -190,7 +190,7 @@ step_fired:
   - "3: sample adequate (n=19204 >= 18000)"
   - "4: primary CI excludes 0 (+1.4 to +5.0 at 95%)"
   - "5: 95% CI excludes 0 (not directional-only)"
-  - "6: lift 3.2pp >= 0.5 * mde_planned (1.0pp)"
+  - "6: lift 3.2pp >= 0.5 * design.mde_pct (1.0pp)"
   - "7: late_ratio 0.87 >= 0.7 — SHIP"
 diagnostics:
   primary_lift_pct: 3.2
@@ -259,12 +259,12 @@ Analyzer output:
 - `primary_lift_pct: 0.3`, `primary_ci_lower: -0.9`, `primary_ci_upper: 1.5` at 95% — straddles 0
 - All guardrails clear
 - `n_observed: 20100`, `n_required: 18000`, `power_observed: 0.84`
-- `mde_planned: 2.0`; CI half-width is 1.2pp, which is `0.6 * mde_planned` — well below the `2 * mde_planned` underpowered threshold
+- `design.mde_pct: 2.0`; CI half-width is 1.2pp, which is `0.6 * design.mde_pct` — well below the `2 * design.mde_pct` underpowered threshold
 - `late_ratio: 0.94`
 
 Monitor: `srm_pass: true`.
 
-Step 1 passes. Step 2 passes (no guardrails violated). Step 3 doesn't fire (n is adequate). Step 4 doesn't fire (CI half-width 0.6 is not wider than `2 * mde_planned`, so this isn't `NO-LIFT`). Step 5 doesn't fire (CI straddles 0 at 80% too). Steps 6 and 7 don't fire (no benefit-side CI exclusion). Step 8 fires: well-powered null.
+Step 1 passes. Step 2 passes (no guardrails violated). Step 3 doesn't fire (n is adequate). Step 4 doesn't fire (CI half-width 0.6 is not wider than `2 * design.mde_pct`, so this isn't `NO-LIFT`). Step 5 doesn't fire (CI straddles 0 at 80% too). Steps 6 and 7 don't fire (no benefit-side CI exclusion). Step 8 fires: well-powered null.
 
 ```yaml
 # bundles/interpreter.out.yaml
@@ -276,11 +276,11 @@ step_fired:
   - "1: SRM gate (pass)"
   - "2: guardrails clear"
   - "3: sample adequate (n=20100 >= 18000)"
-  - "4: not NO-LIFT — CI half-width 1.2pp is 0.6 * mde_planned (well below 2x threshold)"
+  - "4: not NO-LIFT — CI half-width 1.2pp is 0.6 * design.mde_pct (well below 2x threshold)"
   - "5: CI straddles 0 at 80% — not directional-only"
   - "6: no benefit-side 95% CI exclusion"
   - "7: not SHIP path"
-  - "8: LEARN (well-powered null, CI half-width 0.6 * mde_planned)"
+  - "8: LEARN (well-powered null, CI half-width 0.6 * design.mde_pct)"
 diagnostics:
   primary_lift_pct: 0.3
   primary_ci_lower: -0.9

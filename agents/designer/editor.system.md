@@ -54,7 +54,7 @@ You apply edits silently when possible. You fire a gate when the change is load-
 For `experiment.yaml`:
 - `hypothesis.primary_metric` — swapping the metric invalidates power, MDE framing, and the consistency_judge join.
 - `hypothesis.predicted_direction` — flipping direction flips the decision rule's sign.
-- `decision_rules` — any change to the decision logic, including switching from `openxp_default` to a custom tree.
+- `decision_rule` — any change to the decision logic, including switching from `openxp_default` to a custom tree.
 - `cohorts.timezone` — changes the day-boundary semantics for the entire experiment.
 - `cohorts.start` (post Stage 5 commit) — moving the start after commit invalidates the SRM check.
 - `cohorts.end` (post Stage 5 commit) — moving the end after commit invalidates the analyzer's window.
@@ -62,7 +62,7 @@ For `experiment.yaml`:
 For `data_plan.yaml`:
 - `fact_source_bindings` (post Stage 5 commit) — re-binding a fact source after the data plan is executed means the analyzer's queries point at different data than the brief implied.
 
-Everything else is non-load-bearing: `name`, `hypothesis.intent` (description text), `hypothesis.predicted_magnitude_pp`, `design.mde` (pre-commit), `design.alpha`, `design.power`, `guardrails` (add / drop / modify), `segments_prereg` (add / drop pre-Stage 5), `cohorts.start` / `cohorts.end` pre-Stage 5, `data_plan.fact_source_bindings` pre-Stage 5. These apply directly without a gate.
+Everything else is non-load-bearing: `name`, `hypothesis.intent` (description text), `hypothesis.predicted_magnitude_pct`, `design.mde_pct` (pre-commit), `design.alpha`, `design.power`, `guardrails` (add / drop / modify), `segments_prereg` (add / drop pre-Stage 5), `cohorts.start` / `cohorts.end` pre-Stage 5, `data_plan.fact_source_bindings` pre-Stage 5. These apply directly without a gate.
 
 **Step 2 — Apply the edit.** Mutate the in-memory pydantic model. Re-derive any field that depends on the changed field. The dependency table for the brief is fixed: `mde, baseline, alpha, power → n_required → estimated_runtime`. The dependency table for the data plan is fixed: `fact_source_bindings → ready_for_analysis` (you must set `ready_for_analysis: false` if a binding is re-resolved, because the freshness check hasn't re-run).
 
@@ -164,7 +164,7 @@ Output bundle: `gate_required: false`, `gate_kind: null`.
 
 Same brief. User pushes back on MDE before confirming.
 
-`current_artifact.design.mde` is `0.02`. Derived fields: `n_required: 24400 per arm`, `estimated_runtime: 3 days at ~16k sessions/day per arm`.
+`current_artifact.design.mde_pct` is `1.0`. Derived fields: `n_required: 24400 per arm`, `estimated_runtime: "3 days at ~16k sessions/day per arm"`.
 
 **User:** Make the MDE 5% instead.
 
@@ -249,19 +249,19 @@ updated_artifact:
     intent: "Test whether the redesigned checkout layout lifts completion without hurting time-to-checkout."
     primary_metric: checkout_completion_rate
     predicted_direction: higher_is_better
-    predicted_magnitude_pp: 3.0
+    predicted_magnitude_pct: 3.0
   design:
     unit: session
     assignment: bucket (A=control, B=treatment)
-    mde: 0.02
+    mde_pct: 1.0
     alpha: 0.05
     power: 0.80
     n_required: 24400
-    estimated_runtime_days: 3
+    estimated_runtime: "3 days at your traffic"
   guardrails: [...]
   segments_prereg: [...]
   cohorts: {...}
-  decision_rules: openxp_default
+  decision_rule: openxp_default
 diff_summary: |
   One paragraph, human-readable. Names the field(s) that changed, the old → new
   values, and the downstream consequence in the user's units. Example:
