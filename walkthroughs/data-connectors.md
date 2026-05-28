@@ -64,7 +64,7 @@ with DuckDBLoader() as loader:
     df = result.dataframe
 ```
 
-DuckDB is an optional dependency. Install it with `pip install 'openxp[duckdb]'`. If it's missing, importing the loader still works; instantiating it fails with a pointer to the install command.
+DuckDB is an optional dependency. Install it with `pip install 'agentxp[duckdb]'`. If it's missing, importing the loader still works; instantiating it fails with a pointer to the install command.
 
 DuckDB can also point at a persistent file:
 
@@ -78,7 +78,7 @@ Snowflake has two modes. Both respect a 10M-row guardrail on unbounded queries.
 
 ### Direct mode
 
-Uses `snowflake-connector-python` (optional extra: `pip install 'openxp[snowflake]'`). Credentials come from `connection_params` or `OPENXP_SNOWFLAKE_*` environment variables.
+Uses `snowflake-connector-python` (optional extra: `pip install 'agentxp[snowflake]'`). Credentials come from `connection_params` or `OPENXP_SNOWFLAKE_*` environment variables.
 
 ```python
 from openxp.data.snowflake_loader import SnowflakeLoader

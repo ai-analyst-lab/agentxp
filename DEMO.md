@@ -12,10 +12,10 @@ Recording script for the opening GIF on the README and the project homepage.
 ## Scene Setup (do this before recording)
 
 1. Terminal: iTerm2 or Ghostty, full screen, dark theme, font size 16pt.
-2. Working directory: `~/openxp` with `sample-data/` present.
+2. Working directory: `~/agentxp` with `sample-data/` present.
 3. Claude Code is already open in the terminal — the `>` prompt is visible and idle.
 4. Clear the scrollback so the recording starts clean.
-5. Window title: `openxp — claude`
+5. Window title: `agentxp — claude`
 6. Verify: `ls sample-data/srm_violation.csv sample-data/clean_ab.csv` — both exist.
 
 The recording starts with Claude Code's idle prompt visible.
@@ -192,7 +192,7 @@ Next step: /experiment report --audience executive
 | 0:50 | 3 | Type `/experiment interpret` | Command renders | — |
 | 0:53 | 3 | Interpretation tree walking | 7 cascading Qs | Each YES |
 | 1:04 | 3 | Final classification | SHIP + rationale | SHIP verdict |
-| 1:10 | — | Fade to README link | `github.com/ai-analyst-lab/openxp` | URL |
+| 1:10 | — | Fade to README link | `github.com/ai-analyst-lab/agentxp` | URL |
 
 **Total runtime: ~70 seconds.**
 
@@ -207,11 +207,11 @@ Next step: /experiment report --audience executive
 brew install asciinema
 
 # Record
-asciinema rec openxp-demo.cast -t "AgentXP — experiment analysis in Claude Code"
+asciinema rec agentxp-demo.cast -t "AgentXP — experiment analysis in Claude Code"
 
 # Convert to GIF for embedding
 brew install agg
-agg --theme monokai --font-size 20 openxp-demo.cast openxp-demo.gif
+agg --theme monokai --font-size 20 agentxp-demo.cast agentxp-demo.gif
 ```
 
 ### terminalizer (more polish, controllable typing speed)
@@ -221,9 +221,9 @@ agg --theme monokai --font-size 20 openxp-demo.cast openxp-demo.gif
 npm install -g terminalizer
 
 # Init config
-terminalizer init openxp-demo
+terminalizer init agentxp-demo
 
-# Edit config/openxp-demo.yml:
+# Edit config/agentxp-demo.yml:
 #   cols: 120
 #   rows: 30
 #   frameDelay: auto
@@ -232,10 +232,10 @@ terminalizer init openxp-demo
 #   fontSize: 16
 
 # Record
-terminalizer record openxp-demo
+terminalizer record agentxp-demo
 
 # Render
-terminalizer render openxp-demo
+terminalizer render agentxp-demo
 ```
 
 ---

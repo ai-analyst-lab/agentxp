@@ -40,7 +40,6 @@ FieldType = Literal[
     "bool",
     "timestamp",
     "date",
-    "json",
 ]
 
 MetricType = Literal[
@@ -61,7 +60,12 @@ AdapterType = Literal["duckdb", "snowflake", "bigquery"]
 
 AggregationGrain = Literal["hour", "day", "week"]
 
-EntityType = Literal["user", "session", "account", "event", "other"]
+EntityType = str
+"""Entity vocabularies are domain-specific (user, session, account, product,
+order, ticket, lead, ...). Closing this to a fixed set is brittle; the
+semantic_modeler agent picks the right name from the data and the user
+overrides when needed.
+"""
 
 AssignmentType = Literal["inline", "external"]
 

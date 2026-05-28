@@ -8,7 +8,7 @@ Code already has access to.
 ## Install the optional extra (direct mode only)
 
 ```bash
-pip install "openxp[snowflake]"
+pip install "agentxp[snowflake]"
 ```
 
 MCP mode requires no extra installs — it uses the MCP tools configured in
@@ -119,7 +119,7 @@ The intended flow inside a skill:
 
 | Symptom | Fix |
 |---------|-----|
-| `ImportError: ... pip install openxp[snowflake]` | Install the optional extra. |
+| `ImportError: ... pip install agentxp[snowflake]` | Install the optional extra. |
 | `ValueError: No Snowflake connection parameters supplied` | Set `OPENXP_SNOWFLAKE_*` env vars or pass `connection_params`. |
 | `ValueError: Query would return N rows, which exceeds the guardrail` | Narrow the query with a `WHERE` clause, or pass `force=True`. |
 | `RuntimeError: SnowflakeLoader is in MCP mode` | You called `_connect()` in MCP mode. Use `mcp_mode=False` for direct mode. |

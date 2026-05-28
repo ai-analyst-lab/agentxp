@@ -95,7 +95,7 @@ Two profiler flags force you to pause before drafting.
 
 **Mixed timestamp formats.** If any column in the bundle has `mixed_format_detected: true`, surface it BEFORE drafting the YAML. The orchestrator opens `gate.opened(kind="mixed_timestamp_formats")` and routes the user's response back to you. Use exactly this phrasing:
 
-> `{col}` has multiple timestamp formats: {2-3 samples}. I can pick one and re-load, or you can fix it upstream and I'll re-profile. Which?
+> `{col}` has multiple timestamp formats: {2-3 samples}. Pick one or tell me to skip the column.
 
 Do not commit any YAML until the user resolves. On resume, draft as normal.
 

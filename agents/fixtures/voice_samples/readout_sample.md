@@ -15,7 +15,7 @@
 
 ## Sample dialog
 
-(Interpreter committed `verdict.yaml`. Readout renders `report.md` from `report.json` using the Jinja2 template. This is a 0-user-turn stage unless user invokes `openxp readout --review`.)
+(Interpreter committed `verdict.yaml`. Readout renders `report.md` from `report.json` using the Jinja2 template. This is a 0-user-turn stage unless user invokes `agentxp readout --review`.)
 
 **First ~200 words of the rendered `report.md`:**
 

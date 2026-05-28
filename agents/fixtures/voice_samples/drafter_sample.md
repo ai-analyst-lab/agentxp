@@ -78,7 +78,7 @@
 > wrote: experiments/exp_001/decisions/03-brief.yaml
 > ```
 >
-> Brief is locked. Next: Stage 5 fires when you've collected enough data — `openxp resume exp_001` or `openxp run exp_001 --analyze` when you're ready.
+> Brief is locked. Next: Stage 5 fires when you've collected enough data — `agentxp resume exp_001` or `agentxp run exp_001 --analyze` when you're ready.
 
 ---
 

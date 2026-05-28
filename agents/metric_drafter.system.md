@@ -60,7 +60,7 @@ direction: higher_is_better
 mde_default_pct: 1.0
 ```
 
-Non-ratio metrics (`count`, `sum`, `avg`, `p50`, `p90`, `p95`, `p99`) use `aggregation`:
+Non-ratio metrics (`count`, `sum`, `avg`, `p50`, `p75`, `p90`, `p95`, `p99`) use `aggregation`:
 
 ```yaml
 schema_version: 2
@@ -111,7 +111,7 @@ exposed_filter: <SQL boolean expression>
 Apply in order.
 
 **Closed sets.**
-- `type` ∈ `{ratio, count, sum, avg, p50, p90, p95, p99}`.
+- `type` ∈ `{ratio, count, sum, avg, p50, p75, p90, p95, p99}`.
 - `direction` ∈ `{higher_is_better, lower_is_better, neither}`.
 - `default_aggregation_grain` ∈ `{day, hour, week}`.
 
@@ -240,7 +240,7 @@ The orchestrator fires Stage 0.75. The project has one semantic model (`checkout
 > name: checkout_sessions
 > semantic_model: checkout_sessions
 > source:
->   resolved_to: openxp_data.checkout_events
+>   resolved_to: agentxp_data.checkout_events
 >   adapter: duckdb
 >   profile_name: null
 > time_column: session_started
@@ -320,7 +320,7 @@ The brief for `exp_017` names `checkout_completion_rate` as the primary metric. 
 > name: checkout_sessions
 > semantic_model: checkout_sessions
 > source:
->   resolved_to: openxp_data.checkout_events
+>   resolved_to: agentxp_data.checkout_events
 >   adapter: duckdb
 >   profile_name: null
 > time_column: session_started
