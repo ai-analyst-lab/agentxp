@@ -1,4 +1,4 @@
-"""Tests for ``openxp.semantic.io``.
+"""Tests for ``agentxp.semantic.io``.
 
 Verifies that:
   - ``write_yaml`` + ``load_yaml`` round-trip preserves the model.
@@ -20,8 +20,8 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from openxp.semantic.io import load_yaml, write_yaml
-from openxp.semantic.validators import (
+from agentxp.semantic.io import load_yaml, write_yaml
+from agentxp.semantic.validators import (
     AssignmentYAML,
     SemanticModel,
 )

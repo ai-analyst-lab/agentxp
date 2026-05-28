@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from openxp.stats import (
+from agentxp.stats import (
     guardrail_test,
     proportion_test,
     srm_check,

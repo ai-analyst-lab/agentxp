@@ -15,8 +15,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from openxp.orchestrator.store import StateStore
-from openxp.schemas.state import (
+from agentxp.orchestrator.store import StateStore
+from agentxp.schemas.state import (
     PendingDecision,
     PendingDecisionKind,
     Stage,

@@ -1,4 +1,4 @@
-"""Tests for openxp.render.report — verdict-first markdown renderer (§21)."""
+"""Tests for agentxp.render.report — verdict-first markdown renderer (§21)."""
 from __future__ import annotations
 
 import stat
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from openxp.render.report import (
+from agentxp.render.report import (
     AuditRow,
     Diagnostics,
     GuardrailViolation,

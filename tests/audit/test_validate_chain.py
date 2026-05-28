@@ -1,4 +1,4 @@
-"""Tests for ``openxp.audit.chain.validate_chain`` (§10.7).
+"""Tests for ``agentxp.audit.chain.validate_chain`` (§10.7).
 
 One test per Violation case enumerated in §10.7.2, plus the perf-budget
 boundary cases (§10.7.3) and the happy path. The closure test in
@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 import yaml
 
-from openxp.audit.chain import PerfBudgetExceeded, validate_chain
+from agentxp.audit.chain import PerfBudgetExceeded, validate_chain
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -383,7 +383,7 @@ def test_perf_warning_at_soft_cap(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     # Inject a synthetic delay by monkeypatching time.perf_counter to advance
     # by ~250 ms (above the 200 ms soft cap, below the 400 ms hard cap).
-    import openxp.audit.chain as chain_mod
+    import agentxp.audit.chain as chain_mod
 
     real_perf_counter = chain_mod.time.perf_counter
     call_count = {"n": 0}
@@ -412,7 +412,7 @@ def test_perf_budget_exceeded_at_hard_cap(
     """ms > 2 × soft cap → raises PerfBudgetExceeded (§10.7.3 hard cap)."""
     root = _build_healthy_experiment(tmp_path)
 
-    import openxp.audit.chain as chain_mod
+    import agentxp.audit.chain as chain_mod
 
     call_count = {"n": 0}
 

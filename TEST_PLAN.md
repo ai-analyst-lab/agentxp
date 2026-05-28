@@ -2,7 +2,7 @@
 
 **Author:** test-architecture pass, post-Wave 3 / pre-public-release.
 **Audience:** the future build wave that will write these tests. This file is the *spec* — the tests do not exist yet.
-**Repo state at write time:** 391 passing tests, 22 test files, 47 source modules across `openxp/{stats,data,storage,monitoring,amendments,validators,metrics,errors,schemas}`. v0.1 + v0.5 + v1.0 features shipped as code; agent/skill layer has known signature drift documented in `PRD_COVERAGE.md` and `FINAL_STATUS.md`.
+**Repo state at write time:** 391 passing tests, 22 test files, 47 source modules across `agentxp/{stats,data,storage,monitoring,amendments,validators,metrics,errors,schemas}`. v0.1 + v0.5 + v1.0 features shipped as code; agent/skill layer has known signature drift documented in `PRD_COVERAGE.md` and `FINAL_STATUS.md`.
 **Read-only contract:** Nothing in this document modifies source code. It enumerates what must be tested, how, and in what order to write the tests.
 
 ---
@@ -10,13 +10,13 @@
 ## 0. TL;DR
 
 - **Current state:** 391 tests, ~5s runtime, deterministic across reruns. Coverage is heavy on stats happy paths (CUPED, sequential, Bayesian, monitoring) and validators; thin on edge cases, fuzz inputs, simulation-grade statistical correctness, contract stability, and end-to-end skill flows.
-- **Target state:** ~1100–1300 tests across 8 build waves (T1–T8), with pre-commit < 5s, PR check < 60s, PR-extended (sims/fuzz/bench) < 10min, nightly mutation + long sims < 60min. Every public function in `openxp.stats.*` has ≥3 unit tests + ≥1 property test; every load-bearing math function has a Monte-Carlo simulation test with explicit tolerance bands; every parser has a fuzz harness; every public API has a contract snapshot.
+- **Target state:** ~1100–1300 tests across 8 build waves (T1–T8), with pre-commit < 5s, PR check < 60s, PR-extended (sims/fuzz/bench) < 10min, nightly mutation + long sims < 60min. Every public function in `agentxp.stats.*` has ≥3 unit tests + ≥1 property test; every load-bearing math function has a Monte-Carlo simulation test with explicit tolerance bands; every parser has a fuzz harness; every public API has a contract snapshot.
 - **Biggest gaps right now (top 5):**
   1. **No simulation tests of statistical correctness** beyond a single mSPRT Type-I check. No Type-I/Type-II/coverage/calibration sims for `welch_test`, `proportion_test`, `ratio_metric_test`, `power_*`, `cuped_*`, Bayesian, group-sequential.
   2. **No property-based testing** at all (Hypothesis is not a dependency yet).
   3. **No fuzz harness** for the parsers (`CSVLoader`, `validate_experiment_yaml`, `validate_metric_yaml`, `MetricRegistry`, `discover_schema`, `diff_experiments`, YAML loaders).
   4. **No end-to-end mode tests** — the `/experiment` skill dispatcher has zero integration coverage (`tests/integration/` directory is empty). Cold-start path, full-mode resume, every Type-C checkpoint enforcement: untested.
-  5. **No contract snapshot** — the public API surface (`openxp.stats.__init__` re-exports + return-dict shapes) can drift silently. Users will hit it; tests won't.
+  5. **No contract snapshot** — the public API surface (`agentxp.stats.__init__` re-exports + return-dict shapes) can drift silently. Users will hit it; tests won't.
 
 ---
 
@@ -66,7 +66,7 @@ This section defines the test types. Every later section assigns each test to on
 - **Examples:** the contract snapshot in `tests/contracts/`, the `analysis_results.json` shape for `clean_ab.csv`, the `interpretation.md` for each canonical scenario.
 
 ### 1.7 Fuzz
-- **What:** random malformed inputs, must never crash with an unhandled exception, must always return either a structured `OpenXPError` or a structured `ValidationReport`.
+- **What:** random malformed inputs, must never crash with an unhandled exception, must always return either a structured `AgentXPError` or a structured `ValidationReport`.
 - **Triggers in CI:** PR-extended (label `run-heavy`); always nightly.
 - **Runtime budget:** 1k–10k iterations per fuzz target, < 60s each, < 5 min total.
 - **Pass/fail:** "no uncaught exception" + "structured error output". Uses Hypothesis strategies with `@settings(suppress_health_check=[...])` for slow generators.
@@ -76,7 +76,7 @@ This section defines the test types. Every later section assigns each test to on
 - **What:** large data, long experiments, high variant counts, deep nesting.
 - **Triggers in CI:** PR-extended (`run-heavy`); always nightly.
 - **Runtime budget:** < 60s per test; full stress suite < 5 min.
-- **Pass/fail:** "completes within budget" + "no memory blowup" (use `psutil` or `tracemalloc.get_traced_memory()`). Fast-fail tests assert the function refuses (returns `OpenXPError` with `data_too_large` code) rather than OOM-ing.
+- **Pass/fail:** "completes within budget" + "no memory blowup" (use `psutil` or `tracemalloc.get_traced_memory()`). Fast-fail tests assert the function refuses (returns `AgentXPError` with `data_too_large` code) rather than OOM-ing.
 
 ### 1.9 Determinism
 - **What:** same input + same seed → byte-identical output, repeated N=3 times in-process and at least once cross-process.
@@ -103,13 +103,13 @@ This section defines the test types. Every later section assigns each test to on
 - **Pass/fail:** assertion-based.
 
 ### 1.13 Contract
-- **What:** public API stability. Asserts the set of exported symbols in `openxp.__init__`, `openxp.stats.__init__`, `openxp.data.__init__`, `openxp.storage.__init__`, `openxp.monitoring.__init__`, `openxp.amendments.__init__`, `openxp.validators.__init__`, `openxp.errors.__init__`, `openxp.metrics.__init__`. Asserts the signature of every `__all__` entry (positional args, kwargs, defaults, return annotation if present). Asserts the minimum set of return-dict keys for every stats function (must include `interpretation`).
+- **What:** public API stability. Asserts the set of exported symbols in `agentxp.__init__`, `agentxp.stats.__init__`, `agentxp.data.__init__`, `agentxp.storage.__init__`, `agentxp.monitoring.__init__`, `agentxp.amendments.__init__`, `agentxp.validators.__init__`, `agentxp.errors.__init__`, `agentxp.metrics.__init__`. Asserts the signature of every `__all__` entry (positional args, kwargs, defaults, return annotation if present). Asserts the minimum set of return-dict keys for every stats function (must include `interpretation`).
 - **Triggers in CI:** pre-commit + every PR check.
 - **Runtime budget:** < 1s for the full contract suite.
 - **Pass/fail:** byte-equal against `tests/contracts/api_v1.json`. Breaking changes require a deliberate `--snapshot-update` and a major-version bump in `pyproject.toml`.
 
 ### 1.14 Lifecycle / state machine
-- **What:** every legal transition + every illegal transition for the 11-state DAG in `openxp/storage/lifecycle.py`. Plus every backward transition's amendment requirement.
+- **What:** every legal transition + every illegal transition for the 11-state DAG in `agentxp/storage/lifecycle.py`. Plus every backward transition's amendment requirement.
 - **Triggers in CI:** every PR check.
 - **Runtime budget:** < 5s for the full lifecycle suite (it's > 100 small assertions).
 - **Pass/fail:** assertion-based.
@@ -225,7 +225,7 @@ Every use case AgentXP supports, grouped by layer. Each entry is `intent → inp
 
 ### 2.2 Python library layer (every public surface)
 
-#### 2.2.1 `openxp.stats.*` — 31 public functions to test (one of these is missing from the count if you collapse `set_trace`/`is_trace_enabled`)
+#### 2.2.1 `agentxp.stats.*` — 31 public functions to test (one of these is missing from the count if you collapse `set_trace`/`is_trace_enabled`)
 
 ```
 ab_tests:        welch_test, proportion_test, ratio_metric_test, winsorize
@@ -247,7 +247,7 @@ _trace:          set_trace, is_trace_enabled
 
 For each: user intent (named in CLAUDE.md table), inputs, expected output dict keys, preconditions.
 
-#### 2.2.2 `openxp.data.*`
+#### 2.2.2 `agentxp.data.*`
 - `CSVLoader.load(path) → LoadResult`
 - `CSVLoader.stream(path, chunksize) → Iterator[DataFrame]`
 - `DuckDBLoader.load_query(sql)`, `DuckDBLoader.load_table(table_name)`
@@ -257,7 +257,7 @@ For each: user intent (named in CLAUDE.md table), inputs, expected output dict k
 
 For each: file paths, query strings, expected `LoadResult` shape (`df, schema, source_type, n_rows, n_cols, dtypes, warnings`), error envelope on failure.
 
-#### 2.2.3 `openxp.storage.*`
+#### 2.2.3 `agentxp.storage.*`
 - `ExperimentStore(root)` — constructor
 - `save_experiment`, `load_experiment`
 - `save_analysis`, `load_latest_analysis`, `list_analyses`
@@ -269,7 +269,7 @@ For each: file paths, query strings, expected `LoadResult` shape (`df, schema, s
 - `_log_path`, `_yaml_path`, `_analyses_dir` (test as semi-public, used by `amendments`)
 - `lifecycle.validate_transition`, `lifecycle.is_backward`
 
-#### 2.2.4 `openxp.amendments.*`
+#### 2.2.4 `agentxp.amendments.*`
 - `Amendment` dataclass (validation in `__post_init__`)
 - `AmendmentTracker.append(experiment_id, change_path, before, after, reason)`
 - `AmendmentTracker.list(experiment_id)`
@@ -277,35 +277,35 @@ For each: file paths, query strings, expected `LoadResult` shape (`df, schema, s
 - `diff_experiments(before_dict, after_dict) → list[Change]`
 - `classify_change(change) → "material" | "administrative"`
 
-#### 2.2.5 `openxp.monitoring.*`
+#### 2.2.5 `agentxp.monitoring.*`
 - `srm_trend(df, treatment_col, timestamp_col, window, threshold, expected_ratios)`
 - `guardrail_health(df, treatment_col, guardrail_metrics, thresholds, ...)`
 - `sample_accumulation(current_n, required_n, daily_traffic, days_elapsed, planned_duration_days, now)`
 - `run_monitor(experiment_id, data_loader, store=None, current_n_fn=None) → MonitorReport`
 - `MonitorReport.to_dict()`, `MonitorReport.persistence_error`
 
-#### 2.2.6 `openxp.validators.*`
+#### 2.2.6 `agentxp.validators.*`
 - `validate_experiment_yaml(path_or_dict) → ValidationReport`
 - `validate_metric_yaml(path_or_dict) → ValidationReport`
 - `ValidationReport.ok`, `ValidationReport.findings`, `ValidationReport.errors`, `ValidationReport.warnings`
 
 Plus: every individual validator rule in `experiment_validator.py` and `metric_validator.py` (see edge case atlas §3 and gap analysis §4).
 
-#### 2.2.7 `openxp.metrics.*`
+#### 2.2.7 `agentxp.metrics.*`
 - `MetricDefinition` (Pydantic model — required/optional fields)
 - `MetricRegistry` — `load_from_file`, `load_from_dir`, `get`, `list_all`
 - `MetricDefinition.to_test_function()` — dispatch routing
 
-#### 2.2.8 `openxp.errors.*`
-- `OpenXPError(code, message, hint, severity, details)` — constructor + `__str__` + `to_dict`
+#### 2.2.8 `agentxp.errors.*`
+- `AgentXPError(code, message, hint, severity, details)` — constructor + `__str__` + `to_dict`
 - Each subclass: `ValidationError`, `DataError`, `StatsError`, `StorageError`, `LifecycleError`
 - `errors.codes.*` — all 17 error codes exist + have a default message + a default hint
 
-#### 2.2.9 `openxp.schemas.*`
+#### 2.2.9 `agentxp.schemas.*`
 - `ExperimentConfig` Pydantic model
 - `ExperimentStatus` enum (currently 6 states; should be 11 — see §3 lifecycle edge cases)
 - `EwlClassification` enum
-- `openxp.schemas.results.*` — empty scaffold today (see §FINAL_STATUS gap 5); test plan assumes it gets populated and includes coverage requirements for the 14 result-type Pydantic models PRD §5.3 mandates
+- `agentxp.schemas.results.*` — empty scaffold today (see §FINAL_STATUS gap 5); test plan assumes it gets populated and includes coverage requirements for the 14 result-type Pydantic models PRD §5.3 mandates
 
 ### 2.3 Data / schema layer
 
@@ -450,10 +450,10 @@ Key for `Status`: NEW=needs writing, EXIST=already in suite, EXTEND=in suite but
 | DE-013 | Timezone confusion (tz-aware UTC vs naive local) | discovery preserves tz; `srm_trend` uses tz-aware grouping if present | I | P | NEW |
 | DE-014 | Float precision: sum of allocations 0.4 + 0.4 + 0.2 ≠ 1.0 exactly | validator tolerates `abs(sum-1) < 0.001` | U | P | EXIST | per validator tests |
 | DE-015 | DuckDB query returns no rows | `LoadResult` with empty df, no crash | U | P | NEW |
-| DE-016 | DuckDB `path` doesn't exist | error: `OpenXPError(code='data_not_found')` | U | P | NEW |
-| DE-017 | DuckDB syntax error in SQL | error: `OpenXPError(code='data_load_failed')` with message including the sql | U | P | NEW |
+| DE-016 | DuckDB `path` doesn't exist | error: `AgentXPError(code='data_not_found')` | U | P | NEW |
+| DE-017 | DuckDB syntax error in SQL | error: `AgentXPError(code='data_load_failed')` with message including the sql | U | P | NEW |
 | DE-018 | Snowflake credentials missing (no env vars) | error before connect attempt | U | P | NEW |
-| DE-019 | Snowflake credentials present but expired | error: `OpenXPError(code='auth_failed')`; password never in message | U,Se | P | NEW |
+| DE-019 | Snowflake credentials present but expired | error: `AgentXPError(code='auth_failed')`; password never in message | U,Se | P | NEW |
 | DE-020 | Snowflake wrong warehouse | clear error message naming the warehouse | U | P | NEW |
 | DE-021 | Snowflake `snowflake-connector-python` package not installed | ImportError path with "install with `pip install agentxp[snowflake]`" hint | U | P | EXIST | per test_snowflake_loader.py |
 | DE-022 | DuckDB package not installed | same import hint | U | P | EXTEND | similar pattern |
@@ -551,7 +551,7 @@ The lifecycle has 11 states, 27 valid transitions (forward + backward), and (11�
 | LE-066 | Amendment after TERMINATED state (COMPLETED, ABANDONED) | rejected | I | P | NEW |
 | LE-067 | `experiment.yaml` corrupted mid-write (interrupt during atomic replace) | original file intact, no .tmp leftover | I | P | EXIST | covered in test_storage |
 | LE-068 | Clock skew: timestamp from future (2099) | accepted; storage doesn't validate clock | I | P | NEW |
-| LE-069 | Store root path permission denied | `OpenXPError(code='storage_permission_denied')` | I,Se | P | NEW |
+| LE-069 | Store root path permission denied | `AgentXPError(code='storage_permission_denied')` | I,Se | P | NEW |
 | LE-070 | Store root path is a file not a directory | error at construction | I | P | NEW |
 | LE-071 | Disk full during save | error: write fails atomically; no half-written file | I | P | NEW |
 | LE-072 | Very deep nested yaml (recursion limit) | parser refuses with clear error | I | P | NEW |
@@ -571,15 +571,15 @@ The lifecycle has 11 states, 27 valid transitions (forward + backward), and (11�
 
 | # | Trigger | Expected | Type | P/B | Status |
 |---|---|---|---|---|---|
-| IE-001 | No `OPENXP_SNOWFLAKE_*` env vars | clear error at connect, no traceback into snowflake-connector | U | P | NEW |
-| IE-002 | `OPENXP_SNOWFLAKE_PASSWORD` set, password contains special chars | passes through, never logged | U,Se | P | NEW |
+| IE-001 | No `AGENTXP_SNOWFLAKE_*` env vars | clear error at connect, no traceback into snowflake-connector | U | P | NEW |
+| IE-002 | `AGENTXP_SNOWFLAKE_PASSWORD` set, password contains special chars | passes through, never logged | U,Se | P | NEW |
 | IE-003 | `snowflake-connector-python` not installed | ImportError caught, hint to install extras | U | P | EXIST |
 | IE-004 | `duckdb` not installed | ImportError caught, hint to install extras | U | P | NEW |
 | IE-005 | `PyYAML` version too old (e.g., 3.x) | error at import time | Co | P | NEW |
 | IE-006 | scipy 1.11 vs 1.12 vs 1.13 — `welch_test` numerically equivalent within 1e-9 | matrix run | Co | P | NEW |
 | IE-007 | numpy 1.26 vs numpy 2.0 — no `np.float_` deprecation crash | matrix run | Co | P | NEW |
 | IE-008 | pandas 2.0 vs 2.2 — `pd.Grouper(freq='1D')` vs `'1d'` lowercase | `srm_trend` `_window_alias` handles both | Co | P | NEW |
-| IE-009 | Write to read-only filesystem | `OpenXPError(code='storage_permission_denied')` | I | P | NEW |
+| IE-009 | Write to read-only filesystem | `AgentXPError(code='storage_permission_denied')` | I | P | NEW |
 | IE-010 | SIGINT during save | atomic rollback, no partial file | I | P | EXIST | per test_atomic_write_survives_interrupt |
 | IE-011 | Trailing whitespace in YAML values ("primary_metric: revenue   ") | parser strips; cross-field check still passes | I | P | NEW |
 | IE-012 | YAML with tab indentation | parser rejects with clear error | I | P | NEW |
@@ -680,42 +680,42 @@ Module-by-module. "Public fns" = functions/classes exported via `__init__.py` or
 
 | Module | Public fns | Fns with ≥3 tests | Sim tests | Gaps | Priority |
 |---|---|---|---|---|---|
-| `openxp.stats.ab_tests` | 4 (welch, proportion, ratio_metric, winsorize) | 4 | 0 | No Type-I/II/coverage sims; no zero-variance contract; no n<30 warnings | **CRITICAL** |
-| `openxp.stats.fishers` | 1 | 1 | 0 | No fallback-from-proportion test; no large-n behavior | HIGH |
-| `openxp.stats.guardrails` | 2 (guardrail_test, denominator_srm) | 1 | 0 | No invert=True test; no zero-baseline; no `metric_type='proportion'` path | **CRITICAL** |
-| `openxp.stats.power` | 5 (power_proportion, power_mean, detectable_effect, duration_estimate, power_sensitivity_table) | 5 | 0 | No calibration sims; no extreme-baseline (0.5 max variance); no monotonicity properties | HIGH |
-| `openxp.stats.ratio_power` | 1 (power_ratio) | 1 | 0 | No correlation-edge tests; no calibration sim | HIGH |
-| `openxp.stats.extension` | 1 | 1 | 0 | No accuracy sim; no feasibility-boundary test; major signature drift from PRD/MODES (FINAL_STATUS gap) | HIGH |
-| `openxp.stats.srm` | 2 (srm_check, srm_diagnose) | 2 | 0 | Default threshold mismatch with PRD (0.01 vs 0.0005) — the default needs an explicit test that asserts it; no multi-arm test; no segment-diagnose-with-100-segments | **CRITICAL** |
-| `openxp.stats.effect_size` | 2 (cohens_d, relative_lift) | 2 | 0 | No `relative_lift(0,0)` contract; no negative-control test | MEDIUM |
-| `openxp.stats.effect_size_extras` | 1 (cohens_h) | 1 | 0 | Sig drift with PRD (no n_control/n_treatment kwargs); no boundary test | MEDIUM |
-| `openxp.stats.corrections` | 1 (adjust_pvalues) | 1 | 0 | No Holm-vs-BH agreement sim; no NaN handling | MEDIUM |
-| `openxp.stats.prep` | 1 (prepare_experiment_data) | 1 (in test_missing_functions) | 0 | Major: no panel/dedup/winsorize chain test; PRD-vs-actual sig drift; no >5% drop warning | **CRITICAL** |
-| `openxp.stats.cuped` | 3 (cuped_adjust, variance_reduction, cuped_welch_test) | 3 | 0 | Var(pre)=0 fallback untested; cov=0 untested; sim of variance reduction claim | HIGH |
-| `openxp.stats.sequential` | 4 (msprt_test, always_valid_ci, group_sequential_boundaries, sequential_proportion_test) | 4 | 1 (Type-I peeking, 500 reps) | sim count too low (500); no group-seq Type-I sim; no coverage sim for always_valid_ci | HIGH |
-| `openxp.stats.bayesian` | 4 (beta_binomial_test, normal_normal_test, expected_loss, probability_to_beat) | 4 | 0 | M1 strong-prior bug locked in by test_strong_prior_pulls_posterior; no posterior coverage sim; no edge `n_samples=2` | HIGH |
-| `openxp.stats._trace` | 2 (set_trace, is_trace_enabled) | 2 | 0 | Default-on-vs-off contract is exactly the FINAL_STATUS gap 3; need test that asserts decision | **CRITICAL** |
-| `openxp.data.csv_loader` | 1 class | 1 | 0 | stream() error paths untested per WAVE1 §7; BOM/CRLF/encoding edge cases | HIGH |
-| `openxp.data.discovery` | 1 (discover_schema) + helpers | 1 | 0 | Empty df, single col, 1000-col, unicode names, schema drift | HIGH |
-| `openxp.data.duckdb_loader` | 1 class | 1 | 0 | No-rows query, syntax error, missing duckdb extra | MEDIUM |
-| `openxp.data.snowflake_loader` | 1 class | 1 | 0 | S4 SQL injection in `where` param unfixed; credential leakage in stack traces; missing extras | **CRITICAL** (Se) |
-| `openxp.data.base` | 2 dataclasses | (transitively) | 0 | `to_dict` JSON-serializability untested per WAVE1 §7 | LOW |
-| `openxp.storage.store` | 10 methods | ~7 | 0 | `delete_experiment` JSONL cleanup; corrupt-yaml load; concurrent writes; microsecond sort I3 | HIGH |
-| `openxp.storage.lifecycle` | 3 (validate_transition, is_backward, ALL_STATES) | 3 | 0 | Missing exhaustive 11×11 matrix tests (≈83 illegal transitions); property tests | **CRITICAL** |
-| `openxp.amendments.diff` | 2 (diff_experiments, classify_change) | 2 | 0 | Missing `data` prefix classify; tuple-vs-list mismatch; round-trip property | MEDIUM |
-| `openxp.amendments.tracker` | 1 class + helper | 1 | 0 | Reason whitespace, unicode, max-length; reaching into `store._log_path` (S2) | MEDIUM |
-| `openxp.monitoring.srm_trend` | 1 | 1 | 0 | Single-variant outage (T4); window aliasing across pandas versions | HIGH |
-| `openxp.monitoring.guardrail_health` | 1 | 1 | 0 | Zero-baseline NIM warning (S5); proportion guardrail path | HIGH |
-| `openxp.monitoring.sample_accumulation` | 1 | 1 | 0 | Day-0 stalled branch (M1); planned_duration=None | MEDIUM |
-| `openxp.monitoring.report` | 2 (run_monitor, MonitorReport) | 2 | 0 | Persistence error annotation (M5); current_n default (S1); non-trivial dispatch | HIGH |
-| `openxp.validators.experiment_validator` | 11 internal rules + `validate_experiment_yaml` | partial | 0 | Each rule needs a dedicated trigger test; YAML bomb; size cap | HIGH |
-| `openxp.validators.metric_validator` | 2 functions | partial | 0 | Type enum, formula injection | MEDIUM |
-| `openxp.metrics.registry` | 4 methods | 4 | 0 | `_default_metrics_dir` HOME monkeypatch; no test_family routing | LOW |
-| `openxp.metrics.schema` | 1 model + dispatch | 1 | 0 | Missing test_family field per WAVE1 I2; routing to bayesian/cuped/sequential | MEDIUM |
-| `openxp.errors.base` | 1 class + 5 subclasses | 1 | 0 | Empty code/message; non-JSON details (T7); `default=str` discipline | MEDIUM |
-| `openxp.errors.codes` | 17 constants | partial | 0 | Each code has a default message + hint | LOW |
-| `openxp.schemas.experiment` | 1 model + 2 enums | 1 | 0 | 11-state enum (FINAL_STATUS gap 4); cross-field validation; field defaults | HIGH |
-| `openxp.schemas.results` | 14 models (currently empty) | 0 | 0 | Entire module needs population (FINAL_STATUS gap 5) — testing waits on the build | DEFER |
+| `agentxp.stats.ab_tests` | 4 (welch, proportion, ratio_metric, winsorize) | 4 | 0 | No Type-I/II/coverage sims; no zero-variance contract; no n<30 warnings | **CRITICAL** |
+| `agentxp.stats.fishers` | 1 | 1 | 0 | No fallback-from-proportion test; no large-n behavior | HIGH |
+| `agentxp.stats.guardrails` | 2 (guardrail_test, denominator_srm) | 1 | 0 | No invert=True test; no zero-baseline; no `metric_type='proportion'` path | **CRITICAL** |
+| `agentxp.stats.power` | 5 (power_proportion, power_mean, detectable_effect, duration_estimate, power_sensitivity_table) | 5 | 0 | No calibration sims; no extreme-baseline (0.5 max variance); no monotonicity properties | HIGH |
+| `agentxp.stats.ratio_power` | 1 (power_ratio) | 1 | 0 | No correlation-edge tests; no calibration sim | HIGH |
+| `agentxp.stats.extension` | 1 | 1 | 0 | No accuracy sim; no feasibility-boundary test; major signature drift from PRD/MODES (FINAL_STATUS gap) | HIGH |
+| `agentxp.stats.srm` | 2 (srm_check, srm_diagnose) | 2 | 0 | Default threshold mismatch with PRD (0.01 vs 0.0005) — the default needs an explicit test that asserts it; no multi-arm test; no segment-diagnose-with-100-segments | **CRITICAL** |
+| `agentxp.stats.effect_size` | 2 (cohens_d, relative_lift) | 2 | 0 | No `relative_lift(0,0)` contract; no negative-control test | MEDIUM |
+| `agentxp.stats.effect_size_extras` | 1 (cohens_h) | 1 | 0 | Sig drift with PRD (no n_control/n_treatment kwargs); no boundary test | MEDIUM |
+| `agentxp.stats.corrections` | 1 (adjust_pvalues) | 1 | 0 | No Holm-vs-BH agreement sim; no NaN handling | MEDIUM |
+| `agentxp.stats.prep` | 1 (prepare_experiment_data) | 1 (in test_missing_functions) | 0 | Major: no panel/dedup/winsorize chain test; PRD-vs-actual sig drift; no >5% drop warning | **CRITICAL** |
+| `agentxp.stats.cuped` | 3 (cuped_adjust, variance_reduction, cuped_welch_test) | 3 | 0 | Var(pre)=0 fallback untested; cov=0 untested; sim of variance reduction claim | HIGH |
+| `agentxp.stats.sequential` | 4 (msprt_test, always_valid_ci, group_sequential_boundaries, sequential_proportion_test) | 4 | 1 (Type-I peeking, 500 reps) | sim count too low (500); no group-seq Type-I sim; no coverage sim for always_valid_ci | HIGH |
+| `agentxp.stats.bayesian` | 4 (beta_binomial_test, normal_normal_test, expected_loss, probability_to_beat) | 4 | 0 | M1 strong-prior bug locked in by test_strong_prior_pulls_posterior; no posterior coverage sim; no edge `n_samples=2` | HIGH |
+| `agentxp.stats._trace` | 2 (set_trace, is_trace_enabled) | 2 | 0 | Default-on-vs-off contract is exactly the FINAL_STATUS gap 3; need test that asserts decision | **CRITICAL** |
+| `agentxp.data.csv_loader` | 1 class | 1 | 0 | stream() error paths untested per WAVE1 §7; BOM/CRLF/encoding edge cases | HIGH |
+| `agentxp.data.discovery` | 1 (discover_schema) + helpers | 1 | 0 | Empty df, single col, 1000-col, unicode names, schema drift | HIGH |
+| `agentxp.data.duckdb_loader` | 1 class | 1 | 0 | No-rows query, syntax error, missing duckdb extra | MEDIUM |
+| `agentxp.data.snowflake_loader` | 1 class | 1 | 0 | S4 SQL injection in `where` param unfixed; credential leakage in stack traces; missing extras | **CRITICAL** (Se) |
+| `agentxp.data.base` | 2 dataclasses | (transitively) | 0 | `to_dict` JSON-serializability untested per WAVE1 §7 | LOW |
+| `agentxp.storage.store` | 10 methods | ~7 | 0 | `delete_experiment` JSONL cleanup; corrupt-yaml load; concurrent writes; microsecond sort I3 | HIGH |
+| `agentxp.storage.lifecycle` | 3 (validate_transition, is_backward, ALL_STATES) | 3 | 0 | Missing exhaustive 11×11 matrix tests (≈83 illegal transitions); property tests | **CRITICAL** |
+| `agentxp.amendments.diff` | 2 (diff_experiments, classify_change) | 2 | 0 | Missing `data` prefix classify; tuple-vs-list mismatch; round-trip property | MEDIUM |
+| `agentxp.amendments.tracker` | 1 class + helper | 1 | 0 | Reason whitespace, unicode, max-length; reaching into `store._log_path` (S2) | MEDIUM |
+| `agentxp.monitoring.srm_trend` | 1 | 1 | 0 | Single-variant outage (T4); window aliasing across pandas versions | HIGH |
+| `agentxp.monitoring.guardrail_health` | 1 | 1 | 0 | Zero-baseline NIM warning (S5); proportion guardrail path | HIGH |
+| `agentxp.monitoring.sample_accumulation` | 1 | 1 | 0 | Day-0 stalled branch (M1); planned_duration=None | MEDIUM |
+| `agentxp.monitoring.report` | 2 (run_monitor, MonitorReport) | 2 | 0 | Persistence error annotation (M5); current_n default (S1); non-trivial dispatch | HIGH |
+| `agentxp.validators.experiment_validator` | 11 internal rules + `validate_experiment_yaml` | partial | 0 | Each rule needs a dedicated trigger test; YAML bomb; size cap | HIGH |
+| `agentxp.validators.metric_validator` | 2 functions | partial | 0 | Type enum, formula injection | MEDIUM |
+| `agentxp.metrics.registry` | 4 methods | 4 | 0 | `_default_metrics_dir` HOME monkeypatch; no test_family routing | LOW |
+| `agentxp.metrics.schema` | 1 model + dispatch | 1 | 0 | Missing test_family field per WAVE1 I2; routing to bayesian/cuped/sequential | MEDIUM |
+| `agentxp.errors.base` | 1 class + 5 subclasses | 1 | 0 | Empty code/message; non-JSON details (T7); `default=str` discipline | MEDIUM |
+| `agentxp.errors.codes` | 17 constants | partial | 0 | Each code has a default message + hint | LOW |
+| `agentxp.schemas.experiment` | 1 model + 2 enums | 1 | 0 | 11-state enum (FINAL_STATUS gap 4); cross-field validation; field defaults | HIGH |
+| `agentxp.schemas.results` | 14 models (currently empty) | 0 | 0 | Entire module needs population (FINAL_STATUS gap 5) — testing waits on the build | DEFER |
 
 **Public function count (rough, including helpers used cross-module):** ~85
 **Public functions with ≥3 tests today:** ~50
@@ -925,18 +925,18 @@ Statistical correctness via Monte Carlo. Each sim has: data-generating process, 
 
 ## 7. Fuzz test plan
 
-Every user-facing parser/loader has a fuzz harness. Fuzz contract: **never crash with an unhandled exception, always return either a structured `OpenXPError` or a structured `ValidationReport` (or, for parsers, raise a documented exception type).**
+Every user-facing parser/loader has a fuzz harness. Fuzz contract: **never crash with an unhandled exception, always return either a structured `AgentXPError` or a structured `ValidationReport` (or, for parsers, raise a documented exception type).**
 
 | # | Target | Generator | Iterations | Assertion | Runtime |
 |---|---|---|---|---|---|
-| FZ-001 | `CSVLoader.load(tmpfile)` | `binary()` written to a tempfile | 1,000 | result is `LoadResult` OR raises `OpenXPError`, never `pd.errors.ParserError` unwrapped | 10s |
+| FZ-001 | `CSVLoader.load(tmpfile)` | `binary()` written to a tempfile | 1,000 | result is `LoadResult` OR raises `AgentXPError`, never `pd.errors.ParserError` unwrapped | 10s |
 | FZ-002 | `validate_experiment_yaml(path)` | YAML strings: random keys, random nesting up to depth 5, random values | 5,000 | result is `ValidationReport`; `report.ok` is bool; never raises | 20s |
 | FZ-003 | `validate_experiment_yaml(dict)` | `dictionaries(text(), one_of(text(), integers(), floats(), lists(text())))` | 5,000 | same | 15s |
 | FZ-004 | `validate_metric_yaml` | same shape | 3,000 | same | 10s |
-| FZ-005 | `MetricRegistry.load_from_file(path)` | random YAML | 2,000 | raises `OpenXPError` or returns `MetricDefinition` | 8s |
+| FZ-005 | `MetricRegistry.load_from_file(path)` | random YAML | 2,000 | raises `AgentXPError` or returns `MetricDefinition` | 8s |
 | FZ-006 | `discover_schema(df)` | random DataFrames with random dtypes | 2,000 | returns `SchemaDiscovery`, never raises | 12s |
 | FZ-007 | `diff_experiments(before, after)` | random nested dict pairs | 5,000 | returns a list; round-trip property holds | 15s |
-| FZ-008 | `srm_check(observed_counts, expected_ratios)` | random non-negative int lists, random ratio lists | 5,000 | returns dict with `verdict` ∈ enum, OR raises `OpenXPError` | 10s |
+| FZ-008 | `srm_check(observed_counts, expected_ratios)` | random non-negative int lists, random ratio lists | 5,000 | returns dict with `verdict` ∈ enum, OR raises `AgentXPError` | 10s |
 | FZ-009 | `welch_test(c, t)` | random arrays with NaN/inf injected | 3,000 | returns dict with `error: True` or finite p-value | 10s |
 | FZ-010 | `proportion_test(...)` | random ints with sometimes c_success > c_n | 3,000 | structured error or finite result | 8s |
 | FZ-011 | `ExperimentStore.save_experiment(id, dict)` | random ids + random dicts | 2,000 | rejects bad ids; never writes outside store root | 15s |
@@ -994,9 +994,9 @@ Each benchmark has a baseline that gets locked in via `pytest-benchmark --benchm
 
 | # | Concern | Trigger | Expected | Type | Status |
 |---|---|---|---|---|---|
-| SE-001 | Snowflake password leakage in logs | run `SnowflakeLoader.load_experiment` with `OPENXP_SNOWFLAKE_PASSWORD="hunter2"` and a verbose logger | "hunter2" appears nowhere in `caplog.records` | EXIST | partial — extend to every log path |
+| SE-001 | Snowflake password leakage in logs | run `SnowflakeLoader.load_experiment` with `AGENTXP_SNOWFLAKE_PASSWORD="hunter2"` and a verbose logger | "hunter2" appears nowhere in `caplog.records` | EXIST | partial — extend to every log path |
 | SE-002 | Snowflake password leakage in stack trace | force a connect failure | `caplog.records` and `exc.__str__()` contain no password substring | NEW | |
-| SE-003 | Snowflake password leakage in `to_dict()` of `OpenXPError` | wrap a Snowflake auth error in `OpenXPError(details={...})` | password not in `to_dict()` | NEW | |
+| SE-003 | Snowflake password leakage in `to_dict()` of `AgentXPError` | wrap a Snowflake auth error in `AgentXPError(details={...})` | password not in `to_dict()` | NEW | |
 | SE-004 | SQL injection via `SnowflakeLoader.load_experiment(where="x'; drop table users; --")` | call with the evil where | rejected (validate single quotes / semicolons) OR parameterized; assert via mock cursor | NEW | this is the unfixed S4 |
 | SE-005 | SQL injection via DuckDB `load_query("DROP TABLE; SELECT 1")` | DuckDB allows multi-statement; we should reject or warn | document policy + assert | NEW | |
 | SE-006 | SQL injection via experiment_id | `save_experiment("'; drop table; --", ...)` | rejected by id regex | NEW | |
@@ -1009,9 +1009,9 @@ Each benchmark has a baseline that gets locked in via `pytest-benchmark --benchm
 | SE-013 | Pickle: ensure no module imports pickle | grep the entire codebase for `import pickle` | zero matches | NEW | |
 | SE-014 | `eval`/`exec` ban: ensure no module uses `eval` or `exec` | grep | zero matches | NEW | |
 | SE-015 | Metric formula injection (when expression eval lands) | `"__import__('os').system('rm -rf /')"` | rejected by AST whitelist | NEW | depends on PRD §5.16 D.18 implementation |
-| SE-016 | OpenXPError to_dict serialization with malicious nested dict | recursion bomb in `details` | bounded depth | NEW | |
+| SE-016 | AgentXPError to_dict serialization with malicious nested dict | recursion bomb in `details` | bounded depth | NEW | |
 | SE-017 | Disk full while writing yaml | atomic write rolls back | NEW | |
-| SE-018 | `os.environ` poisoning: `OPENXP_STORE_ROOT=/etc` | accepted only if writable; otherwise clear error | NEW | |
+| SE-018 | `os.environ` poisoning: `AGENTXP_STORE_ROOT=/etc` | accepted only if writable; otherwise clear error | NEW | |
 
 ---
 
@@ -1041,16 +1041,16 @@ Compatibility tests just run the unit suite under each tier-1 combo. PR-extended
 Every RNG user must accept a `seed` (or `rng`) parameter. Every Monte Carlo test runs twice with the same seed and asserts byte-equal output.
 
 **RNG users in the codebase (audit list — verify each accepts seed):**
-- `openxp.stats.bayesian.beta_binomial_test` — `seed=None` (verified)
-- `openxp.stats.bayesian.normal_normal_test` — `seed=None` (verified)
-- `openxp.stats.bayesian.probability_to_beat` — uses MC, takes seed
-- `openxp.stats.bayesian.expected_loss` — uses MC, takes seed
-- `openxp.stats.cuped.*` — no RNG (deterministic given inputs); confirm
-- `openxp.stats.sequential.msprt_test` — deterministic
-- `openxp.stats.sequential.always_valid_ci` — deterministic
-- `openxp.stats.power.*` — deterministic
-- `openxp.stats.power_sensitivity_table` — deterministic
-- `openxp.data.snowflake_loader` — uses cursor; no RNG; confirm
+- `agentxp.stats.bayesian.beta_binomial_test` — `seed=None` (verified)
+- `agentxp.stats.bayesian.normal_normal_test` — `seed=None` (verified)
+- `agentxp.stats.bayesian.probability_to_beat` — uses MC, takes seed
+- `agentxp.stats.bayesian.expected_loss` — uses MC, takes seed
+- `agentxp.stats.cuped.*` — no RNG (deterministic given inputs); confirm
+- `agentxp.stats.sequential.msprt_test` — deterministic
+- `agentxp.stats.sequential.always_valid_ci` — deterministic
+- `agentxp.stats.power.*` — deterministic
+- `agentxp.stats.power_sensitivity_table` — deterministic
+- `agentxp.data.snowflake_loader` — uses cursor; no RNG; confirm
 - (None elsewhere)
 
 **Determinism tests to add:**
@@ -1098,8 +1098,8 @@ Public API stability. Every exported function must keep its signature; every ret
 
 ### 13.1 Symbol export contract
 `tests/contracts/test_public_api.py` asserts:
-- `set(openxp.stats.__all__) == EXPECTED_STATS_API` (committed list)
-- `set(openxp.data.__all__) == EXPECTED_DATA_API`
+- `set(agentxp.stats.__all__) == EXPECTED_STATS_API` (committed list)
+- `set(agentxp.data.__all__) == EXPECTED_DATA_API`
 - … one assertion per package
 - Each name in `__all__` resolves to a callable or class
 - Each name's `inspect.signature()` matches a snapshot in `tests/contracts/api_v1.json`
@@ -1116,7 +1116,7 @@ For every stats function:
 `tests/contracts/api_v1.json` is the locked snapshot. Generated once via a helper script that introspects every public function and writes:
 ```json
 {
-  "openxp.stats.welch_test": {
+  "agentxp.stats.welch_test": {
     "kind": "function",
     "params": [
       {"name": "control", "kind": "POSITIONAL_OR_KEYWORD", "default": null},
@@ -1131,8 +1131,8 @@ For every stats function:
 A test reads this file, introspects the live module, and asserts equality. Drift fails the test. Re-blessing requires `pytest --snapshot-update` and a comment in the PR.
 
 ### 13.4 Module export tests
-- `from openxp.stats import welch_test, proportion_test, ...` (explicit list of every documented import) — the CLAUDE.md and skill.md examples must work as written. This test mirrors every `from openxp.stats import X` example in the docs.
-- `from openxp.stats.power import power_ratio` — currently fails because `power_ratio` lives in `ratio_power.py`. Per FINAL_STATUS gap 1, decide: either add re-exports at the submodule level, OR fix the docs and add tests that the documented submodule paths work.
+- `from agentxp.stats import welch_test, proportion_test, ...` (explicit list of every documented import) — the CLAUDE.md and skill.md examples must work as written. This test mirrors every `from agentxp.stats import X` example in the docs.
+- `from agentxp.stats.power import power_ratio` — currently fails because `power_ratio` lives in `ratio_power.py`. Per FINAL_STATUS gap 1, decide: either add re-exports at the submodule level, OR fix the docs and add tests that the documented submodule paths work.
 
 ---
 
@@ -1245,7 +1245,7 @@ locust >= 2.20              # load testing (not currently planned)
 Eight build waves. Each wave: name, scope, rough test count, dependencies on earlier waves, review gate.
 
 ### Wave T1 — Contract snapshot + API stability
-- **Scope:** §13. `tests/contracts/test_public_api.py`, `tests/contracts/api_v1.json` snapshot, return-dict shape contract, every documented `from openxp... import X` is asserted to actually work.
+- **Scope:** §13. `tests/contracts/test_public_api.py`, `tests/contracts/api_v1.json` snapshot, return-dict shape contract, every documented `from agentxp... import X` is asserted to actually work.
 - **New tests:** ~25
 - **Dependencies:** none
 - **Review gate:** Shane reviews the api_v1.json snapshot; this is the thing that makes future signature drift loud.
@@ -1311,17 +1311,17 @@ All 14 questions have been resolved: 6 via code changes in build waves, 5 via po
 
 ### Q2: Default for `set_trace`
 **Status:** RESOLVED (W19)
-**Resolution:** `_TRACE_ENABLED = True` is set at module level in `openxp/stats/_trace.py` (line 43). The D.9 audit-trail contract requires traces by default — the orchestrator does not need to call `set_trace(True)` explicitly. Callers who want slimmer dicts opt out via `set_trace(False)`.
+**Resolution:** `_TRACE_ENABLED = True` is set at module level in `agentxp/stats/_trace.py` (line 43). The D.9 audit-trail contract requires traces by default — the orchestrator does not need to call `set_trace(True)` explicitly. Callers who want slimmer dicts opt out via `set_trace(False)`.
 **Test impact:** SK-019, SK-020 unblocked. Tests should assert trace is ON by default (i.e., `is_trace_enabled() is True` at import time and `computation_trace` key present in all stats return dicts).
 
 ### Q3: `ExperimentStatus` enum unification
 **Status:** RESOLVED (W19)
-**Resolution:** The Pydantic `ExperimentStatus` enum in `openxp/schemas/experiment.py` now carries all 11 states (DESIGNING, POWERED, COLLECTING, ANALYZING, INTERPRETED, REPORTED, SHIPPED, COMPLETED, ABANDONED, INVALID, BLOCKED), matching `lifecycle.ALL_STATES`. `test_schema_lifecycle_sync.py` asserts bidirectional equality between the enum members and `ALL_STATES`.
+**Resolution:** The Pydantic `ExperimentStatus` enum in `agentxp/schemas/experiment.py` now carries all 11 states (DESIGNING, POWERED, COLLECTING, ANALYZING, INTERPRETED, REPORTED, SHIPPED, COMPLETED, ABANDONED, INVALID, BLOCKED), matching `lifecycle.ALL_STATES`. `test_schema_lifecycle_sync.py` asserts bidirectional equality between the enum members and `ALL_STATES`.
 **Test impact:** VE-024 unblocked — remove the `xfail` marker. The test should now pass: loading `ExperimentConfig(**{"status": "SHIPPED"})` succeeds.
 
 ### Q4: `normal_normal_test` strong-prior fix
 **Status:** RESOLVED (W17)
-**Resolution:** Option (a) was implemented: full Normal-Inverse-Gamma conjugate posterior in `openxp/stats/bayesian.py`. The update is `sigma^2 ~ InvGamma(alpha_0 + n/2, beta_0 + SS/2 + shrinkage)` where shrinkage = `0.5 * (prec_pri * n / (prec_pri + n)) * (xbar - prior_mean)^2`, then `mu | sigma^2 ~ N(posterior_mean, sigma^2 / (prec_pri + n))`. This correctly widens posterior variance under strong priors. Three new tests were added in W17.
+**Resolution:** Option (a) was implemented: full Normal-Inverse-Gamma conjugate posterior in `agentxp/stats/bayesian.py`. The update is `sigma^2 ~ InvGamma(alpha_0 + n/2, beta_0 + SS/2 + shrinkage)` where shrinkage = `0.5 * (prec_pri * n / (prec_pri + n)) * (xbar - prior_mean)^2`, then `mu | sigma^2 ~ N(posterior_mean, sigma^2 / (prec_pri + n))`. This correctly widens posterior variance under strong priors. Three new tests were added in W17.
 **Test impact:** SIM-023, ST-048 unblocked — remove `xfail` markers. Both should now pass with the NIG implementation.
 
 ### Q5: `extension_estimate` signature
@@ -1331,8 +1331,8 @@ All 14 questions have been resolved: 6 via code changes in build waves, 5 via po
 
 ### Q6: Submodule re-exports
 **Status:** RESOLVED (W20)
-**Resolution:** `from openxp.stats import X` is the canonical import path. `openxp/stats/__init__.py` re-exports all public functions including `set_trace` and `is_trace_enabled` (lines 83-84, in `__all__` at lines 134-135). MODES.md and skill.md were rewritten in W20 to use this path exclusively. No per-submodule re-exports (e.g., `from openxp.stats.power import power_ratio`) are guaranteed.
-**Test impact:** Contract tests (section 13.4) should assert the top-level `from openxp.stats import ...` path only. Do not test submodule import paths.
+**Resolution:** `from agentxp.stats import X` is the canonical import path. `agentxp/stats/__init__.py` re-exports all public functions including `set_trace` and `is_trace_enabled` (lines 83-84, in `__all__` at lines 134-135). MODES.md and skill.md were rewritten in W20 to use this path exclusively. No per-submodule re-exports (e.g., `from agentxp.stats.power import power_ratio`) are guaranteed.
+**Test impact:** Contract tests (section 13.4) should assert the top-level `from agentxp.stats import ...` path only. Do not test submodule import paths.
 
 ### Q7: Welch one-sided
 **Status:** DECIDED
@@ -1346,12 +1346,12 @@ All 14 questions have been resolved: 6 via code changes in build waves, 5 via po
 
 ### Q9: `run_monitor` `current_n` default
 **Status:** RESOLVED (W18)
-**Resolution:** `run_monitor` now accepts `current_n_fn: Callable[[Any], int] | None = None` as a parameter (see `openxp/monitoring/report.py` line 115). Resolution order: (1) explicit `current_n` in context dict, (2) `current_n_fn(df)` if provided, (3) `len(df)` fallback. The docstring (lines 126-131) warns that `len(df)` is wrong for panel data and advises passing `current_n_fn=lambda df: df["user_id"].nunique()`.
+**Resolution:** `run_monitor` now accepts `current_n_fn: Callable[[Any], int] | None = None` as a parameter (see `agentxp/monitoring/report.py` line 115). Resolution order: (1) explicit `current_n` in context dict, (2) `current_n_fn(df)` if provided, (3) `len(df)` fallback. The docstring (lines 126-131) warns that `len(df)` is wrong for panel data and advises passing `current_n_fn=lambda df: df["user_id"].nunique()`.
 **Test impact:** SK-021 through SK-023 should test the explicit `current_n_fn` path (pass a lambda, verify it is called). Also test the fallback to `len(df)` when neither `current_n` nor `current_n_fn` is provided.
 
 ### Q10: Result Pydantic models
 **Status:** RESOLVED (W19)
-**Resolution:** 15 Pydantic models are scaffolded in `openxp/schemas/results.py`: TestResult, PowerResult, DurationResult, MDEResult, SensitivityTable, SRMResult, DiagnosisResult, EffectSizeResult, LiftResult, CorrectionResult, CUPEDResult, SequentialResult, BayesianResult, ExtensionResult, MonitorReportModel. All inherit from `_Result` which sets `extra="allow"` so additional keys (like `computation_trace`) round-trip without error.
+**Resolution:** 15 Pydantic models are scaffolded in `agentxp/schemas/results.py`: TestResult, PowerResult, DurationResult, MDEResult, SensitivityTable, SRMResult, DiagnosisResult, EffectSizeResult, LiftResult, CorrectionResult, CUPEDResult, SequentialResult, BayesianResult, ExtensionResult, MonitorReportModel. All inherit from `_Result` which sets `extra="allow"` so additional keys (like `computation_trace`) round-trip without error.
 **Test impact:** Contract tests should assert Pydantic model construction from live function outputs (e.g., `TestResult(**welch_test(c, t))` succeeds), not just plain dict key checks.
 
 ### Q11: Integration test runtime budget

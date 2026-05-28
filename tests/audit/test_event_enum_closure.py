@@ -6,7 +6,7 @@ or renames an event, this test fails first and loudly.
 """
 from __future__ import annotations
 
-from openxp.audit.events import EventName, V01_RESERVED_EVENTS
+from agentxp.audit.events import EventName, V01_RESERVED_EVENTS
 
 
 def test_event_enum_has_exactly_13_values() -> None:

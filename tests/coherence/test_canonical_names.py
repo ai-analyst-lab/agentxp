@@ -11,7 +11,7 @@ the relevant module and assert presence + value. For markdown-only names
 (kind="markdown_string") we grep the canonical string in OPENXP_V01_PLAN.md.
 
 W_pre0 deliverable: this file exists, is importable, and is wired. The
-`openxp.schemas.*` modules don't exist yet (W_pre1 builds them); python-bound
+`agentxp.schemas.*` modules don't exist yet (W_pre1 builds them); python-bound
 tests skip gracefully with pytest.skip(reason) so the file is collectable today.
 W_pre1 makes them pass.
 
@@ -27,7 +27,7 @@ from typing import Any
 import pytest
 
 
-# Resolve OPENXP_V01_PLAN.md robustly — the openxp repo lives next to
+# Resolve OPENXP_V01_PLAN.md robustly — the agentxp repo lives next to
 # ai-analytics-for-builders. Fall back to env override for CI flexibility.
 def _resolve_plan_path() -> Path:
     here = Path(__file__).resolve()
@@ -44,7 +44,7 @@ def _resolve_plan_path() -> Path:
             return c
     # Last resort: env var
     import os
-    env = os.environ.get("OPENXP_PLAN_PATH")
+    env = os.environ.get("AGENTXP_PLAN_PATH")
     if env and Path(env).exists():
         return Path(env)
     return candidates[0]  # return first candidate so failures point to the expected path
@@ -55,7 +55,7 @@ PLAN_PATH = _resolve_plan_path()
 
 def _plan_text() -> str:
     if not PLAN_PATH.exists():
-        pytest.skip(f"OPENXP_V01_PLAN.md not found at {PLAN_PATH}; set OPENXP_PLAN_PATH env var")
+        pytest.skip(f"OPENXP_V01_PLAN.md not found at {PLAN_PATH}; set AGENTXP_PLAN_PATH env var")
     return PLAN_PATH.read_text(encoding="utf-8")
 
 
@@ -85,87 +85,87 @@ def _try_import(module: str):
 
 CANONICAL_TABLE: list[tuple[str, str, str, Any]] = [
     # ── §1.8.1 PendingDecisionKind (13 closed values; +2 from F.PRACTICE.01/02 = 14 in practice)
-    ("PendingDecisionKind.confirm_hypothesis",       "enum_value", "openxp.schemas.state", "confirm_hypothesis"),
-    ("PendingDecisionKind.confirm_brief",            "enum_value", "openxp.schemas.state", "confirm_brief"),
-    ("PendingDecisionKind.confirm_data_plan",        "enum_value", "openxp.schemas.state", "confirm_data_plan"),
-    ("PendingDecisionKind.confirm_semantic_model",   "enum_value", "openxp.schemas.state", "confirm_semantic_model"),
-    ("PendingDecisionKind.confirm_metric",           "enum_value", "openxp.schemas.state", "confirm_metric"),
-    ("PendingDecisionKind.confirm_cohort",           "enum_value", "openxp.schemas.state", "confirm_cohort"),
-    ("PendingDecisionKind.confirm_assignment",       "enum_value", "openxp.schemas.state", "confirm_assignment"),
-    ("PendingDecisionKind.confirm_query",            "enum_value", "openxp.schemas.state", "confirm_query"),
-    ("PendingDecisionKind.confirm_readout",          "enum_value", "openxp.schemas.state", "confirm_readout"),
-    ("PendingDecisionKind.brief_contradiction",      "enum_value", "openxp.schemas.state", "brief_contradiction"),
-    ("PendingDecisionKind.srm_override",             "enum_value", "openxp.schemas.state", "srm_override"),
-    ("PendingDecisionKind.cross_adapter_resolution", "enum_value", "openxp.schemas.state", "cross_adapter_resolution"),
-    ("PendingDecisionKind.mixed_timestamp_formats",  "enum_value", "openxp.schemas.state", "mixed_timestamp_formats"),
-    ("PendingDecisionKind.referenced_artifact_changed", "enum_value", "openxp.schemas.state", "referenced_artifact_changed"),
+    ("PendingDecisionKind.confirm_hypothesis",       "enum_value", "agentxp.schemas.state", "confirm_hypothesis"),
+    ("PendingDecisionKind.confirm_brief",            "enum_value", "agentxp.schemas.state", "confirm_brief"),
+    ("PendingDecisionKind.confirm_data_plan",        "enum_value", "agentxp.schemas.state", "confirm_data_plan"),
+    ("PendingDecisionKind.confirm_semantic_model",   "enum_value", "agentxp.schemas.state", "confirm_semantic_model"),
+    ("PendingDecisionKind.confirm_metric",           "enum_value", "agentxp.schemas.state", "confirm_metric"),
+    ("PendingDecisionKind.confirm_cohort",           "enum_value", "agentxp.schemas.state", "confirm_cohort"),
+    ("PendingDecisionKind.confirm_assignment",       "enum_value", "agentxp.schemas.state", "confirm_assignment"),
+    ("PendingDecisionKind.confirm_query",            "enum_value", "agentxp.schemas.state", "confirm_query"),
+    ("PendingDecisionKind.confirm_readout",          "enum_value", "agentxp.schemas.state", "confirm_readout"),
+    ("PendingDecisionKind.brief_contradiction",      "enum_value", "agentxp.schemas.state", "brief_contradiction"),
+    ("PendingDecisionKind.srm_override",             "enum_value", "agentxp.schemas.state", "srm_override"),
+    ("PendingDecisionKind.cross_adapter_resolution", "enum_value", "agentxp.schemas.state", "cross_adapter_resolution"),
+    ("PendingDecisionKind.mixed_timestamp_formats",  "enum_value", "agentxp.schemas.state", "mixed_timestamp_formats"),
+    ("PendingDecisionKind.referenced_artifact_changed", "enum_value", "agentxp.schemas.state", "referenced_artifact_changed"),
 
     # ── §1.8.2 GateKind superset — sql_review + edit_override must be in the Literal
-    ("GateKind", "literal_contains", "openxp.schemas.state", {"sql_review", "edit_override", "confirm_brief", "srm_override"}),
+    ("GateKind", "literal_contains", "agentxp.schemas.state", {"sql_review", "edit_override", "confirm_brief", "srm_override"}),
 
     # ── §1.8.3 EventName 13-event closed audit enum
-    ("EventName.STAGE_ENTERED",    "enum_value", "openxp.audit.events", "stage.entered"),
-    ("EventName.STAGE_COMMITTED",  "enum_value", "openxp.audit.events", "stage.committed"),
-    ("EventName.GATE_OPENED",      "enum_value", "openxp.audit.events", "gate.opened"),
-    ("EventName.GATE_RESOLVED",    "enum_value", "openxp.audit.events", "gate.resolved"),
-    ("EventName.GATE_BLOCKED",     "enum_value", "openxp.audit.events", "gate.blocked"),
-    ("EventName.AGENT_DISPATCHED", "enum_value", "openxp.audit.events", "agent.dispatched"),
-    ("EventName.AGENT_COMPLETED",  "enum_value", "openxp.audit.events", "agent.completed"),
-    ("EventName.QUERY_PROPOSED",   "enum_value", "openxp.audit.events", "query.proposed"),
-    ("EventName.QUERY_VALIDATED",  "enum_value", "openxp.audit.events", "query.validated"),
-    ("EventName.QUERY_EXECUTED",   "enum_value", "openxp.audit.events", "query.executed"),
-    ("EventName.QUERY_FAILED",     "enum_value", "openxp.audit.events", "query.failed"),
-    ("EventName.HOOK_INVOKED",     "enum_value", "openxp.audit.events", "hook.invoked"),
-    ("EventName.HOOK_FAILED",      "enum_value", "openxp.audit.events", "hook.failed"),
-    ("EventName",                  "enum_count", "openxp.audit.events", 13),
+    ("EventName.STAGE_ENTERED",    "enum_value", "agentxp.audit.events", "stage.entered"),
+    ("EventName.STAGE_COMMITTED",  "enum_value", "agentxp.audit.events", "stage.committed"),
+    ("EventName.GATE_OPENED",      "enum_value", "agentxp.audit.events", "gate.opened"),
+    ("EventName.GATE_RESOLVED",    "enum_value", "agentxp.audit.events", "gate.resolved"),
+    ("EventName.GATE_BLOCKED",     "enum_value", "agentxp.audit.events", "gate.blocked"),
+    ("EventName.AGENT_DISPATCHED", "enum_value", "agentxp.audit.events", "agent.dispatched"),
+    ("EventName.AGENT_COMPLETED",  "enum_value", "agentxp.audit.events", "agent.completed"),
+    ("EventName.QUERY_PROPOSED",   "enum_value", "agentxp.audit.events", "query.proposed"),
+    ("EventName.QUERY_VALIDATED",  "enum_value", "agentxp.audit.events", "query.validated"),
+    ("EventName.QUERY_EXECUTED",   "enum_value", "agentxp.audit.events", "query.executed"),
+    ("EventName.QUERY_FAILED",     "enum_value", "agentxp.audit.events", "query.failed"),
+    ("EventName.HOOK_INVOKED",     "enum_value", "agentxp.audit.events", "hook.invoked"),
+    ("EventName.HOOK_FAILED",      "enum_value", "agentxp.audit.events", "hook.failed"),
+    ("EventName",                  "enum_count", "agentxp.audit.events", 13),
 
     # ── §1.8.4 Stage values
-    ("Stage.data_loaded",              "enum_value", "openxp.schemas.state", "data_loaded"),
-    ("Stage.semantic_models_drafted",  "enum_value", "openxp.schemas.state", "semantic_models_drafted"),
-    ("Stage.metrics_bootstrapped",     "enum_value", "openxp.schemas.state", "metrics_bootstrapped"),
-    ("Stage.intent_captured",          "enum_value", "openxp.schemas.state", "intent_captured"),
-    ("Stage.hypothesis_drafted",       "enum_value", "openxp.schemas.state", "hypothesis_drafted"),
-    ("Stage.brief_drafted",            "enum_value", "openxp.schemas.state", "brief_drafted"),
-    ("Stage.brief_contradicted",       "enum_value", "openxp.schemas.state", "brief_contradicted"),
-    ("Stage.data_plan_confirmed",      "enum_value", "openxp.schemas.state", "data_plan_confirmed"),
-    ("Stage.monitor",                  "enum_value", "openxp.schemas.state", "monitor"),
-    ("Stage.analyze",                  "enum_value", "openxp.schemas.state", "analyze"),
-    ("Stage.interpret",                "enum_value", "openxp.schemas.state", "interpret"),
-    ("Stage.readout",                  "enum_value", "openxp.schemas.state", "readout"),
+    ("Stage.data_loaded",              "enum_value", "agentxp.schemas.state", "data_loaded"),
+    ("Stage.semantic_models_drafted",  "enum_value", "agentxp.schemas.state", "semantic_models_drafted"),
+    ("Stage.metrics_bootstrapped",     "enum_value", "agentxp.schemas.state", "metrics_bootstrapped"),
+    ("Stage.intent_captured",          "enum_value", "agentxp.schemas.state", "intent_captured"),
+    ("Stage.hypothesis_drafted",       "enum_value", "agentxp.schemas.state", "hypothesis_drafted"),
+    ("Stage.brief_drafted",            "enum_value", "agentxp.schemas.state", "brief_drafted"),
+    ("Stage.brief_contradicted",       "enum_value", "agentxp.schemas.state", "brief_contradicted"),
+    ("Stage.data_plan_confirmed",      "enum_value", "agentxp.schemas.state", "data_plan_confirmed"),
+    ("Stage.monitor",                  "enum_value", "agentxp.schemas.state", "monitor"),
+    ("Stage.analyze",                  "enum_value", "agentxp.schemas.state", "analyze"),
+    ("Stage.interpret",                "enum_value", "agentxp.schemas.state", "interpret"),
+    ("Stage.readout",                  "enum_value", "agentxp.schemas.state", "readout"),
 
     # ── §1.8.6 schema_version per-file constants
-    ("StateYaml.schema_version",     "schema_version", "openxp.schemas.state",         3),
-    ("DataPlanV2.schema_version",    "schema_version", "openxp.schemas.data_plan",     2),
-    ("ExperimentConfig.schema_version", "schema_version", "openxp.schemas.experiment", 2),
-    ("Metric.schema_version",        "schema_version", "openxp.schemas.metric",        2),
-    ("SemanticModel.schema_version", "schema_version", "openxp.schemas.semantic_model", 1),
-    ("FactSource.schema_version",    "schema_version", "openxp.schemas.fact_source",   1),
-    ("Assignment.schema_version",    "schema_version", "openxp.schemas.assignment",    1),
-    ("Report.schema_version",        "schema_version", "openxp.schemas.report",        1),
+    ("StateYaml.schema_version",     "schema_version", "agentxp.schemas.state",         3),
+    ("DataPlanV2.schema_version",    "schema_version", "agentxp.schemas.data_plan",     2),
+    ("ExperimentConfig.schema_version", "schema_version", "agentxp.schemas.experiment", 2),
+    ("Metric.schema_version",        "schema_version", "agentxp.schemas.metric",        2),
+    ("SemanticModel.schema_version", "schema_version", "agentxp.schemas.semantic_model", 1),
+    ("FactSource.schema_version",    "schema_version", "agentxp.schemas.fact_source",   1),
+    ("Assignment.schema_version",    "schema_version", "agentxp.schemas.assignment",    1),
+    ("Report.schema_version",        "schema_version", "agentxp.schemas.report",        1),
 
     # ── §1.8.7 Literals
-    ("DataPlanV2.status",            "literal_contains", "openxp.schemas.data_plan",    {"draft", "confirmed", "executed"}),
-    ("Stage3bChoice",                "literal_contains", "openxp.schemas.state",        {"r", "e", "o"}),
-    ("CompressedTurn.actor",         "literal_contains", "openxp.schemas.bundle",       {"user", "agent"}),
-    ("QueryArtifact.auth_kind",      "literal_contains", "openxp.schemas.query_artifact", {"pwd","externalbrowser","oauth","keypair","adc","sa","none"}),
-    ("Violation.invariant_id",       "literal_contains", "openxp.schemas.chain",        {1, 2, 3, 4, 5}),
+    ("DataPlanV2.status",            "literal_contains", "agentxp.schemas.data_plan",    {"draft", "confirmed", "executed"}),
+    ("Stage3bChoice",                "literal_contains", "agentxp.schemas.state",        {"r", "e", "o"}),
+    ("CompressedTurn.actor",         "literal_contains", "agentxp.schemas.bundle",       {"user", "agent"}),
+    ("QueryArtifact.auth_kind",      "literal_contains", "agentxp.schemas.query_artifact", {"pwd","externalbrowser","oauth","keypair","adc","sa","none"}),
+    ("Violation.invariant_id",       "literal_contains", "agentxp.schemas.chain",        {1, 2, 3, 4, 5}),
 
     # ── §1.8.9 Module paths — must be importable
-    ("module.openxp.orchestrator.dispatch",   "attr_exists", "openxp.orchestrator.dispatch",   None),
-    ("module.openxp.sql.dispatch",            "attr_exists", "openxp.sql.dispatch",            None),
-    ("module.openxp.audit.chain",             "attr_exists", "openxp.audit.chain",             None),
-    ("module.openxp.audit.redactor",          "attr_exists", "openxp.audit.redactor",          None),
-    ("module.openxp.audit.events",            "attr_exists", "openxp.audit.events",            None),
-    ("module.openxp.interpret.tree",          "attr_exists", "openxp.interpret.tree",          None),
-    ("module.openxp.interpret.confidence",    "attr_exists", "openxp.interpret.confidence",    None),
-    ("module.openxp.orchestrator.project_lock", "attr_exists", "openxp.orchestrator.project_lock", None),
-    ("module.openxp.render.voice_audit",      "attr_exists", "openxp.render.voice_audit",      None),
+    ("module.agentxp.orchestrator.dispatch",   "attr_exists", "agentxp.orchestrator.dispatch",   None),
+    ("module.agentxp.sql.dispatch",            "attr_exists", "agentxp.sql.dispatch",            None),
+    ("module.agentxp.audit.chain",             "attr_exists", "agentxp.audit.chain",             None),
+    ("module.agentxp.audit.redactor",          "attr_exists", "agentxp.audit.redactor",          None),
+    ("module.agentxp.audit.events",            "attr_exists", "agentxp.audit.events",            None),
+    ("module.agentxp.interpret.tree",          "attr_exists", "agentxp.interpret.tree",          None),
+    ("module.agentxp.interpret.confidence",    "attr_exists", "agentxp.interpret.confidence",    None),
+    ("module.agentxp.orchestrator.project_lock", "attr_exists", "agentxp.orchestrator.project_lock", None),
+    ("module.agentxp.render.voice_audit",      "attr_exists", "agentxp.render.voice_audit",      None),
 
     # ── §1.8.9 late_ratio — F.GAP.29 / M106
-    ("compute_late_ratio", "attr_exists", "openxp.interpret.tree", "compute_late_ratio"),
+    ("compute_late_ratio", "attr_exists", "agentxp.interpret.tree", "compute_late_ratio"),
 
     # ── §1.8.10 ConfidenceLabel — 7 closed strings
-    ("ConfidenceLabel", "literal_contains", "openxp.interpret.confidence", {
+    ("ConfidenceLabel", "literal_contains", "agentxp.interpret.confidence", {
         "highly likely positive",
         "very likely positive",
         "leaning positive",
@@ -176,15 +176,15 @@ CANONICAL_TABLE: list[tuple[str, str, str, Any]] = [
     }),
 
     # ── §1.8.15 SrmOverrideReasonCode + NoShipReasonCode (split per F.UX.11)
-    ("SrmOverrideReasonCode", "literal_contains", "openxp.schemas.gate", {
+    ("SrmOverrideReasonCode", "literal_contains", "agentxp.schemas.gate", {
         "known_imbalance", "manual_continuation", "investigation_complete",
     }),
-    ("NoShipReasonCode", "literal_contains", "openxp.schemas.readout", {
+    ("NoShipReasonCode", "literal_contains", "agentxp.schemas.readout", {
         "guardrail_violation", "directional_only", "insufficient_evidence", "contradictory_segments",
     }),
 
     # ── §1.8.17 Interpreter verdict labels (8 values)
-    ("Verdict", "literal_contains", "openxp.interpret.tree", {
+    ("Verdict", "literal_contains", "agentxp.interpret.tree", {
         "INVALID-SRM", "NO-SHIP-GUARDRAIL", "INCONCLUSIVE", "NO-LIFT",
         "DIRECTIONAL-ONLY", "LIFT-WITH-CAVEAT", "SHIP", "LEARN",
     }),
@@ -219,19 +219,19 @@ CANONICAL_TABLE: list[tuple[str, str, str, Any]] = [
     ("md:consistency_judge",                "markdown_string", "PLAN", None),
     ("md:sql_query_writer",                 "markdown_string", "PLAN", None),
     ("md:sql_corrector",                    "markdown_string", "PLAN", None),
-    ("md:openxp/orchestrator/dispatch.py",  "markdown_string", "PLAN", None),
-    ("md:openxp/sql/dispatch.py",           "markdown_string", "PLAN", None),
-    ("md:openxp/audit/chain.py",            "markdown_string", "PLAN", None),
-    ("md:openxp/audit/redactor.py",         "markdown_string", "PLAN", None),
-    ("md:openxp/interpret/tree.py",         "markdown_string", "PLAN", None),
-    ("md:openxp/interpret/confidence.py",   "markdown_string", "PLAN", None),
+    ("md:agentxp/orchestrator/dispatch.py",  "markdown_string", "PLAN", None),
+    ("md:agentxp/sql/dispatch.py",           "markdown_string", "PLAN", None),
+    ("md:agentxp/audit/chain.py",            "markdown_string", "PLAN", None),
+    ("md:agentxp/audit/redactor.py",         "markdown_string", "PLAN", None),
+    ("md:agentxp/interpret/tree.py",         "markdown_string", "PLAN", None),
+    ("md:agentxp/interpret/confidence.py",   "markdown_string", "PLAN", None),
     ("md:late_ratio",                       "markdown_string", "PLAN", None),
     ("md:data_plan.yaml",                   "markdown_string", "PLAN", None),
     ("md:state.yaml",                       "markdown_string", "PLAN", None),
     ("md:conversation.jsonl",               "markdown_string", "PLAN", None),
     ("md:log.jsonl",                        "markdown_string", "PLAN", None),
     ("md:.state.lock",                      "markdown_string", "PLAN", None),
-    ("md:.openxp/.project.lock",            "markdown_string", "PLAN", None),
+    ("md:.agentxp/.project.lock",            "markdown_string", "PLAN", None),
     ("md:tests/coherence/test_canonical_names.py", "markdown_string", "PLAN", None),
     ("md:tests/audit/test_event_enum_closure.py",  "markdown_string", "PLAN", None),
     ("md:highly likely positive",           "markdown_string", "PLAN", None),

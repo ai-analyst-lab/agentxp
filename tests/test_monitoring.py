@@ -1,5 +1,5 @@
 """
-Tests for openxp.monitoring — srm_trend, guardrail_health, sample_accumulation,
+Tests for agentxp.monitoring — srm_trend, guardrail_health, sample_accumulation,
 and the run_monitor orchestrator.
 
 Data is synthesized in-test so these tests do not depend on any sample-data
@@ -14,14 +14,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from openxp.monitoring import (
+from agentxp.monitoring import (
     MonitorReport,
     guardrail_health,
     run_monitor,
     sample_accumulation,
     srm_trend,
 )
-from openxp.storage import ExperimentStore
+from agentxp.storage import ExperimentStore
 
 
 # --------------------------------------------------------------------- helpers

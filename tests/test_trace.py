@@ -1,14 +1,14 @@
-"""Tests for openxp.stats._trace — opt-in computation tracing."""
+"""Tests for agentxp.stats._trace — opt-in computation tracing."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from openxp.stats._trace import is_trace_enabled, set_trace, trace_dict
-from openxp.stats.ab_tests import proportion_test, ratio_metric_test, welch_test
-from openxp.stats.power import power_mean, power_proportion
-from openxp.stats.srm import srm_check
+from agentxp.stats._trace import is_trace_enabled, set_trace, trace_dict
+from agentxp.stats.ab_tests import proportion_test, ratio_metric_test, welch_test
+from agentxp.stats.power import power_mean, power_proportion
+from agentxp.stats.srm import srm_check
 
 
 EXPECTED_TRACE_KEYS = {"inputs", "intermediate_values", "formula_ref", "timestamp"}

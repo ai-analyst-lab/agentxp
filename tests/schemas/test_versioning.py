@@ -1,4 +1,4 @@
-"""Tests for ``openxp.schemas._versioning`` — the schema_version registry +
+"""Tests for ``agentxp.schemas._versioning`` — the schema_version registry +
 load-refusal helpers.
 
 Closure invariants under test:
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from openxp.schemas._versioning import (
+from agentxp.schemas._versioning import (
     MAX_SUPPORTED,
     MIN_SUPPORTED,
     SchemaVersionMissing,
@@ -77,11 +77,11 @@ def test_max_supported_table_matches_per_file_models() -> None:
     at pydantic models that ship in later W_pre1 tasks; this test should be
     extended to cover them as those models land.
     """
-    from openxp.schemas.data_plan import DataPlanV2
-    from openxp.schemas.profiler import ProfileReport
-    from openxp.schemas.report import Report
-    from openxp.schemas.state import StateYaml
-    from openxp.sql.schema import QueryArtifact
+    from agentxp.schemas.data_plan import DataPlanV2
+    from agentxp.schemas.profiler import ProfileReport
+    from agentxp.schemas.report import Report
+    from agentxp.schemas.state import StateYaml
+    from agentxp.sql.schema import QueryArtifact
 
     cross_check = {
         "state.yaml": StateYaml,
@@ -115,8 +115,8 @@ def test_too_new_raises() -> None:
     with pytest.raises(SchemaVersionTooNew) as excinfo:
         check_schema_version(Path("state.yaml"), {"schema_version": 99})
     msg = str(excinfo.value)
-    assert "newer OpenXP" in msg
-    assert "pip install --upgrade openxp" in msg
+    assert "newer AgentXP" in msg
+    assert "pip install --upgrade agentxp" in msg
 
 
 def test_too_old_raises() -> None:
@@ -124,8 +124,8 @@ def test_too_old_raises() -> None:
     with pytest.raises(SchemaVersionTooOld) as excinfo:
         check_schema_version(Path("state.yaml"), {"schema_version": 0})
     msg = str(excinfo.value)
-    assert "older OpenXP" in msg
-    assert "openxp migrate state" in msg
+    assert "older AgentXP" in msg
+    assert "agentxp migrate state" in msg
 
 
 def test_missing_raises() -> None:

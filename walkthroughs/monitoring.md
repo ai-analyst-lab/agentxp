@@ -12,9 +12,9 @@ Monitoring fixes this. You check in every day, you see the health signals, and y
 
 ## What a Monitor Checks
 
-`openxp.monitoring` runs three independent health checks and aggregates them into a single traffic light.
+`agentxp.monitoring` runs three independent health checks and aggregates them into a single traffic light.
 
-Each individual check returns an internal verdict in the `PASS / WARNING / BLOCK` vocabulary (matching `openxp.stats`). `run_monitor` maps those to the user-facing `GREEN / YELLOW / RED` traffic lights and takes the worst-of-three.
+Each individual check returns an internal verdict in the `PASS / WARNING / BLOCK` vocabulary (matching `agentxp.stats`). `run_monitor` maps those to the user-facing `GREEN / YELLOW / RED` traffic lights and takes the worst-of-three.
 
 ### 1. SRM Trend
 
@@ -45,7 +45,7 @@ The per-check dicts under `report.checks["srm_trend"]`, `report.checks["guardrai
 `run_monitor` takes an experiment id and a "data loader" — either a dict or a zero-arg callable returning one — with the context keys the three checks need:
 
 ```python
-from openxp.monitoring import (
+from agentxp.monitoring import (
     run_monitor,
     srm_trend,
     guardrail_health,
@@ -123,9 +123,9 @@ print(acc["verdict"], acc["traffic_light"], acc["projected_completion"])
 Pass an `ExperimentStore` to `run_monitor` and the report is written to `{store.root}/{experiment_id}/analyses/{timestamp}.json`:
 
 ```python
-from openxp.storage import ExperimentStore
+from agentxp.storage import ExperimentStore
 
-store = ExperimentStore(root="~/.openxp/experiments")
+store = ExperimentStore(root="~/.agentxp/experiments")
 report = run_monitor("checkout-redesign", context, store=store)
 ```
 

@@ -12,9 +12,9 @@ Downstream consumers are the readout agent (Stage 8) and `report.json`. You do n
 
 You receive four things, and only four things, from the orchestrator on each invocation:
 
-- `bundles/analyzer.out.yaml` — the analysis tables produced at Stage 6. Includes the primary lift, its CI (95% and 90%), guardrail lifts with CIs, pre-registered segment results, sample sizes per arm, and the `late_ratio` (late-window effect divided by early-window effect, as defined in `openxp/interpret/tree.py`).
+- `bundles/analyzer.out.yaml` — the analysis tables produced at Stage 6. Includes the primary lift, its CI (95% and 90%), guardrail lifts with CIs, pre-registered segment results, sample sizes per arm, and the `late_ratio` (late-window effect divided by early-window effect, as defined in `agentxp/interpret/tree.py`).
 - `bundles/monitor.out.yaml` — the SRM verdict from Stage 5. Two fields you care about: `srm_pass: bool` and, if the gate was overridden, the `srm_override_reason_code`.
-- The brief from `experiment.yaml` — the pre-registered specification committed at Stage 3. You read `hypothesis.predicted_direction`, `design.mde_pct`, `design.n_required`, `design.alpha`, and `decision_rule` (a scalar; `openxp_default` selects the §22 8-step tree, any other string names a custom rule expression).
+- The brief from `experiment.yaml` — the pre-registered specification committed at Stage 3. You read `hypothesis.predicted_direction`, `design.mde_pct`, `design.n_required`, `design.alpha`, and `decision_rule` (a scalar; `agentxp_default` selects the §22 8-step tree, any other string names a custom rule expression).
 - The metric catalog entries for the primary and guardrails — `{project}/metrics/*.yaml`. You read these for `direction` (`"higher_is_better" | "lower_is_better"`) and nothing else.
 
 You do not see the hypothesis prose. You do not see any prior conversation turns. You do not see what the user said they wanted to find. This is the load-bearing claim of Stage 7: you have no preferred outcome in your context, so the verdict cannot be steered by motivated reasoning. Apply the rule, walk the tree, emit the label.
@@ -27,7 +27,7 @@ Walk the 8-step decision tree against the analyzer output, the monitor verdict, 
 
 ## 4. Output shape
 
-Your turn writes one file: `bundles/interpreter.out.yaml`. The shape is fixed by `openxp/interpret/tree.py::Verdict` (closed enum, §1.8.17) and `openxp/interpret/confidence.py::ConfidenceLabel` (closed enum, §1.8.10). Verdict-first ordering is mandatory — `verdict` is the first key, `confidence_label` second, `step_fired` third. The diagnostics follow.
+Your turn writes one file: `bundles/interpreter.out.yaml`. The shape is fixed by `agentxp/interpret/tree.py::Verdict` (closed enum, §1.8.17) and `agentxp/interpret/confidence.py::ConfidenceLabel` (closed enum, §1.8.10). Verdict-first ordering is mandatory — `verdict` is the first key, `confidence_label` second, `step_fired` third. The diagnostics follow.
 
 ```yaml
 schema_version: 1
@@ -77,7 +77,7 @@ Walk the steps in order. The first one that fires terminates the walk and produc
 
 **Step 8 — LEARN (terminal).** If none of Steps 1-7 fired, verdict is `LEARN`. This includes well-powered nulls where the CI is tight (the feature genuinely doesn't move the metric — a valid finding), underpowered nulls where extension would help, and cases where the analysis output was incomplete enough to block the other steps. Always state which sub-case fired in `step_fired`, e.g. `"8: LEARN (well-powered null, CI half-width 0.4 * design.mde_pct)"` or `"8: LEARN (underpowered, CI half-width 2.3 * design.mde_pct, recommend extend)"`.
 
-**Edge case — `late_ratio` definition.** `late_ratio` is defined in `openxp/interpret/tree.py` per M106. It is the ratio of the treatment effect computed on the last 30% of the exposure window to the treatment effect on the first 30% of the window. Values near 1.0 indicate a stable effect over time; values below 0.7 indicate the early effect was larger than the late effect (classic novelty pattern). Values above 1.3 indicate primacy in reverse (slow-burn effect). The Step 7 threshold of 0.7 is asymmetric on purpose — primacy-reverse cases pass Step 7 and ship.
+**Edge case — `late_ratio` definition.** `late_ratio` is defined in `agentxp/interpret/tree.py` per M106. It is the ratio of the treatment effect computed on the last 30% of the exposure window to the treatment effect on the first 30% of the window. Values near 1.0 indicate a stable effect over time; values below 0.7 indicate the early effect was larger than the late effect (classic novelty pattern). Values above 1.3 indicate primacy in reverse (slow-burn effect). The Step 7 threshold of 0.7 is asymmetric on purpose — primacy-reverse cases pass Step 7 and ship.
 
 **Edge case — multiple guardrails violated.** Step 2 fires on the first violation it encounters, but you still enumerate every violated guardrail in `diagnostics.guardrails_violated`. The verdict is `NO-SHIP-GUARDRAIL` regardless of how many; the readout uses the full list to write the rationale.
 
@@ -87,7 +87,7 @@ Walk the steps in order. The first one that fires terminates the walk and produc
 
 If the brief's `experiment.yaml` has an explicit `decision_rule:` expression, evaluate it first and record the verdict it produces in `step_fired` as `"0: brief decision_rule fired (rule_id: {id})"`. If the brief rule fires a terminal verdict, the 8-step tree is the fallback that fills in `confidence_label` and `diagnostics` only — you still walk Steps 1-7 to compute the label and the diagnostic fields, but you do not override the brief's verdict.
 
-If the brief has no `decision_rule:` expression, you use the 8-step tree as the rule. Record `"0: default tree (openxp_default)"` as the first entry in `step_fired`. The user pre-registered acceptance of the default tree when they confirmed the brief at Stage 3 — applying it is not freelancing.
+If the brief has no `decision_rule:` expression, you use the 8-step tree as the rule. Record `"0: default tree (agentxp_default)"` as the first entry in `step_fired`. The user pre-registered acceptance of the default tree when they confirmed the brief at Stage 3 — applying it is not freelancing.
 
 ## 7. Confidence label mapping
 
@@ -108,12 +108,12 @@ Always render the label with the CI. The readout enforces this pairing; you supp
 ## 8. Cross-references
 
 - §22 — the 8-step tree in plan form. The plan is the source of truth. If this file and the plan drift, the plan wins.
-- §1.8.17 — verdict closed enum (8 values). Defined in `openxp/interpret/tree.py::Verdict`.
-- §1.8.10 — confidence label closed enum (7 values). Defined in `openxp/interpret/confidence.py::ConfidenceLabel`.
+- §1.8.17 — verdict closed enum (8 values). Defined in `agentxp/interpret/tree.py::Verdict`.
+- §1.8.10 — confidence label closed enum (7 values). Defined in `agentxp/interpret/confidence.py::ConfidenceLabel`.
 - §23 — Eppo-style confidence framing rationale.
 - §1.8.15 — `NoShipReasonCode` enum. You do not write this field — the readout writes it at Stage 8 when the user signs off. Your verdict feeds into that choice but does not determine it.
-- `openxp/interpret/tree.py` — `late_ratio` formal definition (M106).
-- `openxp/interpret/confidence.py` — label computation (D15).
+- `agentxp/interpret/tree.py` — `late_ratio` formal definition (M106).
+- `agentxp/interpret/confidence.py` — label computation (D15).
 - `agents/fixtures/voice_samples/interpreter_sample.md` — the voice anchor for the rationale paragraph and the diagnostic emission shape.
 
 ## 9. What you do NOT do
@@ -184,7 +184,7 @@ schema_version: 1
 verdict: SHIP
 confidence_label: "highly likely positive"
 step_fired:
-  - "0: default tree (openxp_default)"
+  - "0: default tree (agentxp_default)"
   - "1: SRM gate (pass)"
   - "2: guardrails clear (latency +0.8% [-0.4, +2.0] at 90%, under +5% halt)"
   - "3: sample adequate (n=19204 >= 18000)"
@@ -227,7 +227,7 @@ schema_version: 1
 verdict: NO-SHIP-GUARDRAIL
 confidence_label: "highly likely positive"
 step_fired:
-  - "0: default tree (openxp_default)"
+  - "0: default tree (agentxp_default)"
   - "1: SRM gate (fail, override resolved: manual_continuation)"
   - "2: error_rate guardrail breached (+8.4% [+4.1, +12.7] at 90%, halt threshold +5%) — NO-SHIP-GUARDRAIL"
 diagnostics:
@@ -272,7 +272,7 @@ schema_version: 1
 verdict: LEARN
 confidence_label: "inconclusive"
 step_fired:
-  - "0: default tree (openxp_default)"
+  - "0: default tree (agentxp_default)"
   - "1: SRM gate (pass)"
   - "2: guardrails clear"
   - "3: sample adequate (n=20100 >= 18000)"

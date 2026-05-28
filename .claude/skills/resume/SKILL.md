@@ -138,7 +138,7 @@ The skill never deletes a live lock without `--force` and never writes a lock fo
 - Plan §10.6: full case specifications.
 - Plan §10.6.3: stale-lock detection.
 - `/unlock` skill: stale-lock override for edge cases the auto-reclaim path does not cover.
-- CLI source: `openxp/cli/resume.py` (the 8-case classifier).
+- CLI source: `agentxp/cli/resume.py` (the 8-case classifier).
 
 ## Example Walkthrough — Case 2 (pending decision)
 

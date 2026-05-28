@@ -1,7 +1,7 @@
 """
-Tests for openxp.storage — ExperimentStore and lifecycle state machine.
+Tests for agentxp.storage — ExperimentStore and lifecycle state machine.
 
-All tests use pytest's `tmp_path` fixture so no real ~/.openxp/ is ever touched.
+All tests use pytest's `tmp_path` fixture so no real ~/.agentxp/ is ever touched.
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from openxp.storage import ExperimentStore, store_from_env
-from openxp.storage.lifecycle import (
+from agentxp.storage import ExperimentStore, store_from_env
+from agentxp.storage.lifecycle import (
     VALID_TRANSITIONS,
     is_backward,
     validate_transition,
@@ -226,7 +226,7 @@ def test_state_machine_noop_allowed():
 
 
 def test_valid_transitions_dict_covers_all_states():
-    from openxp.storage.lifecycle import ALL_STATES
+    from agentxp.storage.lifecycle import ALL_STATES
     assert set(VALID_TRANSITIONS.keys()) == ALL_STATES
 
 
@@ -451,7 +451,7 @@ def test_atomic_write_survives_interrupt(tmp_path: Path):
     good_contents = store._yaml_path(exp_id).read_text()
 
     # Now patch os.replace to blow up mid-write
-    import openxp.storage.store as store_mod
+    import agentxp.storage.store as store_mod
 
     def boom(src, dst):
         raise RuntimeError("simulated crash before rename")
@@ -475,19 +475,19 @@ def test_atomic_write_survives_interrupt(tmp_path: Path):
 
 def test_store_from_env_uses_env_var(tmp_path: Path, monkeypatch):
     target = tmp_path / "envroot"
-    monkeypatch.setenv("OPENXP_STORE", str(target))
+    monkeypatch.setenv("AGENTXP_STORE", str(target))
     s = store_from_env()
     assert s.root == target
     assert target.exists()
 
 
 def test_store_from_env_default_not_touched(monkeypatch):
-    """If OPENXP_STORE isn't set, the factory still returns a store object
-    rooted at the default — but we don't create/mutate ~/.openxp here; we just
+    """If AGENTXP_STORE isn't set, the factory still returns a store object
+    rooted at the default — but we don't create/mutate ~/.agentxp here; we just
     verify the path resolution logic without calling the constructor's mkdir.
     """
-    monkeypatch.delenv("OPENXP_STORE", raising=False)
-    # We don't actually build it (would mkdir ~/.openxp). Just verify the
+    monkeypatch.delenv("AGENTXP_STORE", raising=False)
+    # We don't actually build it (would mkdir ~/.agentxp). Just verify the
     # default constant is what we expect.
-    from openxp.storage.store import DEFAULT_ROOT
-    assert DEFAULT_ROOT == "~/.openxp/experiments"
+    from agentxp.storage.store import DEFAULT_ROOT
+    assert DEFAULT_ROOT == "~/.agentxp/experiments"

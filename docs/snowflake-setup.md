@@ -22,19 +22,19 @@ explicitly.
 ### Environment variables
 
 ```bash
-export OPENXP_SNOWFLAKE_ACCOUNT=xy12345.us-east-1
-export OPENXP_SNOWFLAKE_USER=alice
-export OPENXP_SNOWFLAKE_PASSWORD=***                  # or use OAuth / key pair
-export OPENXP_SNOWFLAKE_WAREHOUSE=ANALYTICS_WH
-export OPENXP_SNOWFLAKE_DATABASE=PROD_ANALYTICS
-export OPENXP_SNOWFLAKE_SCHEMA=EXPERIMENTS
-export OPENXP_SNOWFLAKE_ROLE=ANALYST                  # optional
+export AGENTXP_SNOWFLAKE_ACCOUNT=xy12345.us-east-1
+export AGENTXP_SNOWFLAKE_USER=alice
+export AGENTXP_SNOWFLAKE_PASSWORD=***                  # or use OAuth / key pair
+export AGENTXP_SNOWFLAKE_WAREHOUSE=ANALYTICS_WH
+export AGENTXP_SNOWFLAKE_DATABASE=PROD_ANALYTICS
+export AGENTXP_SNOWFLAKE_SCHEMA=EXPERIMENTS
+export AGENTXP_SNOWFLAKE_ROLE=ANALYST                  # optional
 ```
 
 Then:
 
 ```python
-from openxp.data.snowflake_loader import SnowflakeLoader
+from agentxp.data.snowflake_loader import SnowflakeLoader
 
 with SnowflakeLoader() as loader:
     df = loader.query(
@@ -79,7 +79,7 @@ When AgentXP is driven by the `/experiment` skill, the orchestrator can call
 those tools directly — no Python Snowflake driver needed.
 
 ```python
-from openxp.data.snowflake_loader import SnowflakeLoader
+from agentxp.data.snowflake_loader import SnowflakeLoader
 
 loader = SnowflakeLoader(mcp_mode=True)
 df = loader.query("SELECT 1")   # returns an empty stub DataFrame + logs a notice
@@ -99,7 +99,7 @@ The intended flow inside a skill:
    and SQL assembly helpers.
 2. Call the Snowflake MCP tool (`mcp__snowflake__run_snowflake_query`) from
    the agent/skill layer with the assembled SQL.
-3. Convert the MCP result into a DataFrame and feed it to `openxp.stats`.
+3. Convert the MCP result into a DataFrame and feed it to `agentxp.stats`.
 
 ## Security notes
 
@@ -120,6 +120,6 @@ The intended flow inside a skill:
 | Symptom | Fix |
 |---------|-----|
 | `ImportError: ... pip install agentxp[snowflake]` | Install the optional extra. |
-| `ValueError: No Snowflake connection parameters supplied` | Set `OPENXP_SNOWFLAKE_*` env vars or pass `connection_params`. |
+| `ValueError: No Snowflake connection parameters supplied` | Set `AGENTXP_SNOWFLAKE_*` env vars or pass `connection_params`. |
 | `ValueError: Query would return N rows, which exceeds the guardrail` | Narrow the query with a `WHERE` clause, or pass `force=True`. |
 | `RuntimeError: SnowflakeLoader is in MCP mode` | You called `_connect()` in MCP mode. Use `mcp_mode=False` for direct mode. |

@@ -1,9 +1,9 @@
-"""Tests for openxp migrate metrics (v1 → v2)."""
+"""Tests for agentxp migrate metrics (v1 → v2)."""
 from __future__ import annotations
 
 import yaml
 
-from openxp.cli.migrate_metrics import migrate_metric_v1_to_v2, migrate_one_file
+from agentxp.cli.migrate_metrics import migrate_metric_v1_to_v2, migrate_one_file
 
 
 def test_v1_to_v2_adds_schema_version():

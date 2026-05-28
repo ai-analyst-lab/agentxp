@@ -1,4 +1,4 @@
-"""Tests for openxp.cli.profile — W_pre2.4."""
+"""Tests for agentxp.cli.profile — W_pre2.4."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,12 +6,12 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from openxp.cli.exit_codes import (
+from agentxp.cli.exit_codes import (
     EXIT_OK,
     EXIT_USER_ERROR,
     EXIT_WARNING,
 )
-from openxp.cli.profile import main
+from agentxp.cli.profile import main
 
 
 def _write_clean_parquet(path: Path, n_rows: int = 100) -> Path:
@@ -120,10 +120,10 @@ def test_deep_flag_without_ydata_installed(
     parquet_path = _write_clean_parquet(tmp_path / "clean.parquet")
 
     def _raise(*_a, **_kw):
-        raise ImportError("install hint: pip install 'openxp[deep-profile]'")
+        raise ImportError("install hint: pip install 'agentxp[deep-profile]'")
 
     monkeypatch.setattr(
-        "openxp.profiler.ydata_sidecar.run_ydata_deep_profile",
+        "agentxp.profiler.ydata_sidecar.run_ydata_deep_profile",
         _raise,
     )
 
@@ -169,7 +169,7 @@ def test_quiet_suppresses_stdout(
 
 # ---------------------------------------------------------------------------
 # Path-guard tests (W_pre2 Hotfix-3) — bundle / deep-html / deep-json paths
-# must resolve under cwd or ~/.openxp/. Anything else → EXIT_USER_ERROR.
+# must resolve under cwd or ~/.agentxp/. Anything else → EXIT_USER_ERROR.
 # ---------------------------------------------------------------------------
 
 
@@ -195,12 +195,12 @@ def test_bundle_outside_cwd_and_home_rejected(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """--bundle pointing outside cwd and outside ~/.openxp/ → EXIT_USER_ERROR."""
+    """--bundle pointing outside cwd and outside ~/.agentxp/ → EXIT_USER_ERROR."""
     monkeypatch.chdir(tmp_path)
     parquet_path = _write_clean_parquet(tmp_path / "clean.parquet")
 
-    # /etc is outside both tmp_path (cwd) and ~/.openxp/ on any sane system.
-    bad_bundle = "/etc/openxp-evil.yaml"
+    # /etc is outside both tmp_path (cwd) and ~/.agentxp/ on any sane system.
+    bad_bundle = "/etc/agentxp-evil.yaml"
 
     rc = main([str(parquet_path), "--bundle", bad_bundle])
 
@@ -212,29 +212,29 @@ def test_bundle_outside_cwd_and_home_rejected(
     assert not Path(bad_bundle).exists()
 
 
-def test_bundle_under_openxp_home_allowed(
+def test_bundle_under_agentxp_home_allowed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """--bundle under ~/.openxp/ should work even when cwd is elsewhere."""
-    # Make a fake home so we don't pollute the real ~/.openxp/.
+    """--bundle under ~/.agentxp/ should work even when cwd is elsewhere."""
+    # Make a fake home so we don't pollute the real ~/.agentxp/.
     fake_home = tmp_path / "home"
     fake_home.mkdir()
-    (fake_home / ".openxp").mkdir()
+    (fake_home / ".agentxp").mkdir()
     monkeypatch.setenv("HOME", str(fake_home))
-    # cwd is tmp_path, NOT inside fake_home/.openxp.
+    # cwd is tmp_path, NOT inside fake_home/.agentxp.
     monkeypatch.chdir(tmp_path)
 
     parquet_path = _write_clean_parquet(tmp_path / "clean.parquet")
 
-    bundle_path = str(fake_home / ".openxp" / "p.yaml")
+    bundle_path = str(fake_home / ".agentxp" / "p.yaml")
     rc = main([str(parquet_path), "--bundle", bundle_path])
 
     captured = capsys.readouterr()
     # EXIT_OK or EXIT_WARNING (depends on whether the clean data flags).
     assert rc in (EXIT_OK, EXIT_WARNING), captured.err
-    assert (fake_home / ".openxp" / "p.yaml").exists()
+    assert (fake_home / ".agentxp" / "p.yaml").exists()
 
 
 def test_bundle_traversal_dotdot_rejected(
@@ -247,7 +247,7 @@ def test_bundle_traversal_dotdot_rejected(
     parquet_path = _write_clean_parquet(tmp_path / "clean.parquet")
 
     rc = main(
-        [str(parquet_path), "--bundle", "../../../etc/openxp.yaml"]
+        [str(parquet_path), "--bundle", "../../../etc/agentxp.yaml"]
     )
 
     captured = capsys.readouterr()
@@ -270,7 +270,7 @@ def test_deep_html_outside_cwd_rejected(
             str(parquet_path),
             "--deep",
             "--deep-html",
-            "/etc/openxp-evil.html",
+            "/etc/agentxp-evil.html",
         ]
     )
 
@@ -294,7 +294,7 @@ def test_deep_json_outside_cwd_rejected(
             str(parquet_path),
             "--deep",
             "--deep-json",
-            "/etc/openxp-evil.json",
+            "/etc/agentxp-evil.json",
         ]
     )
 

@@ -1,4 +1,4 @@
-"""Tests for openxp.data.snowflake_loader.
+"""Tests for agentxp.data.snowflake_loader.
 
 All network calls are mocked — no real Snowflake connection is ever opened.
 """
@@ -12,7 +12,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from openxp.data.snowflake_loader import (
+from agentxp.data.snowflake_loader import (
     ENV_VAR_MAP,
     MAX_ROWS_DEFAULT,
     SnowflakeLoader,
@@ -54,7 +54,7 @@ class TestEnvVarLoading:
     def test_explicit_params_take_precedence(self, monkeypatch):
         for env in ENV_VAR_MAP.values():
             monkeypatch.delenv(env, raising=False)
-        monkeypatch.setenv("OPENXP_SNOWFLAKE_ACCOUNT", "from-env")
+        monkeypatch.setenv("AGENTXP_SNOWFLAKE_ACCOUNT", "from-env")
 
         loader = SnowflakeLoader({"account": "explicit", "user": "u"})
         assert loader._connection_params["account"] == "explicit"
@@ -64,12 +64,12 @@ class TestEnvVarLoading:
         for env in ENV_VAR_MAP.values():
             monkeypatch.delenv(env, raising=False)
 
-        monkeypatch.setenv("OPENXP_SNOWFLAKE_ACCOUNT", "acc-123")
-        monkeypatch.setenv("OPENXP_SNOWFLAKE_USER", "alice")
-        monkeypatch.setenv("OPENXP_SNOWFLAKE_PASSWORD", "hunter2")
-        monkeypatch.setenv("OPENXP_SNOWFLAKE_WAREHOUSE", "wh")
-        monkeypatch.setenv("OPENXP_SNOWFLAKE_DATABASE", "db")
-        monkeypatch.setenv("OPENXP_SNOWFLAKE_SCHEMA", "sc")
+        monkeypatch.setenv("AGENTXP_SNOWFLAKE_ACCOUNT", "acc-123")
+        monkeypatch.setenv("AGENTXP_SNOWFLAKE_USER", "alice")
+        monkeypatch.setenv("AGENTXP_SNOWFLAKE_PASSWORD", "hunter2")
+        monkeypatch.setenv("AGENTXP_SNOWFLAKE_WAREHOUSE", "wh")
+        monkeypatch.setenv("AGENTXP_SNOWFLAKE_DATABASE", "db")
+        monkeypatch.setenv("AGENTXP_SNOWFLAKE_SCHEMA", "sc")
 
         loader = SnowflakeLoader()
         p = loader._connection_params
@@ -104,7 +104,7 @@ class TestCredentialSafety:
         loader = SnowflakeLoader(
             {"account": "a", "user": "u", "password": "super-secret-123"}
         )
-        with caplog.at_level(logging.DEBUG, logger="openxp.data.snowflake_loader"):
+        with caplog.at_level(logging.DEBUG, logger="agentxp.data.snowflake_loader"):
             loader._connect()
 
         for record in caplog.records:
@@ -207,7 +207,7 @@ class TestImportErrorPath:
         monkeypatch.setattr("builtins.__import__", fake_import)
 
         loader = SnowflakeLoader({"account": "a", "user": "u"})
-        with pytest.raises(ImportError, match=r"openxp\[snowflake\]"):
+        with pytest.raises(ImportError, match=r"agentxp\[snowflake\]"):
             loader._connect()
 
 
@@ -217,7 +217,7 @@ class TestImportErrorPath:
 class TestMcpMode:
     def test_mcp_mode_returns_stub_and_logs(self, caplog):
         loader = SnowflakeLoader({"account": "a"}, mcp_mode=True)
-        with caplog.at_level(logging.INFO, logger="openxp.data.snowflake_loader"):
+        with caplog.at_level(logging.INFO, logger="agentxp.data.snowflake_loader"):
             df = loader.query("SELECT 1")
 
         assert isinstance(df, pd.DataFrame)

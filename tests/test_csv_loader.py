@@ -1,4 +1,4 @@
-"""Tests for openxp.data.csv_loader."""
+"""Tests for agentxp.data.csv_loader."""
 
 import os
 from unittest.mock import patch
@@ -6,8 +6,8 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from openxp.data import CSVLoader
-from openxp.data.base import LoadResult
+from agentxp.data import CSVLoader
+from agentxp.data.base import LoadResult
 
 
 SAMPLE_DATA_DIR = os.path.abspath(

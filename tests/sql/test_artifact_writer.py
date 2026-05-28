@@ -1,4 +1,4 @@
-"""Tests for openxp.sql.artifact_writer.
+"""Tests for agentxp.sql.artifact_writer.
 
 Verifies the §13 QueryArtifact persistence helpers: atomic chmod-600 write,
 round-trip read, sorted listing, fresh ULID generation, and missing-dir
@@ -13,13 +13,13 @@ from pathlib import Path
 
 import pytest
 
-from openxp.sql.artifact_writer import (
+from agentxp.sql.artifact_writer import (
     _new_query_ulid,
     list_query_artifacts,
     read_query_artifact,
     write_query_artifact,
 )
-from openxp.sql.schema import (
+from agentxp.sql.schema import (
     ConnectionConfig,
     QueryArtifact,
     QueryDialectInfo,

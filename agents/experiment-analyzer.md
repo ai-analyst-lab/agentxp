@@ -24,7 +24,7 @@ When data is provided:
 **SRM Check (mandatory first step):**
 
 ```python
-from openxp.stats import srm_check, srm_diagnose
+from agentxp.stats import srm_check, srm_diagnose
 
 # Check overall sample ratio
 counts = df[treatment_col].value_counts().values.tolist()
@@ -49,7 +49,7 @@ Also check:
 Choose the right test based on metric type:
 
 ```python
-from openxp.stats import welch_test, proportion_test, ratio_metric_test
+from agentxp.stats import welch_test, proportion_test, ratio_metric_test
 
 # Proportion metric (binary: converted / not converted)
 result = proportion_test(
@@ -72,7 +72,7 @@ Report: point estimate, confidence interval, p-value, relative lift, and interpr
 ### Q3: What is the statistical reliability?
 
 ```python
-from openxp.stats import cohens_d, relative_lift, detectable_effect
+from agentxp.stats import cohens_d, relative_lift, detectable_effect
 
 # Effect size
 effect = cohens_d(control_values, treatment_values)
@@ -152,7 +152,7 @@ Based on findings, suggest:
 When testing multiple metrics:
 
 ```python
-from openxp.stats import adjust_pvalues
+from agentxp.stats import adjust_pvalues
 
 raw_pvalues = [primary_p, secondary_1_p, secondary_2_p]
 adjusted = adjust_pvalues(raw_pvalues, method="holm")

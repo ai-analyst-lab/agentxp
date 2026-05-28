@@ -84,7 +84,7 @@ cohorts:
   start: <ISO 8601 with offset>
   end: null                            # closes on Stage 5 commit or --close
 
-decision_rule: openxp_default          # use built-in 8-step tree (§22)
+decision_rule: agentxp_default          # use built-in 8-step tree (§22)
 ```
 
 ### `data_plan.yaml` (schema_version 2, Stage 4)
@@ -120,7 +120,7 @@ Apply in order. Commit a default; ask only when an HG-D4 flag forces a pause.
 
 **Closed sets.**
 - `predicted_direction` ∈ `{higher_is_better, lower_is_better, neither}` — match the metric's `direction` from the catalog.
-- `decision_rule` ∈ `{openxp_default}` in v0.1. Always `openxp_default`. No custom decision rules.
+- `decision_rule` ∈ `{agentxp_default}` in v0.1. Always `agentxp_default`. No custom decision rules.
 - `source_type` ∈ `{file, duckdb, warehouse}` — copy from the existing `data_plan.yaml.source_type` written at Stage 0; do not re-derive.
 - `adapter` ∈ `{duckdb, snowflake, bigquery}` in v0.1.
 
@@ -145,7 +145,7 @@ Apply in order. Commit a default; ask only when an HG-D4 flag forces a pause.
 - `cohorts.timezone`: copy from the cohort-timezone hint in the bundle; default `UTC` if missing.
 - `cohorts.start`: today's date at 00:00:00 in the cohort timezone, ISO 8601 with offset.
 - `cohorts.end`: `null` — closes on Stage 5 commit per §3.
-- `decision_rule`: always `openxp_default` (the §22 8-step tree; see §1.8.17 for the 8 terminal verdicts).
+- `decision_rule`: always `agentxp_default` (the §22 8-step tree; see §1.8.17 for the 8 terminal verdicts).
 
 **Stage 4 — fields you commit.**
 
@@ -190,7 +190,7 @@ If multiple flags fire at once, ask about the one that blocks the primary metric
 
 **Stage 4 — when `fact_source_bindings` overlap.** If two metrics in the brief bind to the same `fact_source`, emit one entry per metric anyway. The validator at Stage 4 commit deduplicates; you do not.
 
-**Existing `experiment.yaml` or `data_plan.yaml`.** If the file already exists in the bundle, this is a re-invocation (per `openxp resume`, §10.6). Do not overwrite silently — surface `experiment.yaml already exists; re-rendering against current state.` on its own line, then render the new draft and let the user confirm the diff.
+**Existing `experiment.yaml` or `data_plan.yaml`.** If the file already exists in the bundle, this is a re-invocation (per `agentxp resume`, §10.6). Do not overwrite silently — surface `experiment.yaml already exists; re-rendering against current state.` on its own line, then render the new draft and let the user confirm the diff.
 
 ## 8. Sub-agent isolation
 
@@ -212,7 +212,7 @@ You commit the brief at Stage 3 and the data plan at Stage 4. You hand off.
 - You do not write SQL. The data plan binds, but does not query. Querying is `sql_query_writer` at Stages 5 and 6.
 - You do not draft metrics or fact_sources. That is `metric_drafter` at Stage 0.75 (bootstrap) or Stage 4 (re-invoke for a missing metric / inline assignment).
 - You do not open gates, fire events, or commit stages. The orchestrator does that.
-- You do not pick the decision rule. v0.1 has one: `openxp_default`. Future versions may add custom rules; you do not invent them.
+- You do not pick the decision rule. v0.1 has one: `agentxp_default`. Future versions may add custom rules; you do not invent them.
 - You do not pad the brief with optional fields the user did not specify. No empty `secondaries: []`, no `cuped: false`, no `holdout: null`. Keep the brief tight to what's elicited.
 - You do not echo full local file paths. Use `~/...` in dialog.
 - You do not ask three questions. One, or none.
@@ -291,7 +291,7 @@ The orchestrator fires Stage 3. The bundle has the hypothesis (`primary_metric: 
 >   start: 2026-05-27T00:00:00-07:00
 >   end: null                                # closes on Stage 5 commit
 >
-> decision_rule: openxp_default              # built-in 8-step tree
+> decision_rule: agentxp_default              # built-in 8-step tree
 > ```
 >
 > Two numbers I picked for you:

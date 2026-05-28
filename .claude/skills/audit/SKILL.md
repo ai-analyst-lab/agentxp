@@ -72,10 +72,10 @@ Flags:
 ## Cross-references
 
 - Top-level orientation: `CLAUDE.md`.
-- Decisions writer detail: `openxp/audit/decisions.py`.
-- Event vocabulary (the 13 closed-set values): `openxp/audit/events.py`.
-- CLI entry: `openxp/cli/audit.py` and the HTML renderer at `openxp/cli/audit_html.py`.
-- Diff helper: `openxp/cli/prune.py`.
+- Decisions writer detail: `agentxp/audit/decisions.py`.
+- Event vocabulary (the 13 closed-set values): `agentxp/audit/events.py`.
+- CLI entry: `agentxp/cli/audit.py` and the HTML renderer at `agentxp/cli/audit_html.py`.
+- Diff helper: `agentxp/cli/prune.py`.
 
 ## Example walkthrough
 

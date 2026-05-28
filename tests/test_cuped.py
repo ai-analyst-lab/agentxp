@@ -5,8 +5,8 @@ import math
 import numpy as np
 import pytest
 
-from openxp.stats.ab_tests import welch_test
-from openxp.stats.cuped import (
+from agentxp.stats.ab_tests import welch_test
+from agentxp.stats.cuped import (
     cuped_adjust,
     cuped_welch_test,
     variance_reduction,

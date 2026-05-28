@@ -1,4 +1,4 @@
-"""Tests for openxp.profiler.driver — W_pre2.1."""
+"""Tests for agentxp.profiler.driver — W_pre2.1."""
 from __future__ import annotations
 
 import stat
@@ -9,12 +9,12 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from openxp.profiler.driver import (
+from agentxp.profiler.driver import (
     compute_schema_fingerprint,
     profile_dataset,
     write_profile_bundle,
 )
-from openxp.schemas.profiler import ColumnProfile, ProfileReport
+from agentxp.schemas.profiler import ColumnProfile, ProfileReport
 
 
 def _make_column(
@@ -41,7 +41,7 @@ def _make_column(
 
 def _make_report(columns: list[ColumnProfile], row_count: int = 100) -> ProfileReport:
     return ProfileReport(
-        source_ref="openxp_data.test_table",
+        source_ref="agentxp_data.test_table",
         profiled_at=datetime.now(timezone.utc),
         row_count=row_count,
         column_count=len(columns),
@@ -134,15 +134,15 @@ def test_table_level_flags_OR_over_columns() -> None:
 
     with (
         patch(
-            "openxp.profiler.duckdb_summarize.run_duckdb_summarize",
+            "agentxp.profiler.duckdb_summarize.run_duckdb_summarize",
             side_effect=fake_summarize,
         ),
         patch(
-            "openxp.profiler.heuristics.apply_hg_d4_heuristics",
+            "agentxp.profiler.heuristics.apply_hg_d4_heuristics",
             side_effect=fake_heuristics,
         ),
     ):
-        report = profile_dataset("openxp_data.events", adapter_type="duckdb")
+        report = profile_dataset("agentxp_data.events", adapter_type="duckdb")
 
     assert report.mixed_format_detected is True
     assert report.flagged_for_review is True
@@ -171,7 +171,7 @@ def test_profile_dataset_happy_path_mocked() -> None:
     ]
 
     def fake_summarize(source_ref, *, file_path=None, sample_values_n=10):
-        assert source_ref == "openxp_data.events"
+        assert source_ref == "agentxp_data.events"
         return {"row_count": fake_row_count, "columns": fake_raw_columns}
 
     def fake_heuristics(raw_column, *, row_count, **kwargs):
@@ -179,15 +179,15 @@ def test_profile_dataset_happy_path_mocked() -> None:
 
     with (
         patch(
-            "openxp.profiler.duckdb_summarize.run_duckdb_summarize",
+            "agentxp.profiler.duckdb_summarize.run_duckdb_summarize",
             side_effect=fake_summarize,
         ),
         patch(
-            "openxp.profiler.heuristics.apply_hg_d4_heuristics",
+            "agentxp.profiler.heuristics.apply_hg_d4_heuristics",
             side_effect=fake_heuristics,
         ),
     ):
-        report = profile_dataset("openxp_data.events")
+        report = profile_dataset("agentxp_data.events")
 
     assert report.schema_version == 1
     assert report.row_count == fake_row_count

@@ -34,7 +34,7 @@
 > > **SHIP** — Completion rate +3.2pp [+1.4, +5.0] at 95% CI; latency guardrail clear at +0.8% (under the 5% halt threshold); late-window effect 0.87x the early window — no novelty risk.
 >
 > **Confidence:** highly likely positive (95% CI: [+1.4pp, +5.0pp])
-> **Decision rule applied:** `default.ship` from openxp_default
+> **Decision rule applied:** `default.ship` from agentxp_default
 > **Edge case flags:** clear
 >
 > **For a stakeholder in one paragraph:**

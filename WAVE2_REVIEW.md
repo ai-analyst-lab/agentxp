@@ -1,17 +1,17 @@
 # Wave 2 Independent Code Review
 
 **Reviewer:** independent pass (no code changes)
-**Scope:** `openxp/monitoring/`, `openxp/amendments/`, `openxp/errors/`, `openxp/validators/`, 3 new test files, 8 walkthrough markdown files, `DEMO.md`
+**Scope:** `agentxp/monitoring/`, `agentxp/amendments/`, `agentxp/errors/`, `agentxp/validators/`, 3 new test files, 8 walkthrough markdown files, `DEMO.md`
 **Test suite:** `310 passed in 4.86s` on a clean run; ran 3 consecutive passes — all green, byte-identical counts (`4.86s / 4.96s / 4.81s`). No flakiness observed. Wave 1's 238 tests still pass; Wave 2 adds 72 on top.
-**Import probe:** `from openxp import monitoring, amendments, errors, validators` → OK, no circular imports, no name collisions with Wave 1.
+**Import probe:** `from agentxp import monitoring, amendments, errors, validators` → OK, no circular imports, no name collisions with Wave 1.
 **End-to-end scratch run:** wired a fake 10-day dataframe through `run_monitor` with an `ExperimentStore` on a tmp path — aggregated GREEN, persisted one analysis JSON, recommendations populated. The Python surface composes cleanly.
 
 ---
 
 ## 1. TL;DR
 
-- **Verdict: SHIP WITH FIXES.** The Python modules are tight — `srm_trend` handles empty windows and binning correctly, `guardrail_health` actually applies the NI margin to the CI bound (not the point estimate), `OpenXPError.__str__` matches spec, the validator collects all findings in one pass. Determinism is clean, 310/310 three times in a row.
-- **One real blocker before integration:** `walkthroughs/monitoring.md` documents a fabricated API that does not match `openxp.monitoring`. Every code example in that file — `run_monitor(data=..., experiment_yaml=...)`, `srm_trend(..., window_days=7)`, `guardrail_health(guardrails=[...])`, `sample_accumulation(target_n=..., elapsed_days=...)`, verdicts `HEALTHY/WATCH/WARN/STOP` — is wrong. The real module uses a context-dict contract, `window="1d"`, `(guardrail_metrics, thresholds)`, `(current_n, required_n, daily_traffic, days_elapsed)`, and `GREEN/YELLOW/RED`. Any reader who copies that snippet will get an immediate `TypeError`.
+- **Verdict: SHIP WITH FIXES.** The Python modules are tight — `srm_trend` handles empty windows and binning correctly, `guardrail_health` actually applies the NI margin to the CI bound (not the point estimate), `AgentXPError.__str__` matches spec, the validator collects all findings in one pass. Determinism is clean, 310/310 three times in a row.
+- **One real blocker before integration:** `walkthroughs/monitoring.md` documents a fabricated API that does not match `agentxp.monitoring`. Every code example in that file — `run_monitor(data=..., experiment_yaml=...)`, `srm_trend(..., window_days=7)`, `guardrail_health(guardrails=[...])`, `sample_accumulation(target_n=..., elapsed_days=...)`, verdicts `HEALTHY/WATCH/WARN/STOP` — is wrong. The real module uses a context-dict contract, `window="1d"`, `(guardrail_metrics, thresholds)`, `(current_n, required_n, daily_traffic, days_elapsed)`, and `GREEN/YELLOW/RED`. Any reader who copies that snippet will get an immediate `TypeError`.
 - **One sharper math point (non-blocking):** `sample_accumulation` degenerates to `pace_ratio=1.0` → GREEN when `days_elapsed=0` and traffic is positive. This is the intended "nothing should be expected yet" branch, but it hides a stalled-on-day-0 case where `daily_traffic > 0` but `current_n == 0`. Minor — document or special-case it.
 
 ---
@@ -21,7 +21,7 @@
 ### C1. `walkthroughs/monitoring.md:62-99` — hallucinated API, wrong verdicts, wrong field names
 The "Python API" block is a spec from an earlier draft, not the code that shipped:
 
-| Walkthrough shows | Reality in `openxp/monitoring/` |
+| Walkthrough shows | Reality in `agentxp/monitoring/` |
 |---|---|
 | `run_monitor(data=df, experiment_yaml="…")` | `run_monitor(experiment_id, data_loader, store=None)` where `data_loader` is a dict or zero-arg callable returning `{df, treatment_col, timestamp_col, guardrail_metrics, thresholds, required_n, daily_traffic, days_elapsed, …}` |
 | `report["verdict"]` → `"HEALTHY" / "WATCH" / "WARN" / "STOP"` | `report.status` → `"GREEN" / "YELLOW" / "RED"` |
@@ -38,7 +38,7 @@ The walkthrough documents the monitor as producing `HEALTHY / WATCH / WARN / STO
 
 ## 3. Math / Correctness Issues
 
-### M1. `sample_accumulation` pace math is correct but has a blind spot at day 0 — `openxp/monitoring/sample_accumulation.py:84-91`
+### M1. `sample_accumulation` pace math is correct but has a blind spot at day 0 — `agentxp/monitoring/sample_accumulation.py:84-91`
 ```python
 if planned_duration_days > 0 and planned_duration_days != float("inf"):
     expected_fraction = min(1.0, days_elapsed / planned_duration_days)
@@ -72,7 +72,7 @@ This is the correct non-inferiority formulation. The diff (point estimate) is on
 ### M4. `run_monitor` worst-of-three aggregation is correct — verified
 `report.py:196-201` → `verdict_to_light` maps each check's internal PASS/WARNING/BLOCK to GREEN/YELLOW/RED, then `worst_light` picks the max by rank `{GREEN:0, YELLOW:1, RED:2}`. Covered by `test_run_monitor_worst_of_three_wins_red`. Clean.
 
-### M5. `run_monitor` store persistence silently swallows `FileNotFoundError` — `openxp/monitoring/report.py:230-237`
+### M5. `run_monitor` store persistence silently swallows `FileNotFoundError` — `agentxp/monitoring/report.py:230-237`
 ```python
 if store is not None:
     try:
@@ -93,7 +93,7 @@ Actually, `_ADMIN_LEAVES = frozenset({"description", "notes", "tags", "owner"})`
 ### M8. `AmendmentTracker` reason enforcement and default author — verified
 `tracker.py:73-79` enforces `len(reason.strip()) >= 10` in `__post_init__`, raising `ValueError` with a hint. `test_reason_too_short_raises` covers the `"short"` (5 chars) case. Default author from `os.getenv("USER", "unknown") or "unknown"` — handles the CI case where `USER` is unset cleanly. Note: on GitHub Actions `USER=runner`, on typical Docker `USER` may be empty string → double fallback kicks in. Acceptable.
 
-### M9. `OpenXPError.__str__` format matches the spec — verified
+### M9. `AgentXPError.__str__` format matches the spec — verified
 `base.py:63-67`:
 ```python
 def __str__(self) -> str:
@@ -102,7 +102,7 @@ def __str__(self) -> str:
         return f"{header}\n  hint: {self.hint}"
     return header
 ```
-Exactly `"[CODE] message\n  hint: ..."`. `to_dict` round-trips cleanly through `json.dumps` (tested at `test_openxp_error_to_dict_is_json_serializable`). Severity validation via `frozenset` membership. Empty code and empty message both rejected with `ValueError`. Clean.
+Exactly `"[CODE] message\n  hint: ..."`. `to_dict` round-trips cleanly through `json.dumps` (tested at `test_agentxp_error_to_dict_is_json_serializable`). Severity validation via `frozenset` membership. Empty code and empty message both rejected with `ValueError`. Clean.
 
 ### M10. `validate_experiment_yaml` collects all findings in one pass — verified
 `experiment_validator.py:272-477` never returns early on a finding (only on the fatal load error, which is correct — there's nothing to validate if the YAML can't parse). Sequentially checks id, name, hypothesis, metrics, primary_metric, success_criteria, power block (with nested alpha / mde / power / duration / baseline checks), treatment/variants (with allocation sum tolerance `abs(total - 1.0) > 0.001`), cross-field `primary_metric in metric_names`, and `lifecycle_state in ALL_STATES`. `test_validator_collects_multiple_findings_not_first` deletes three fields and confirms all three appear. Allocation tolerance tested at `test_allocation_sum_within_tolerance_ok` (0.5005 + 0.4995 = OK) and `test_bad_allocation_sum_emits_schema_invalid` (0.4 + 0.4 = not OK). Cross-field primary_metric check verified at `test_primary_metric_not_in_metrics_list_fails`. All correct.
@@ -143,16 +143,16 @@ nim_abs = abs(nim) * abs(baseline) if baseline != 0 else abs(nim)
 If `baseline == 0` (genuinely zero mean or zero rate), the relative NIM collapses to the absolute NIM in raw units — which may be a very different number than intended. Not wrong per se (the math can't multiply by a zero baseline), but worth raising a warning in the result dict so callers know the NIM was reinterpreted.
 
 ### S6. `errors/base.py` subclass names don't collide with builtins — verified
-`ValidationError`, `DataError`, `StatsError`, `StorageError`, `LifecycleError` — none shadow a Python builtin. `OpenXPError` cleanly inherits from `Exception`. No name-collision risk.
+`ValidationError`, `DataError`, `StatsError`, `StorageError`, `LifecycleError` — none shadow a Python builtin. `AgentXPError` cleanly inherits from `Exception`. No name-collision risk.
 
 ### S7. Consistent dict-return shape with `interpretation` across Wave 2 — verified
 `srm_trend`, `guardrail_health`, `sample_accumulation` all return a dict with `"interpretation"` (plain-language) and `"verdict"`. `MonitorReport.to_dict()` also includes `interpretation`. `diff_experiments` returns a list (correct for a diff), `classify_change` returns a string (correct for a classifier). No violators.
 
 ### S8. Public API clean via `__init__.py` — verified
-- `openxp/monitoring/__init__.py`: exports `MonitorReport, run_monitor, srm_trend, guardrail_health, sample_accumulation`. No leakage of `_resolve_context`, `_build_recommendations`, etc.
-- `openxp/amendments/__init__.py`: exports `Amendment, AmendmentTracker, classify_change, diff_experiments, require_amendment_for_transition`. No leakage of `_walk`, `_SENTINEL`, etc.
-- `openxp/errors/__init__.py`: exports the five subclasses + `OpenXPError` + `codes` module. Clean.
-- `openxp/validators/__init__.py`: exports `ValidationReport, validate_experiment_yaml, validate_metric_yaml`. Clean.
+- `agentxp/monitoring/__init__.py`: exports `MonitorReport, run_monitor, srm_trend, guardrail_health, sample_accumulation`. No leakage of `_resolve_context`, `_build_recommendations`, etc.
+- `agentxp/amendments/__init__.py`: exports `Amendment, AmendmentTracker, classify_change, diff_experiments, require_amendment_for_transition`. No leakage of `_walk`, `_SENTINEL`, etc.
+- `agentxp/errors/__init__.py`: exports the five subclasses + `AgentXPError` + `codes` module. Clean.
+- `agentxp/validators/__init__.py`: exports `ValidationReport, validate_experiment_yaml, validate_metric_yaml`. Clean.
 
 ---
 
@@ -170,7 +170,7 @@ assert payload["report_type"] == "monitor"
 Effect size is 80/50 ≈ 1.6σ per observation. With n=1500, the z-statistic is enormous and the CI lower bound is comfortably past the 10ms NIM tolerance. Reproducibly BLOCK given the pinned seed (`_make_guardrail_df(seed=2)`). Not flaky — but a comment on why `n_per_arm=1500` was picked (enough signal to cross the 2% NIM on a 500ms baseline) would save a future reviewer the arithmetic.
 
 ### T3. Tests use `tmp_path` throughout storage fixtures — verified
-`test_amendments.py:76-78` (`store` fixture uses `tmp_path / "exps"`), `test_monitoring.py:382` (`ExperimentStore(root=tmp_path)`). No pollution of `~/.openxp`. Good pattern. Wave 1's `test_store_from_env_default_not_touched` precedent is followed.
+`test_amendments.py:76-78` (`store` fixture uses `tmp_path / "exps"`), `test_monitoring.py:382` (`ExperimentStore(root=tmp_path)`). No pollution of `~/.agentxp`. Good pattern. Wave 1's `test_store_from_env_default_not_touched` precedent is followed.
 
 ### T4. No test for `srm_trend` when only one variant observed — `tests/test_monitoring.py`
 `_make_clean_srm_df` always produces both variants. Missing: a df where the treatment arm drops out entirely mid-experiment (all rows after day 7 are control). Should produce a `[N, 0]` per-window count for later windows → `srm_check` BLOCK → expected behavior, but not tested. `_make_drift_srm_df` is close (30/70 split) but doesn't go to 100/0.
@@ -181,7 +181,7 @@ Effect size is 80/50 ≈ 1.6σ per observation. With n=1500, the z-statistic is 
 ### T6. No test for `classify_change` on a change under `data` prefix — `tests/test_amendments.py`
 `_MATERIAL_PREFIXES` includes `"data"` but no test asserts `{"path": "experiment.data.source", ...}` classifies as material. One-liner.
 
-### T7. No test for `OpenXPError` with `details` containing non-JSON-serializable objects — `tests/test_errors_and_validators.py`
+### T7. No test for `AgentXPError` with `details` containing non-JSON-serializable objects — `tests/test_errors_and_validators.py`
 `to_dict` uses `dict(self.details)` — a datetime or numpy array in details will serialize as their `str()` in `json.dumps(..., default=str)` at the call site, but if the caller uses plain `json.dumps(err.to_dict())` without `default=str`, it will raise. Either document the constraint or add `default=str` to the error envelope's own serialization helper.
 
 ### T8. `test_template_experiment_yaml_file_loads_without_crash` is a smoke test only — `tests/test_errors_and_validators.py:199-211`
@@ -204,20 +204,20 @@ Scratch script: `run_monitor("exp-1", ctx, store=store)` on a 5000-row dataframe
 `experiment_validator.py:25` imports `ALL_STATES` directly. Confirmed: `ALL_STATES` contains the 11 states from the PRD (`ABANDONED, ANALYZING, BLOCKED, COLLECTING, COMPLETED, DESIGNING, INTERPRETED, INVALID, POWERED, REPORTED, SHIPPED`). `test_invalid_lifecycle_state_emits_lifecycle_skip` locks it in. If Wave 3 adds a state, adding it to `ALL_STATES` automatically propagates to validation.
 
 ### I4. `errors/base.py` subclass names don't collide with builtins or Wave 1 symbols — verified
-Explicitly ran `dir(openxp.errors)` mentally: nothing shadows `ValueError`, `TypeError`, `OSError`. Wave 1 didn't have a `ValidationError` — the closest was `MetricValidationError` in `openxp.metrics.schema`, which `metric_validator.py` wraps explicitly. No collision.
+Explicitly ran `dir(agentxp.errors)` mentally: nothing shadows `ValueError`, `TypeError`, `OSError`. Wave 1 didn't have a `ValidationError` — the closest was `MetricValidationError` in `agentxp.metrics.schema`, which `metric_validator.py` wraps explicitly. No collision.
 
 ### I5. `run_monitor` store-persistence swallow is too quiet — see M5
 
 Not a failure, a visibility gap. An agent invoking `run_monitor` with a bogus `experiment_id` gets a successful-looking `MonitorReport` back, no warning logged, no recommendation added. When the agent later tries `store.load_latest_analysis("bogus")` it will hit a different error with no trail back to the original misspelling. One-line fix: append a recommendation string if the `save_analysis` call raised.
 
 ### I6. Walkthrough imports verified against real module paths — partial
-Ran `from openxp.stats.cuped import cuped_welch_test, variance_reduction, cuped_adjust; from openxp.monitoring import ...; from openxp.stats.bayesian import ...; from openxp.stats.sequential import ...; from openxp.stats import power_proportion, power_mean, duration_estimate, power_sensitivity_table, detectable_effect; from openxp.metrics.registry import MetricRegistry, load_all_metrics; from openxp.metrics.schema import to_test_function, validate, MetricValidationError; from openxp.data.csv_loader import CSVLoader; from openxp.data.discovery import discover_schema` — **ALL imports succeed**. Every walkthrough `from openxp` line resolves. The problem in C1 is not a missing module — the module exists and imports cleanly. The problem is that `monitoring.md`'s example code calls the functions with the **wrong signatures**. `inspect.signature` of every other walkthrough's cited function matches the docs; `monitoring.md` is the sole mismatch.
+Ran `from agentxp.stats.cuped import cuped_welch_test, variance_reduction, cuped_adjust; from agentxp.monitoring import ...; from agentxp.stats.bayesian import ...; from agentxp.stats.sequential import ...; from agentxp.stats import power_proportion, power_mean, duration_estimate, power_sensitivity_table, detectable_effect; from agentxp.metrics.registry import MetricRegistry, load_all_metrics; from agentxp.metrics.schema import to_test_function, validate, MetricValidationError; from agentxp.data.csv_loader import CSVLoader; from agentxp.data.discovery import discover_schema` — **ALL imports succeed**. Every walkthrough `from agentxp` line resolves. The problem in C1 is not a missing module — the module exists and imports cleanly. The problem is that `monitoring.md`'s example code calls the functions with the **wrong signatures**. `inspect.signature` of every other walkthrough's cited function matches the docs; `monitoring.md` is the sole mismatch.
 
 ### I7. `DEMO.md` references `/experiment analyze`, `/experiment full`, `/experiment interpret`, `/experiment monitor` — verified
 All four modes are declared in `.claude/skills/experiment/skill.md:3` (the description field) and `skill.md:41` (the mode dispatch line). No hallucinated modes. The output strings shown in the demo (row counts, SRM chi-square, SHIP verdicts) are illustrative, not literal — appropriate for a recording script.
 
 ### I8. `MetricDefinition` vs Wave 2 validators — already flagged in Wave 1 review (I2), still unresolved
-`validate_metric_yaml` wraps `openxp.metrics.schema.validate`, which still only knows about `proportion / mean / ratio`. Wave 2 did not add a `test_family` field to route metrics to Bayesian/CUPED/sequential tests. Not a Wave 2 regression, but a persistent gap that Wave 3 integration will trip on.
+`validate_metric_yaml` wraps `agentxp.metrics.schema.validate`, which still only knows about `proportion / mean / ratio`. Wave 2 did not add a `test_family` field to route metrics to Bayesian/CUPED/sequential tests. Not a Wave 2 regression, but a persistent gap that Wave 3 integration will trip on.
 
 ---
 
@@ -241,7 +241,7 @@ All four modes are declared in `.claude/skills/experiment/skill.md:3` (the descr
 - **`validator.add` severity routing** (`experiment_validator.py:48-54`) — warnings go to `warnings`, errors go to `findings` and flip `ok = False`. Exactly the right decomposition for agent-facing reporting, and `all_messages()` renders both for a unified output.
 - **`AmendmentTracker` breadcrumb in `log.jsonl`** (`tracker.py:174-190`) — amendments are the source of truth, but a one-line `amendment_recorded` event lands in the existing event log so `store.history()` surfaces them without the caller needing to know about the amendments module. Clean separation of "audit source" and "discovery surface."
 - **`classify_change` path prefix walker with admin-leaf override** (`diff.py:157-187`) — the "top-level admin prefix" → "admin leaf inside material tree" → "material prefix" → "unknown → admin" fallback chain is readable, ordered correctly, and locks in the "metric renames are material, experiment.name is admin" nuance explicitly.
-- **`OpenXPError.__str__` format** is exactly `"[CODE] message\n  hint: ..."` — machine-parseable, human-readable, and every Wave 2 test asserts against the format. This is the right primitive for an LLM-facing error envelope.
+- **`AgentXPError.__str__` format** is exactly `"[CODE] message\n  hint: ..."` — machine-parseable, human-readable, and every Wave 2 test asserts against the format. This is the right primitive for an LLM-facing error envelope.
 - **`codes.MESSAGES` + `codes.HINTS` template registry** with `message_for` / `hint_for` helpers that silently fall back to the template on missing placeholders. Removes a whole class of `KeyError` noise at error-raise time.
 - **`_msprt`-style worst-wins aggregation** at three different layers (per-metric in guardrail_health, per-window in srm_trend, across-three in run_monitor) all use the same `PASS < WARNING < BLOCK` ordering. Consistent mental model.
 - **Test determinism:** 310/310 three runs, identical timings. Every numpy RNG is seeded, no `datetime.now()` in hot paths, no filesystem pollution.
@@ -251,7 +251,7 @@ All four modes are declared in `.claude/skills/experiment/skill.md:3` (the descr
 
 ## 9. Required Fixes List (prioritized)
 
-1. **[BLOCKER]** Rewrite `walkthroughs/monitoring.md:62-99` to use the real `openxp.monitoring` API. Remove the `HEALTHY/WATCH/WARN/STOP` verdict vocabulary; use `GREEN/YELLOW/RED` (with internal `PASS/WARNING/BLOCK` only in per-check sections). Fix every function signature to match: `run_monitor(experiment_id, data_loader)` with a dict context, `srm_trend(df, treatment_col, timestamp_col, window="1d", ...)`, `guardrail_health(df, treatment_col, guardrail_metrics, thresholds, ...)`, `sample_accumulation(current_n, required_n, daily_traffic, days_elapsed, ...)`. Remove the "planned contract" disclaimer at line 101.
+1. **[BLOCKER]** Rewrite `walkthroughs/monitoring.md:62-99` to use the real `agentxp.monitoring` API. Remove the `HEALTHY/WATCH/WARN/STOP` verdict vocabulary; use `GREEN/YELLOW/RED` (with internal `PASS/WARNING/BLOCK` only in per-check sections). Fix every function signature to match: `run_monitor(experiment_id, data_loader)` with a dict context, `srm_trend(df, treatment_col, timestamp_col, window="1d", ...)`, `guardrail_health(df, treatment_col, guardrail_metrics, thresholds, ...)`, `sample_accumulation(current_n, required_n, daily_traffic, days_elapsed, ...)`. Remove the "planned contract" disclaimer at line 101.
 2. **[HIGH]** Fix `run_monitor` store-error visibility (`report.py:230-237`): when `save_analysis` raises, append a recommendation string noting the persistence failed so agents can see it.
 3. **[HIGH]** Special-case the `days_elapsed == 0 and current_n == 0 and daily_traffic > 0` path in `sample_accumulation` — return YELLOW "too early to tell" instead of the current silent GREEN.
 4. **[MEDIUM]** Update `amendments/tracker.py:107` docstring to list the full `_BACKWARD` map (`INVALID -> [ABANDONED, DESIGNING]`, not just `INVALID -> DESIGNING`).

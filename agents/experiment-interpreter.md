@@ -31,7 +31,7 @@ Action:
 3. Check if segment reversal affects a critical population
 
 ```python
-from openxp.stats import detectable_effect
+from agentxp.stats import detectable_effect
 
 # Can we quantify the trade-off?
 # Primary gain: +X% conversion = $Y/year
@@ -58,7 +58,7 @@ Sub-branches:
 
 For underpowered nulls:
 ```python
-from openxp.stats import detectable_effect
+from agentxp.stats import detectable_effect
 
 # What effect could we have detected with our sample?
 mde = detectable_effect(n_per_group=actual_n, baseline_rate=baseline)

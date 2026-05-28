@@ -38,7 +38,7 @@ Pre-specify a fixed number of interim looks (e.g., 5), then allocate the alpha b
 ## Always-Valid CI with mSPRT
 
 ```python
-from openxp.stats.sequential import msprt_test
+from agentxp.stats.sequential import msprt_test
 
 result = msprt_test(
     control=control_revenue,
@@ -63,7 +63,7 @@ That's the whole protocol: peek, check `decision`, stop or continue.
 For the CI alone (no stop/continue logic), there's a focused endpoint:
 
 ```python
-from openxp.stats.sequential import always_valid_ci
+from agentxp.stats.sequential import always_valid_ci
 
 ci = always_valid_ci(control, treatment, alpha=0.05)
 print(ci["lower"], ci["upper"], ci["width"])
@@ -74,7 +74,7 @@ print(ci["lower"], ci["upper"], ci["width"])
 For binary metrics (conversion rate, CTR):
 
 ```python
-from openxp.stats.sequential import sequential_proportion_test
+from agentxp.stats.sequential import sequential_proportion_test
 
 result = sequential_proportion_test(
     c_success=420, c_n=5120,
@@ -91,7 +91,7 @@ Same decision semantics: STOP_REJECT or CONTINUE.
 If you need a scheduled-interim design — for example, weekly looks over 5 weeks:
 
 ```python
-from openxp.stats.sequential import group_sequential_boundaries
+from agentxp.stats.sequential import group_sequential_boundaries
 
 obf = group_sequential_boundaries(n_interims=5, alpha=0.05, spending="obrien_fleming")
 print(obf["boundaries"])

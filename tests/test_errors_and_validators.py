@@ -1,7 +1,7 @@
-"""Tests for openxp.errors and openxp.validators (W11).
+"""Tests for agentxp.errors and agentxp.validators (W11).
 
 Covers:
-  - OpenXPError envelope: __str__, to_dict, severity validation, subclasses
+  - AgentXPError envelope: __str__, to_dict, severity validation, subclasses
   - Error code registry: all declared codes have message/hint templates
   - Experiment validator: happy path, missing fields, bad types,
     cross-field rules (allocation sum, primary_metric in metrics list,
@@ -17,16 +17,16 @@ from pathlib import Path
 import pytest
 import yaml
 
-from openxp.errors import (
+from agentxp.errors import (
     DataError,
     LifecycleError,
-    OpenXPError,
+    AgentXPError,
     StatsError,
     StorageError,
     ValidationError,
     codes,
 )
-from openxp.validators import (
+from agentxp.validators import (
     ValidationReport,
     validate_experiment_yaml,
     validate_metric_yaml,
@@ -102,11 +102,11 @@ def _valid_metric() -> dict:
 
 
 # ---------------------------------------------------------------------
-# OpenXPError envelope
+# AgentXPError envelope
 # ---------------------------------------------------------------------
 
-def test_openxp_error_basic_fields():
-    err = OpenXPError(
+def test_agentxp_error_basic_fields():
+    err = AgentXPError(
         code=codes.E_SRM_DETECTED,
         message="SRM detected (p=0.0001)",
         hint="Investigate bot filtering.",
@@ -119,8 +119,8 @@ def test_openxp_error_basic_fields():
     assert err.details == {"p_value": 0.0001}
 
 
-def test_openxp_error_str_format_includes_code_and_hint():
-    err = OpenXPError(
+def test_agentxp_error_str_format_includes_code_and_hint():
+    err = AgentXPError(
         code="E_TEST",
         message="something broke",
         hint="do the thing",
@@ -131,7 +131,7 @@ def test_openxp_error_str_format_includes_code_and_hint():
     assert "hint: do the thing" in s
 
 
-def test_openxp_error_to_dict_is_json_serializable():
+def test_agentxp_error_to_dict_is_json_serializable():
     import json
 
     err = ValidationError(
@@ -149,25 +149,25 @@ def test_openxp_error_to_dict_is_json_serializable():
     assert codes.E_MISSING_FIELD in blob
 
 
-def test_openxp_error_rejects_invalid_severity():
+def test_agentxp_error_rejects_invalid_severity():
     with pytest.raises(ValueError):
-        OpenXPError(code="E_TEST", message="x", hint="y", severity="catastrophic")  # type: ignore[arg-type]
+        AgentXPError(code="E_TEST", message="x", hint="y", severity="catastrophic")  # type: ignore[arg-type]
 
 
-def test_openxp_error_rejects_empty_code_or_message():
+def test_agentxp_error_rejects_empty_code_or_message():
     with pytest.raises(ValueError):
-        OpenXPError(code="", message="msg")
+        AgentXPError(code="", message="msg")
     with pytest.raises(ValueError):
-        OpenXPError(code="E_TEST", message="")
+        AgentXPError(code="E_TEST", message="")
 
 
-def test_error_subclasses_are_openxp_errors():
+def test_error_subclasses_are_agentxp_errors():
     for cls in (ValidationError, DataError, StatsError, StorageError, LifecycleError):
         err = cls(code="E_TEST", message="m", hint="h")
-        assert isinstance(err, OpenXPError)
+        assert isinstance(err, AgentXPError)
         assert isinstance(err, Exception)
         # Subclasses must remain distinct so callers can except on one.
-        assert cls.__name__ != "OpenXPError"
+        assert cls.__name__ != "AgentXPError"
 
 
 def test_error_codes_all_have_message_and_hint_templates():

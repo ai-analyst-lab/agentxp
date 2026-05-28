@@ -1,4 +1,4 @@
-"""Tests for openxp/interpret/tree.py — the 8-step decision tree (§22).
+"""Tests for agentxp/interpret/tree.py — the 8-step decision tree (§22).
 
 Each step has positive + negative coverage. Sign-convention tests pin down
 the higher_is_better / lower_is_better / neither branches. Purity test
@@ -10,7 +10,7 @@ from copy import deepcopy
 
 import pytest
 
-from openxp.interpret.tree import (
+from agentxp.interpret.tree import (
     GuardrailEval,
     MDE_HALF_FRACTION,
     NOLIFT_CI_WIDTH_MULTIPLIER,

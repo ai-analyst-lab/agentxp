@@ -4,7 +4,7 @@ Every experiment moves through a lifecycle. AgentXP enforces it — you can't an
 
 ## The 11 States
 
-From `openxp/storage/lifecycle.py`:
+From `agentxp/storage/lifecycle.py`:
 
 | State | Meaning |
 |-------|---------|
@@ -60,7 +60,7 @@ The reason lands in `log.jsonl` as an `amendment_reason` field on the status-cha
 Every `save_experiment` call goes through the state machine:
 
 ```python
-from openxp.storage.store import ExperimentStore
+from agentxp.storage.store import ExperimentStore
 
 store = ExperimentStore()
 
@@ -85,7 +85,7 @@ The store also validates that the status string is one of the 11 canonical state
 Here's a full happy-path run for the checkout redesign experiment, annotated with the store calls and transitions.
 
 ```python
-from openxp.storage.store import ExperimentStore
+from agentxp.storage.store import ExperimentStore
 
 store = ExperimentStore()
 exp_id = "checkout-redesign-2026q2"

@@ -1,8 +1,8 @@
-"""Tests for openxp.agents.templates.render_show_interpretation."""
+"""Tests for agentxp.agents.templates.render_show_interpretation."""
 
 from __future__ import annotations
 
-from openxp.agents.templates import render_show_interpretation
+from agentxp.agents.templates import render_show_interpretation
 
 
 def _base_ctx(**overrides):

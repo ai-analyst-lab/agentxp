@@ -46,7 +46,7 @@ deep-profile = [
 ]
 
 [project.scripts]
-agentxp = "openxp.cli.__main__:main"
+agentxp = "agentxp.cli.__main__:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -54,7 +54,7 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 
 [tool.setuptools.packages.find]
-include = ["openxp*"]
+include = ["agentxp*"]
 
 [tool.setuptools.package-data]
-"openxp.agents.templates" = ["*.j2"]
+"agentxp.agents.templates" = ["*.j2"]

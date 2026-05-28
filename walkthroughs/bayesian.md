@@ -44,7 +44,7 @@ The rule:
 ## Beta-Binomial for Conversion
 
 ```python
-from openxp.stats.bayesian import beta_binomial_test
+from agentxp.stats.bayesian import beta_binomial_test
 
 result = beta_binomial_test(
     c_success=412, c_n=5020,
@@ -72,7 +72,7 @@ Key fields in the returned dict:
 ## Normal-Normal for Continuous Metrics
 
 ```python
-from openxp.stats.bayesian import normal_normal_test
+from agentxp.stats.bayesian import normal_normal_test
 
 result = normal_normal_test(
     control=control_revenue,      # array-like

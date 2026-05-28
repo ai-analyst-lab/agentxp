@@ -1,4 +1,4 @@
-"""Tests for openxp.audit.decisions — per-stage decision artifact writer.
+"""Tests for agentxp.audit.decisions — per-stage decision artifact writer.
 
 Covers acceptance criteria for the AgentXP v0.1 decisions writer (§22.5, §10,
 §1.8.12):
@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from openxp.audit.decisions import (
+from agentxp.audit.decisions import (
     Decision,
     next_ordinal,
     read_all_decisions,

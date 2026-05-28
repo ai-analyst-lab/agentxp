@@ -1,13 +1,13 @@
-"""Tests for openxp.sql.preview.preview_query.
+"""Tests for agentxp.sql.preview.preview_query.
 
 Verifies the never-raises wrapper around BaseAdapter.dry_run: happy-path
 passthrough on the DuckDB adapter, and adapter-exception capture as warnings.
 """
 from __future__ import annotations
 
-from openxp.sql.adapter import PreviewResult
-from openxp.sql.adapters.duckdb_adapter import DuckDBAdapter
-from openxp.sql.preview import preview_query
+from agentxp.sql.adapter import PreviewResult
+from agentxp.sql.adapters.duckdb_adapter import DuckDBAdapter
+from agentxp.sql.preview import preview_query
 
 
 class _ExplodingAdapter:

@@ -1,14 +1,14 @@
-"""Smoke tests for openxp.schemas.results Pydantic models.
+"""Smoke tests for agentxp.schemas.results Pydantic models.
 
 These models are loose shadows of the plain dicts returned by
-``openxp.stats`` functions. They exist so external callers and type checkers
+``agentxp.stats`` functions. They exist so external callers and type checkers
 have something to reference. The tests below construct each model from a
 representative dict and assert round-trip via ``.model_dump()``.
 """
 
 from __future__ import annotations
 
-from openxp.schemas.results import (
+from agentxp.schemas.results import (
     BayesianResult,
     CorrectionResult,
     CUPEDResult,

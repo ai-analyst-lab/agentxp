@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from openxp.stats.srm import srm_check, srm_diagnose
+from agentxp.stats.srm import srm_check, srm_diagnose
 
 
 class TestSrmCheck:

@@ -1,8 +1,8 @@
-"""Track F — ``openxp resume`` 8-case smoke tests.
+"""Track F — ``agentxp resume`` 8-case smoke tests.
 
 For each of the eight §10.6 recovery cases we build a fake experiment
 directory in the shape the case's classifier expects, run
-``openxp.cli.resume.main([exp_id])``, and assert the case number it
+``agentxp.cli.resume.main([exp_id])``, and assert the case number it
 detects + the exit-code semantics from §10.6.5.
 
 These are SHALLOW: we exercise the classifier, not the full handler
@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 import yaml
 
-from openxp.cli import resume as resume_cli
+from agentxp.cli import resume as resume_cli
 
 
 # ──────────────────────────────────────────────────────────────────────────

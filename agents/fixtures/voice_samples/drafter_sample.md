@@ -55,7 +55,7 @@
 >   start: 2026-05-27T00:00:00-07:00
 >   end: null                               # closes on Stage 5 commit
 >
-> decision_rules: openxp_default            # use built-in 8-step tree
+> decision_rules: agentxp_default            # use built-in 8-step tree
 > ```
 >
 > Two numbers I picked for you:

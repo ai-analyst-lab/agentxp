@@ -1,4 +1,4 @@
-"""Tests for openxp.orchestrator.store — StateStore + OrchestratorStore.
+"""Tests for agentxp.orchestrator.store — StateStore + OrchestratorStore.
 
 Covers:
 
@@ -33,8 +33,8 @@ import pytest
 import yaml
 from pydantic import BaseModel
 
-from openxp.orchestrator import store as store_mod
-from openxp.orchestrator.store import (
+from agentxp.orchestrator import store as store_mod
+from agentxp.orchestrator.store import (
     CommitRollback,
     InsufficientDiskSpace,
     OrchestratorStore,
@@ -42,8 +42,8 @@ from openxp.orchestrator.store import (
     StateStore,
     _check_disk_space,
 )
-from openxp.schemas.report import ChainValidation, Violation
-from openxp.schemas.state import (
+from agentxp.schemas.report import ChainValidation, Violation
+from agentxp.schemas.state import (
     LockMetadata,
     PendingDecisionKind,
     Stage,
@@ -166,12 +166,12 @@ def test_orchestrator_state_attribute_is_state_store(orchestrator: OrchestratorS
 
 
 def test_orchestrator_bundles_attribute_is_bundle_store(orchestrator: OrchestratorStore) -> None:
-    from openxp.orchestrator.bundle import BundleStore
+    from agentxp.orchestrator.bundle import BundleStore
     assert isinstance(orchestrator.bundles, BundleStore)
 
 
 def test_orchestrator_conversation_attribute_is_conversation_store(orchestrator: OrchestratorStore) -> None:
-    from openxp.orchestrator.conversation import ConversationStore
+    from agentxp.orchestrator.conversation import ConversationStore
     assert isinstance(orchestrator.conversation, ConversationStore)
 
 
@@ -405,7 +405,7 @@ def test_dispatch_agent_delegates_to_dispatch_module(
     orchestrator: OrchestratorStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """OrchestratorStore.dispatch_agent passes through to dispatch.dispatch_agent."""
-    from openxp.orchestrator.dispatch import DispatchResult
+    from agentxp.orchestrator.dispatch import DispatchResult
 
     class OutSchema(BaseModel):
         ok: bool = True

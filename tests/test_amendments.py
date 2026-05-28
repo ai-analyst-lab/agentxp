@@ -1,5 +1,5 @@
 """
-Tests for openxp.amendments — diff, classify, and the AmendmentTracker.
+Tests for agentxp.amendments — diff, classify, and the AmendmentTracker.
 """
 
 from __future__ import annotations
@@ -10,14 +10,14 @@ from pathlib import Path
 
 import pytest
 
-from openxp.amendments import (
+from agentxp.amendments import (
     Amendment,
     AmendmentTracker,
     classify_change,
     diff_experiments,
     require_amendment_for_transition,
 )
-from openxp.storage.store import ExperimentStore
+from agentxp.storage.store import ExperimentStore
 
 
 # ------------------------------------------------------------------ fixtures

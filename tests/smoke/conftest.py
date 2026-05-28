@@ -7,7 +7,7 @@ stubbed in v0.1.
 
 Fixtures here are intentionally tiny:
   - ``fake_project_root`` — a ``tmp_path`` directory with the project layout
-    OpenXP expects (``experiments/``, ``metrics/``, ``semantic_models/``).
+    AgentXP expects (``experiments/``, ``metrics/``, ``semantic_models/``).
   - ``fake_exp_dir`` — a per-experiment directory under ``fake_project_root``.
   - ``tiny_csv`` — a 50-row sample CSV the profiler can chew through.
   - ``tiny_duckdb`` — a freshly-built DuckDB file with a ``users`` table that
@@ -27,7 +27,7 @@ import pytest
 
 @pytest.fixture
 def fake_project_root(tmp_path: Path) -> Path:
-    """A bare openxp project layout under ``tmp_path``."""
+    """A bare agentxp project layout under ``tmp_path``."""
     root = tmp_path / "project"
     (root / "experiments").mkdir(parents=True)
     (root / "metrics").mkdir()

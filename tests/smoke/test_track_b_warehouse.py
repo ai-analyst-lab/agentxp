@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from openxp.sql.adapters.duckdb_adapter import DuckDBAdapter
-from openxp.sql.artifact_writer import list_query_artifacts, read_query_artifact
-from openxp.sql.dispatch import SqlIntent, dispatch_sql
+from agentxp.sql.adapters.duckdb_adapter import DuckDBAdapter
+from agentxp.sql.artifact_writer import list_query_artifacts, read_query_artifact
+from agentxp.sql.dispatch import SqlIntent, dispatch_sql
 
 
 def _run_select(tiny_duckdb: Path, exp_dir: Path):

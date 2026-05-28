@@ -1,9 +1,9 @@
-"""Tests for openxp.sql.transpiler: cross-dialect SQL with bounded dialects."""
+"""Tests for agentxp.sql.transpiler: cross-dialect SQL with bounded dialects."""
 from __future__ import annotations
 
 import pytest
 
-from openxp.sql.transpiler import SUPPORTED_DIALECTS, TranspileError, transpile
+from agentxp.sql.transpiler import SUPPORTED_DIALECTS, TranspileError, transpile
 
 
 def test_transpile_select_duckdb_to_snowflake():
@@ -44,7 +44,7 @@ def test_transpile_window_function():
 
 
 def test_transpile_unsupported_dialect_raises():
-    # mysql is a sqlglot-supported dialect but NOT in OpenXP v0.1's
+    # mysql is a sqlglot-supported dialect but NOT in AgentXP v0.1's
     # SUPPORTED_DIALECTS set — must be rejected with ValueError.
     with pytest.raises(ValueError):
         transpile("SELECT 1", "mysql", "duckdb")

@@ -2,7 +2,7 @@
 
 import pytest
 
-from openxp.stats.power import (
+from agentxp.stats.power import (
     power_proportion,
     power_mean,
     detectable_effect,

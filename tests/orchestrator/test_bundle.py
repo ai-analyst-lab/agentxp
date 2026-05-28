@@ -1,4 +1,4 @@
-"""Tests for openxp.orchestrator.bundle — BundleStore.
+"""Tests for agentxp.orchestrator.bundle — BundleStore.
 
 Covers §10.5.9 bundle-snapshot policy (COPY-not-reference, SHA256
 recording), §1.8.13 per-experiment paths, §1.7.3 chmod 600 enforcement,
@@ -21,9 +21,9 @@ import pytest
 import yaml
 from pydantic import BaseModel
 
-from openxp.orchestrator import bundle as bundle_mod
-from openxp.orchestrator.bundle import AgentBundle, BundleStore
-from openxp.orchestrator.project_lock import project_write_lock
+from agentxp.orchestrator import bundle as bundle_mod
+from agentxp.orchestrator.bundle import AgentBundle, BundleStore
+from agentxp.orchestrator.project_lock import project_write_lock
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -254,7 +254,7 @@ def _hold_write_lock_target(
     Signals ``acquired_event`` once the exclusive lock is in hand so the
     parent process can synchronize before calling assemble.
     """
-    from openxp.orchestrator.project_lock import project_write_lock as pwl
+    from agentxp.orchestrator.project_lock import project_write_lock as pwl
 
     with pwl(Path(project_root_str), timeout_s=5.0):
         acquired_event.set()

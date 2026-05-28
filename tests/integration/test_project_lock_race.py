@@ -1,4 +1,4 @@
-"""Smoke test for ``openxp.orchestrator.project_lock``.
+"""Smoke test for ``agentxp.orchestrator.project_lock``.
 
 Fires concurrent writes against the same project YAML (via multiprocessing
 to get real OS-level lock semantics — threading would not exercise the
@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from openxp.orchestrator.project_lock import (
+from agentxp.orchestrator.project_lock import (
     ProjectLockTimeout,
     project_read_lock,
     project_write_lock,
@@ -176,12 +176,12 @@ def test_lock_file_is_chmod_600(tmp_path: Path) -> None:
     with project_read_lock(tmp_path, timeout_s=2.0):
         pass
 
-    lock = tmp_path / ".openxp" / ".project.lock"
+    lock = tmp_path / ".agentxp" / ".project.lock"
     assert lock.exists(), "Lock file must be auto-created on first acquisition"
     mode = stat.S_IMODE(lock.stat().st_mode)
     assert mode == 0o600, (
         f"Lock file mode is {oct(mode)}, expected 0o600 (§1.7.3 secrets policy)"
     )
-    # Sanity: file should also be inside the .openxp/ directory.
-    assert lock.parent.name == ".openxp"
+    # Sanity: file should also be inside the .agentxp/ directory.
+    assert lock.parent.name == ".agentxp"
     assert os.access(str(lock), os.R_OK | os.W_OK), "Owner must retain rw access"

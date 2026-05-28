@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 def _resolve_agents_dir() -> Path:
-    """Find the openxp/agents/ directory from the test file location."""
+    """Find the agentxp/agents/ directory from the test file location."""
     here = Path(__file__).resolve()
     # tests/coherence/test_*.py → repo root is parents[2]
     for up in (2, 3, 4):
@@ -33,7 +33,7 @@ def test_brief_contradiction_in_pending_decision_kind():
     If this drifts, the Stage-3b r/e/o dialog wiring will silently route
     through some other gate kind and §10.8.2 will be violated.
     """
-    from openxp.schemas.state import PendingDecisionKind
+    from agentxp.schemas.state import PendingDecisionKind
 
     values = {member.value for member in PendingDecisionKind}
     assert "brief_contradiction" in values

@@ -1,7 +1,7 @@
 """Track G — security sweep: chmod 600 on every sensitive file, PII redaction,
 and concurrent writer serialisation.
 
-Per §1.7.3 every file OpenXP writes that may carry user data must be chmod
+Per §1.7.3 every file AgentXP writes that may carry user data must be chmod
 600 at creation. Per §10.9 the project- and state-level locks must
 serialise concurrent writers from independent processes. Per §1.7.1 the
 PII redactor must catch the common credential patterns before they cross
@@ -21,15 +21,15 @@ from pathlib import Path
 
 import pytest
 
-from openxp.audit.redactor import redact, redact_message
-from openxp.audit.storage import (
+from agentxp.audit.redactor import redact, redact_message
+from agentxp.audit.storage import (
     _atomic_write_bytes,
     append_conversation_turn,
     append_event,
 )
-from openxp.orchestrator.bundle import BundleStore
-from openxp.orchestrator.store import StateStore
-from openxp.schemas.state import Stage, StateYaml
+from agentxp.orchestrator.bundle import BundleStore
+from agentxp.orchestrator.store import StateStore
+from agentxp.schemas.state import Stage, StateYaml
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -167,8 +167,8 @@ def _state_writer_worker(
     project_root: str, exp_id: str, stage_value: str, hold_seconds: float
 ) -> int:
     """Acquire .state.lock via OrchestratorStore._file_lock and write state.yaml."""
-    from openxp.orchestrator.store import OrchestratorStore
-    from openxp.schemas.state import Stage, StateYaml
+    from agentxp.orchestrator.store import OrchestratorStore
+    from agentxp.schemas.state import Stage, StateYaml
 
     store = OrchestratorStore(Path(project_root), exp_id)
     with store._file_lock(timeout_s=15.0):
@@ -184,7 +184,7 @@ def _state_writer_worker(
 
 def _log_writer_worker(exp_dir: str, n: int) -> int:
     """Append ``n`` log.jsonl events from a child process."""
-    from openxp.audit.storage import append_event
+    from agentxp.audit.storage import append_event
 
     for i in range(n):
         append_event(

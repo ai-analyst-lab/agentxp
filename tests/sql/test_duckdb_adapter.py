@@ -1,4 +1,4 @@
-"""Tests for openxp.sql.adapters.duckdb_adapter.DuckDBAdapter.
+"""Tests for agentxp.sql.adapters.duckdb_adapter.DuckDBAdapter.
 
 Verifies the §12 adapter contract against the DuckDB driver: protocol
 conformance, in-memory + file-path connection modes, max_rows truncation,
@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from openxp.sql.adapter import (
+from agentxp.sql.adapter import (
     AdapterResult,
     BaseAdapter,
     PreviewResult,
 )
-from openxp.sql.adapters.duckdb_adapter import DuckDBAdapter
+from agentxp.sql.adapters.duckdb_adapter import DuckDBAdapter
 
 
 def test_implements_base_adapter_protocol():

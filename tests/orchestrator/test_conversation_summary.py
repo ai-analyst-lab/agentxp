@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openxp.orchestrator.conversation import ConversationStore
+from agentxp.orchestrator.conversation import ConversationStore
 
 
 def test_conversation_turn_accepts_summary_metadata(tmp_path: Path):

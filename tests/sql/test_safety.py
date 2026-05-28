@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from openxp.sql.safety import (
+from agentxp.sql.safety import (
     DenyListViolation,
     ReadOnlyViolation,
     SafetyResult,
@@ -12,7 +12,7 @@ from openxp.sql.safety import (
     layer_4_enforce_resource_bounds,
     run_pipeline,
 )
-from openxp.sql.parser import parse_sql
+from agentxp.sql.parser import parse_sql
 
 
 # ──────────────────────────────────────────────────────────────────────────

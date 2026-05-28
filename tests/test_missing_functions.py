@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 from scipy import stats as sp_stats
 
-from openxp.stats import (
+from agentxp.stats import (
     cohens_h,
     denominator_srm,
     extension_estimate,

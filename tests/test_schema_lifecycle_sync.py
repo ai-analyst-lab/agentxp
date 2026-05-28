@@ -2,15 +2,15 @@
 
 The storage layer's ``ALL_STATES`` is the canonical source of truth for the
 11-state experiment lifecycle. The ``ExperimentStatus`` enum in
-``openxp.schemas.experiment`` is the Pydantic-validated surface used when
+``agentxp.schemas.experiment`` is the Pydantic-validated surface used when
 loading/serializing ``experiment.yaml``. Drift between the two silently breaks
 ``ExperimentConfig(**data)`` round-trips on any post-COLLECTING state.
 """
 
 from __future__ import annotations
 
-from openxp.schemas.experiment import ExperimentStatus
-from openxp.storage.lifecycle import ALL_STATES
+from agentxp.schemas.experiment import ExperimentStatus
+from agentxp.storage.lifecycle import ALL_STATES
 
 
 def test_experiment_status_enum_matches_lifecycle_states():

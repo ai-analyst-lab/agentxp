@@ -1,4 +1,4 @@
-"""Tests for openxp.data.discovery — schema auto-detection."""
+"""Tests for agentxp.data.discovery — schema auto-detection."""
 
 import os
 
@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from openxp.data import CSVLoader, discover_schema
-from openxp.data.base import SchemaDiscovery
+from agentxp.data import CSVLoader, discover_schema
+from agentxp.data.base import SchemaDiscovery
 
 
 SAMPLE_DATA_DIR = os.path.abspath(

@@ -16,7 +16,7 @@ Same as experiment-analyzer: auto-detect treatment column, outcome columns, and 
 ### Check 1: SRM Trending
 
 ```python
-from openxp.stats import srm_check
+from agentxp.stats import srm_check
 
 # Overall SRM
 counts = df[treatment_col].value_counts().values.tolist()
@@ -38,7 +38,7 @@ Traffic light:
 For each guardrail metric, run a one-sided test:
 
 ```python
-from openxp.stats import welch_test, proportion_test
+from agentxp.stats import welch_test, proportion_test
 
 # Test if guardrail has degraded
 result = welch_test(control_values, treatment_values)
@@ -70,7 +70,7 @@ If behind schedule by > 20%, flag and suggest:
 ### Check 4: Detectable Effect at Current Sample
 
 ```python
-from openxp.stats import detectable_effect
+from agentxp.stats import detectable_effect
 
 # What can we detect right now?
 current_mde = detectable_effect(n_per_group=current_n, baseline_rate=baseline)

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from openxp.stats.effect_size import cohens_d, relative_lift
+from agentxp.stats.effect_size import cohens_d, relative_lift
 
 
 class TestCohensD:

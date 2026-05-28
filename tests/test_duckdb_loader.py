@@ -1,4 +1,4 @@
-"""Tests for openxp.data.duckdb_loader. Skipped if duckdb is not installed."""
+"""Tests for agentxp.data.duckdb_loader. Skipped if duckdb is not installed."""
 
 import os
 
@@ -6,8 +6,8 @@ import pytest
 
 duckdb = pytest.importorskip("duckdb")
 
-from openxp.data import DuckDBLoader  # noqa: E402
-from openxp.data.base import LoadResult  # noqa: E402
+from agentxp.data import DuckDBLoader  # noqa: E402
+from agentxp.data.base import LoadResult  # noqa: E402
 
 
 SAMPLE_DATA_DIR = os.path.abspath(
@@ -87,6 +87,6 @@ class TestDuckDBLoaderLoadExperiment:
 
 class TestImportErrorGuard:
     def test_import_error_message_mentions_pip_install(self):
-        from openxp.data.duckdb_loader import _DUCKDB_INSTALL_HINT
+        from agentxp.data.duckdb_loader import _DUCKDB_INSTALL_HINT
         assert "pip install" in _DUCKDB_INSTALL_HINT
-        assert "openxp[duckdb]" in _DUCKDB_INSTALL_HINT
+        assert "agentxp[duckdb]" in _DUCKDB_INSTALL_HINT

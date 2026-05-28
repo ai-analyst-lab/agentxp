@@ -1,5 +1,5 @@
 """
-Shared test fixtures for OpenXP stats tests.
+Shared test fixtures for AgentXP stats tests.
 
 Provides synthetic datasets with KNOWN effects for validation:
 - clean_ab: 5% lift in conversion, n=2000/group

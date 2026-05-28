@@ -30,7 +30,7 @@ If the user describes a hypothesis or asks for a test design, do not handle that
 
 1. **Validate the path.** Confirm the file exists on disk. If it does not, print `file not found: <path>` to stderr and exit without invoking the CLI or the agent.
 
-2. **Run the CLI.** Shell out to `agentxp profile <path>` (with `--bundle` and `--deep` passed through when supplied). This calls `openxp.profiler.driver.profile_dataset()`, which runs DuckDB `SUMMARIZE` and the HG-D4 heuristics in `openxp.profiler.heuristics`, then writes `bundles/profiler.out.yaml` (the deterministic profile). The bundle is the source of truth for everything downstream in this turn; do not re-read the data file.
+2. **Run the CLI.** Shell out to `agentxp profile <path>` (with `--bundle` and `--deep` passed through when supplied). This calls `agentxp.profiler.driver.profile_dataset()`, which runs DuckDB `SUMMARIZE` and the HG-D4 heuristics in `agentxp.profiler.heuristics`, then writes `bundles/profiler.out.yaml` (the deterministic profile). The bundle is the source of truth for everything downstream in this turn; do not re-read the data file.
 
 3. **Dispatch the profiler agent.** Read `agents/profiler.system.md` verbatim as the sub-agent system prompt. Pass the just-written `bundles/profiler.out.yaml` as input. The sub-agent's job is the semantic-interpretation pass: it renders the column table inside a fenced code block with five columns (`column`, `type`, `null%`, `sample`, `my read`), annotates each row with what the column probably is (unit of randomization, assignment column, exposure event, primary outcome candidate, guardrail candidate, negative-control candidate, dimension, pipeline meta), and asks at most one clarifying question.
 

@@ -1,4 +1,4 @@
-"""Tests for openxp.profiler.ydata_sidecar (W_pre2.3)."""
+"""Tests for agentxp.profiler.ydata_sidecar (W_pre2.3)."""
 from __future__ import annotations
 
 import importlib
@@ -11,7 +11,7 @@ import pytest
 def test_module_loads_without_ydata():
     """The sidecar module must be importable even if ydata is not installed."""
     # Force a fresh import so we don't rely on cached state.
-    mod_name = "openxp.profiler.ydata_sidecar"
+    mod_name = "agentxp.profiler.ydata_sidecar"
     if mod_name in sys.modules:
         del sys.modules[mod_name]
     mod = importlib.import_module(mod_name)
@@ -20,7 +20,7 @@ def test_module_loads_without_ydata():
 
 def test_import_error_message_when_ydata_missing(monkeypatch, tmp_path):
     """When ydata_profiling cannot be imported, raise ImportError with the install hint."""
-    from openxp.profiler import ydata_sidecar
+    from agentxp.profiler import ydata_sidecar
 
     # Force the deferred import inside run_ydata_deep_profile to fail by
     # blocking ydata_profiling in sys.modules.
@@ -37,7 +37,7 @@ def test_import_error_message_when_ydata_missing(monkeypatch, tmp_path):
             file_path=dummy_file,
             html_output_path=tmp_path / "out.html",
         )
-    assert "pip install 'openxp[deep-profile]'" in str(excinfo.value)
+    assert "pip install 'agentxp[deep-profile]'" in str(excinfo.value)
 
 
 def test_warehouse_path_not_implemented(tmp_path):
@@ -47,7 +47,7 @@ def test_warehouse_path_not_implemented(tmp_path):
     the ImportError fires first (as designed). We skip in that case.
     """
     pytest.importorskip("ydata_profiling")
-    from openxp.profiler import ydata_sidecar
+    from agentxp.profiler import ydata_sidecar
 
     with pytest.raises(NotImplementedError) as excinfo:
         ydata_sidecar.run_ydata_deep_profile(
@@ -63,7 +63,7 @@ def test_run_ydata_deep_profile_parquet_smoke(tmp_path):
     pytest.importorskip("ydata_profiling")
     import pandas as pd
 
-    from openxp.profiler import ydata_sidecar
+    from agentxp.profiler import ydata_sidecar
 
     df = pd.DataFrame(
         {

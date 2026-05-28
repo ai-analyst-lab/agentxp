@@ -7,7 +7,7 @@ description: Connect a warehouse. DuckDB ships v0.1; Snowflake and BigQuery wiza
 
 ## Purpose
 
-Wire a warehouse connection so SQL dispatches can execute. v0.1 ships only DuckDB (file-based or in-memory). Snowflake and BigQuery adapters exist as stubs at `openxp/sql/adapters/` that raise `NotImplementedError`; the connect wizards (`agentxp connect snowflake|bigquery`) ship in v0.1.1 within two weeks of v0.1 ship. This skill makes that boundary explicit and routes users who need Snowflake or BigQuery today toward workable v0.1 paths instead of failing into a stub.
+Wire a warehouse connection so SQL dispatches can execute. v0.1 ships only DuckDB (file-based or in-memory). Snowflake and BigQuery adapters exist as stubs at `agentxp/sql/adapters/` that raise `NotImplementedError`; the connect wizards (`agentxp connect snowflake|bigquery`) ship in v0.1.1 within two weeks of v0.1 ship. This skill makes that boundary explicit and routes users who need Snowflake or BigQuery today toward workable v0.1 paths instead of failing into a stub.
 
 ## When to invoke
 
@@ -48,7 +48,7 @@ Wire a warehouse connection so SQL dispatches can execute. v0.1 ships only DuckD
    Snowflake and BigQuery connect wizards ship in v0.1.1 within two weeks of
    v0.1. The Snowflake adapter has four auth surfaces (password, externalbrowser
    SSO, OAuth, key-pair); the BigQuery adapter uses ADC or service account JSON.
-   Both adapters' Python stubs already exist at openxp/sql/adapters/, but they
+   Both adapters' Python stubs already exist at agentxp/sql/adapters/, but they
    raise NotImplementedError until v0.1.1.
    ```
 
@@ -66,7 +66,7 @@ Wire a warehouse connection so SQL dispatches can execute. v0.1 ships only DuckD
 ## What this skill does not do
 
 - It does not dispatch the Snowflake or BigQuery adapter. Those stubs raise `NotImplementedError`; surfacing that error is a worse experience than the explicit deferral message.
-- It does not write credentials. Credential persistence at `.openxp/credentials/` is a v0.1.1 deliverable shipped alongside the wizards.
+- It does not write credentials. Credential persistence at `.agentxp/credentials/` is a v0.1.1 deliverable shipped alongside the wizards.
 - It does not modify project state. No `state.yaml` update, no `stage.committed` event.
 
 ## Cross-references
@@ -85,7 +85,7 @@ Snowflake and BigQuery connect wizards ship in v0.1.1 within two weeks
 of v0.1. The Snowflake adapter has four auth surfaces (password,
 externalbrowser SSO, OAuth, key-pair); the BigQuery adapter uses ADC
 or service account JSON. Both adapters' Python stubs already exist at
-openxp/sql/adapters/, but they raise NotImplementedError until v0.1.1.
+agentxp/sql/adapters/, but they raise NotImplementedError until v0.1.1.
 
 For v0.1 today, you can:
 - Point at a local DuckDB file: /connect-data duckdb

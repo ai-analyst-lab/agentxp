@@ -15,7 +15,7 @@ This depends on four inputs:
 ## Proportion Metrics (Conversion Rate)
 
 ```python
-from openxp.stats import power_proportion
+from agentxp.stats import power_proportion
 
 result = power_proportion(
     baseline_rate=0.08,     # 8% current conversion
@@ -32,7 +32,7 @@ print(result["interpretation"])
 ## Continuous Metrics (Revenue, Duration)
 
 ```python
-from openxp.stats import power_mean
+from agentxp.stats import power_mean
 
 result = power_mean(
     baseline_mean=47.20,    # current average revenue
@@ -46,7 +46,7 @@ result = power_mean(
 ## Duration Estimation
 
 ```python
-from openxp.stats import duration_estimate
+from agentxp.stats import duration_estimate
 
 duration = duration_estimate(
     n_required=49_144,      # total sample from power calc
@@ -70,7 +70,7 @@ Viability verdicts:
 Explore the MDE vs. duration trade-off:
 
 ```python
-from openxp.stats import power_sensitivity_table
+from agentxp.stats import power_sensitivity_table
 
 table = power_sensitivity_table(
     baseline_rate=0.08,
@@ -89,7 +89,7 @@ for row in table["table"]:
 When sample size is fixed (e.g., you only have 3,000 users):
 
 ```python
-from openxp.stats import detectable_effect
+from agentxp.stats import detectable_effect
 
 mde = detectable_effect(
     n_per_group=3_000,

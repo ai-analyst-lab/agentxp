@@ -1,4 +1,4 @@
-"""Tests for openxp.audit.redactor.
+"""Tests for agentxp.audit.redactor.
 
 Covers the 11 load-bearing patterns in §1.7.3, idempotency, multi-pattern combined
 input, error-message convenience, performance on a 1MB input, and the public
@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from openxp.audit.redactor import REDACTION_PATTERNS, redact, redact_message
+from agentxp.audit.redactor import REDACTION_PATTERNS, redact, redact_message
 
 
 # --- Per-pattern coverage ---------------------------------------------------

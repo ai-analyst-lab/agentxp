@@ -1,8 +1,8 @@
-"""Tests for openxp.profiler.heuristics — W_pre2.2 / HG-D4."""
+"""Tests for agentxp.profiler.heuristics — W_pre2.2 / HG-D4."""
 from __future__ import annotations
 
-from openxp.profiler.heuristics import apply_hg_d4_heuristics
-from openxp.schemas.profiler import ColumnProfile
+from agentxp.profiler.heuristics import apply_hg_d4_heuristics
+from agentxp.schemas.profiler import ColumnProfile
 
 
 def _base(**overrides):

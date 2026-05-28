@@ -1,4 +1,4 @@
-"""Tests for openxp.profiler.duckdb_summarize — W_pre2.2."""
+"""Tests for agentxp.profiler.duckdb_summarize — W_pre2.2."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,11 +6,11 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from openxp.profiler.duckdb_summarize import (
+from agentxp.profiler.duckdb_summarize import (
     _validate_qualified_name,
     run_duckdb_summarize,
 )
-from openxp.schemas.profiler import ColumnProfile
+from agentxp.schemas.profiler import ColumnProfile
 
 
 def _write_parquet(path: Path, sql: str) -> None:

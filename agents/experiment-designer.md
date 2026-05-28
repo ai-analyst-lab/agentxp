@@ -47,7 +47,7 @@ For each metric, define:
 Compute sample size requirements using the AgentXP stats library:
 
 ```python
-from openxp.stats import power_proportion, power_mean, duration_estimate, power_sensitivity_table
+from agentxp.stats import power_proportion, power_mean, duration_estimate, power_sensitivity_table
 
 # For proportion metrics (conversion rate, click-through rate):
 result = power_proportion(

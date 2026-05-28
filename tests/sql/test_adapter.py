@@ -1,10 +1,10 @@
-"""Tests for openxp.sql.adapter: result models, error hierarchy, redaction."""
+"""Tests for agentxp.sql.adapter: result models, error hierarchy, redaction."""
 from __future__ import annotations
 
 import pytest
 from pydantic import ValidationError
 
-from openxp.sql.adapter import (
+from agentxp.sql.adapter import (
     AdapterError,
     AdapterResult,
     AuthExpiredError,

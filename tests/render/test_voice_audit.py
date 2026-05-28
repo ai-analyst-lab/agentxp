@@ -1,9 +1,9 @@
-"""Tests for openxp.render.voice_audit (D5 / NDS-3 / M67)."""
+"""Tests for agentxp.render.voice_audit (D5 / NDS-3 / M67)."""
 from __future__ import annotations
 
 from pathlib import Path
 
-from openxp.render.voice_audit import audit_voice, audit_voice_file
+from agentxp.render.voice_audit import audit_voice, audit_voice_file
 
 
 # Text that satisfies every rule: has a `wrote:` commit line + one question,

@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from openxp.sql.parser import parse_sql
-from openxp.sql.safety import (
+from agentxp.sql.parser import parse_sql
+from agentxp.sql.safety import (
     CrossAdapterViolation,
     layer_3a_assert_single_adapter,
 )

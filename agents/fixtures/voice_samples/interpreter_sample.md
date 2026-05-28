@@ -24,7 +24,7 @@
 > verdict: SHIP
 > step_fired: 5  # SHIP
 > decision_rule:
->   source: openxp_default
+>   source: agentxp_default
 >   rule_id: default.ship
 >   expression: |
 >     primary CI excludes 0 on benefit side at 95%
@@ -54,7 +54,7 @@
 > > **SHIP** — Completion rate +3.2pp [+1.4, +5.0] at 95% CI; latency guardrail clear at +0.8% (under the 5% halt threshold); late-window effect 0.87x the early window — no novelty risk.
 >
 > **Confidence:** highly likely positive (95% CI excludes 0 on benefit side)
-> **Decision rule applied:** `default.ship` from openxp_default
+> **Decision rule applied:** `default.ship` from agentxp_default
 > **Edge case flags:** clear
 
 ---

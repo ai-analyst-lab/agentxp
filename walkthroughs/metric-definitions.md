@@ -12,7 +12,7 @@ It's the data team's equivalent of a style guide — except it's enforced by cod
 
 ## The Schema
 
-From `openxp/metrics/schema.py`:
+From `agentxp/metrics/schema.py`:
 
 | Field | Required | Meaning |
 |-------|----------|---------|
@@ -45,7 +45,7 @@ metric:
   tags: [conversion, checkout, primary]
 ```
 
-Put this in `./metrics/checkout_completion_rate.yaml` (or `~/.openxp/metrics/`) and it gets auto-loaded into the default registry.
+Put this in `./metrics/checkout_completion_rate.yaml` (or `~/.agentxp/metrics/`) and it gets auto-loaded into the default registry.
 
 ## Example: revenue_per_user.yaml
 
@@ -106,9 +106,9 @@ The experiment provides the experiment-specific knobs (MDE, baseline, thresholds
 ## Loading the Registry
 
 ```python
-from openxp.metrics.registry import MetricRegistry, load_all_metrics
+from agentxp.metrics.registry import MetricRegistry, load_all_metrics
 
-# Autoloads from ./metrics or ~/.openxp/metrics
+# Autoloads from ./metrics or ~/.agentxp/metrics
 registry = load_all_metrics()
 
 print(registry.list())
@@ -130,16 +130,16 @@ registry = MetricRegistry(metrics_dir="./my-team/metrics")
 Each metric type maps to the right stats function:
 
 ```python
-from openxp.metrics.schema import to_test_function
+from agentxp.metrics.schema import to_test_function
 
 metric = registry.get("checkout_completion_rate")   # type: proportion
-test_fn = to_test_function(metric)                  # openxp.stats.proportion_test
+test_fn = to_test_function(metric)                  # agentxp.stats.proportion_test
 
 metric = registry.get("revenue_per_user")           # type: mean
-test_fn = to_test_function(metric)                  # openxp.stats.welch_test
+test_fn = to_test_function(metric)                  # agentxp.stats.welch_test
 
 metric = registry.get("revenue_per_session")        # type: ratio
-test_fn = to_test_function(metric)                  # openxp.stats.ratio_metric_test
+test_fn = to_test_function(metric)                  # agentxp.stats.ratio_metric_test
 ```
 
 The analyzer agent uses this mapping automatically. You almost never call `to_test_function` directly — but it's the hook that keeps metrics and tests in sync.
@@ -149,7 +149,7 @@ The analyzer agent uses this mapping automatically. You almost never call `to_te
 Every load validates the YAML. Bad definitions fail loudly:
 
 ```python
-from openxp.metrics.schema import validate, MetricValidationError
+from agentxp.metrics.schema import validate, MetricValidationError
 
 try:
     validate({"name": "foo", "type": "proportion"})  # missing numerator, description

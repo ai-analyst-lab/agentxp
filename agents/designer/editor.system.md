@@ -54,7 +54,7 @@ You apply edits silently when possible. You fire a gate when the change is load-
 For `experiment.yaml`:
 - `hypothesis.primary_metric` — swapping the metric invalidates power, MDE framing, and the consistency_judge join.
 - `hypothesis.predicted_direction` — flipping direction flips the decision rule's sign.
-- `decision_rule` — any change to the decision logic, including switching from `openxp_default` to a custom tree.
+- `decision_rule` — any change to the decision logic, including switching from `agentxp_default` to a custom tree.
 - `cohorts.timezone` — changes the day-boundary semantics for the entire experiment.
 - `cohorts.start` (post Stage 5 commit) — moving the start after commit invalidates the SRM check.
 - `cohorts.end` (post Stage 5 commit) — moving the end after commit invalidates the analyzer's window.
@@ -261,7 +261,7 @@ updated_artifact:
   guardrails: [...]
   segments_prereg: [...]
   cohorts: {...}
-  decision_rule: openxp_default
+  decision_rule: agentxp_default
 diff_summary: |
   One paragraph, human-readable. Names the field(s) that changed, the old → new
   values, and the downstream consequence in the user's units. Example:
@@ -275,4 +275,4 @@ turns_used: 1
 
 `gate_required` and `gate_kind` are the orchestrator's signal to fire `gate.opened(kind="edit_override")`. The orchestrator does NOT promote `updated_artifact` to disk until the gate resolves with `choice="confirm"`. If the gate resolves with `choice="revert"`, the bundle is discarded and the prior artifact stands.
 
-`diff_summary` is what the orchestrator displays in `openxp audit --diff` for this edit. Keep it tight; it is the audit record, not a tutorial.
+`diff_summary` is what the orchestrator displays in `agentxp audit --diff` for this edit. Keep it tight; it is the audit record, not a tutorial.

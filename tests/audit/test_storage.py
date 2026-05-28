@@ -1,4 +1,4 @@
-"""Tests for openxp.audit.storage — log.jsonl writer + chmod 600 enforcement.
+"""Tests for agentxp.audit.storage — log.jsonl writer + chmod 600 enforcement.
 
 Covers acceptance criteria for W_pre1.5:
   1. File creation is chmod 600 (no world-readable window).
@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from openxp.audit.storage import (
+from agentxp.audit.storage import (
     _AtomicJsonlWriter,
     _atomic_write_bytes,
     _check_disk_space,

@@ -50,7 +50,7 @@ Bad candidates:
 
 ```python
 import numpy as np
-from openxp.stats.cuped import cuped_welch_test, variance_reduction
+from agentxp.stats.cuped import cuped_welch_test, variance_reduction
 
 # Pre-experiment revenue (prior 28 days) — correlates with post-experiment revenue
 control_pre = np.array([12.1, 8.4, 22.3, 5.1, 17.8, ...])
@@ -78,7 +78,7 @@ The return dict exposes the adjusted Welch result (`p_value`, `ci_lower`, `ci_up
 Before rewiring your analysis, use the cheap diagnostic:
 
 ```python
-from openxp.stats.cuped import variance_reduction
+from agentxp.stats.cuped import variance_reduction
 
 preview = variance_reduction(y_pre=all_pre, y_post=all_post)
 print(preview["interpretation"])
@@ -93,7 +93,7 @@ If rho comes back below 0.1, don't bother — the overhead of tracking a pre-per
 If you want the adjusted series for your own downstream work:
 
 ```python
-from openxp.stats.cuped import cuped_adjust
+from agentxp.stats.cuped import cuped_adjust
 
 adj = cuped_adjust(y_pre=all_pre, y_post=all_post, treatment=treatment_flags)
 print(adj["theta"], adj["variance_reduction_pct"])

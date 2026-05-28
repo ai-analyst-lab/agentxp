@@ -16,7 +16,7 @@ Legend: **DONE** / **PARTIAL** / **MISSING** / **DEFERRED** (v2.0 punt) — no r
 | §5.1 | `/experiment power` | v0.1 | DONE | `MODES.md` §2 | Direct stats call, no agent |
 | §5.1 | `/experiment analyze` | v0.1 | DONE | `MODES.md` §3; `agents/experiment-analyzer.md` | 8-question framework |
 | §5.1 | `/experiment interpret` | v0.1 | DONE | `MODES.md` §4; `agents/experiment-interpreter.md` | Walks Appendix A tree |
-| §5.1 | `/experiment monitor` | v0.5 | DONE | `MODES.md` §5; `agents/experiment-monitor.md`; `openxp/monitoring/` | GREEN/YELLOW/RED dispatch |
+| §5.1 | `/experiment monitor` | v0.5 | DONE | `MODES.md` §5; `agents/experiment-monitor.md`; `agentxp/monitoring/` | GREEN/YELLOW/RED dispatch |
 | §5.1 | `/experiment report` | v0.5 | DONE | `MODES.md` §6; `agents/experiment-readout.md` | Audience-adaptable (executive/technical/cross-functional) |
 | §5.1 | `/experiment full` | v0.5 | DONE | `MODES.md` §7 | Pipeline orchestration with resume-from-state |
 | §5.1 | `/experiment status` | v0.1 | DONE | `MODES.md` §8 | Read-only YAML inspector |
@@ -33,62 +33,62 @@ Legend: **DONE** / **PARTIAL** / **MISSING** / **DEFERRED** (v2.0 punt) — no r
 | §5.2 | experiment-monitor.md | v0.5 | DONE | `agents/experiment-monitor.md` | Three-tier SRM + guardrails + sample tracking |
 | §5.2 | experiment-readout.md | v0.5 | DONE | `agents/experiment-readout.md` | Six-section report + audience adaptation |
 | §5.2 | experiment-program.md | v1.0 | DEFERRED | — | Not in scope for current waves |
-| §5.2 | "SHIP_WITH_CAVEATS as modifier, not 6th outcome" | v0.1 | PARTIAL | `openxp/schemas/experiment.py:41-46` EwlClassification enum has 5 canonical values | No enforcement in agent prose to use `reasoning`/`monitoring_plan` for the caveats modifier |
+| §5.2 | "SHIP_WITH_CAVEATS as modifier, not 6th outcome" | v0.1 | PARTIAL | `agentxp/schemas/experiment.py:41-46` EwlClassification enum has 5 canonical values | No enforcement in agent prose to use `reasoning`/`monitoring_plan` for the caveats modifier |
 
 ## §5.3 — Stats functions
 
-All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolved via live `inspect.signature` probe.
+All 32 PRD-required functions are exported via `agentxp.stats`. Signatures resolved via live `inspect.signature` probe.
 
 ### Data prep (v0.1)
 
 | PRD function | PRD signature | Version | Status | File:line | Sig match? |
 |---|---|---|---|---|---|
-| `prepare_experiment_data` | `(df, variant_col, metric_col, unit_col, metric_type=None)` | v0.1 | DONE | `openxp/stats/prep.py` | **NO** — actual: `(df, treatment_col=None, metric_cols=None, segment_cols=None, winsorize_spec=None)`. Different parameter model (multi-metric, segment-aware, winsorize spec) — a semantic superset but breaks PRD literal contract. Agent docs should reference the real signature |
-| `winsorize` | `(values, lower=0.0, upper=0.99)` | v0.1 | DONE | `openxp/stats/ab_tests.py` | `(series, lower=0.01, upper=0.99)` — lower default differs (0.01 vs 0.0); semantically the same symmetric-percentile trim |
+| `prepare_experiment_data` | `(df, variant_col, metric_col, unit_col, metric_type=None)` | v0.1 | DONE | `agentxp/stats/prep.py` | **NO** — actual: `(df, treatment_col=None, metric_cols=None, segment_cols=None, winsorize_spec=None)`. Different parameter model (multi-metric, segment-aware, winsorize spec) — a semantic superset but breaks PRD literal contract. Agent docs should reference the real signature |
+| `winsorize` | `(values, lower=0.0, upper=0.99)` | v0.1 | DONE | `agentxp/stats/ab_tests.py` | `(series, lower=0.01, upper=0.99)` — lower default differs (0.01 vs 0.0); semantically the same symmetric-percentile trim |
 
 ### A/B tests (v0.1)
 
 | PRD function | PRD signature | Version | Status | File:line | Sig match? |
 |---|---|---|---|---|---|
-| `welch_test` | `(control, treatment, alternative='two-sided')` | v0.1 | DONE | `openxp/stats/ab_tests.py` | **NO** — actual: `(control, treatment, alpha=0.05)`. No `alternative` parameter. One-sided tests for guardrails are only available via `guardrail_test`. Breaks PRD §5.3 D.1 one-sided-vs-two-sided contract for primary/secondary metrics |
-| `proportion_test` | `(c_success, c_n, t_success, t_n, alternative='two-sided')` | v0.1 | DONE | `openxp/stats/ab_tests.py` | **NO** — actual: `(c_success, c_n, t_success, t_n, alpha=0.05)`. Same missing `alternative`. No small-sample guard referenced in PRD (auto-fallback to Fisher's) — skill/agent layer handles this manually |
-| `fishers_exact_test` | `(c_success, c_n, t_success, t_n, alternative='two-sided')` | v0.1 | DONE | `openxp/stats/fishers.py` | Match |
-| `ratio_metric_test` | `(num_c, den_c, num_t, den_t, alternative='two-sided')` | v0.1 | DONE | `openxp/stats/ab_tests.py` | **NO** — actual: `(num_c, den_c, num_t, den_t, alpha=0.05)`. Same missing `alternative` |
-| `guardrail_test` | `(control, treatment, nim=None, metric_type='continuous', alternative='less')` | v0.1 | DONE | `openxp/stats/guardrails.py` | **NO** — actual: `(control, treatment, metric_type='mean', nim_relative=0.02, alpha=0.05, invert=False)`. Kwarg names drift (`nim` → `nim_relative`, `metric_type='continuous'` → `'mean'`), `alternative='less'` is implicit, no-NIM inferiority mode not exposed via `nim=None` but via `nim_relative=0.02` default |
+| `welch_test` | `(control, treatment, alternative='two-sided')` | v0.1 | DONE | `agentxp/stats/ab_tests.py` | **NO** — actual: `(control, treatment, alpha=0.05)`. No `alternative` parameter. One-sided tests for guardrails are only available via `guardrail_test`. Breaks PRD §5.3 D.1 one-sided-vs-two-sided contract for primary/secondary metrics |
+| `proportion_test` | `(c_success, c_n, t_success, t_n, alternative='two-sided')` | v0.1 | DONE | `agentxp/stats/ab_tests.py` | **NO** — actual: `(c_success, c_n, t_success, t_n, alpha=0.05)`. Same missing `alternative`. No small-sample guard referenced in PRD (auto-fallback to Fisher's) — skill/agent layer handles this manually |
+| `fishers_exact_test` | `(c_success, c_n, t_success, t_n, alternative='two-sided')` | v0.1 | DONE | `agentxp/stats/fishers.py` | Match |
+| `ratio_metric_test` | `(num_c, den_c, num_t, den_t, alternative='two-sided')` | v0.1 | DONE | `agentxp/stats/ab_tests.py` | **NO** — actual: `(num_c, den_c, num_t, den_t, alpha=0.05)`. Same missing `alternative` |
+| `guardrail_test` | `(control, treatment, nim=None, metric_type='continuous', alternative='less')` | v0.1 | DONE | `agentxp/stats/guardrails.py` | **NO** — actual: `(control, treatment, metric_type='mean', nim_relative=0.02, alpha=0.05, invert=False)`. Kwarg names drift (`nim` → `nim_relative`, `metric_type='continuous'` → `'mean'`), `alternative='less'` is implicit, no-NIM inferiority mode not exposed via `nim=None` but via `nim_relative=0.02` default |
 
 ### Power (v0.1)
 
 | PRD function | PRD signature | Version | Status | File:line | Sig match? |
 |---|---|---|---|---|---|
-| `power_proportion` | `(baseline, mde, alpha=0.05, power=0.80, mde_type='relative')` | v0.1 | DONE | `openxp/stats/power.py` | **NO** — actual: `(baseline_rate, mde_relative, alpha=0.05, power=0.8)`. `mde_type` not exposed (relative-only hardcoded) — D.2 absolute-vs-relative contract not implemented |
-| `power_mean` | `(baseline_mean, baseline_std, mde, alpha=0.05, power=0.80, mde_type='relative')` | v0.1 | DONE | `openxp/stats/power.py` | Same — no `mde_type` |
-| `power_ratio` | `(num_mean, num_var, den_mean, den_var, cov, mde, alpha=0.05, power=0.80, mde_type='relative')` | v0.1 | DONE | `openxp/stats/ratio_power.py` | **NO** — actual: `(baseline_num_mean, baseline_den_mean, baseline_num_std, baseline_den_std, correlation_num_den, mde_relative, alpha=0.05, power=0.8)`. Takes `std`+`correlation` not `var`+`cov`; PRD math spec (`Var(R) = (num_var - 2*R*cov + R²*den_var) / ...`) is an equivalent reparameterization but docs mismatch |
-| `detectable_effect` | `(n, baseline, alpha=0.05, power=0.80, metric_type='proportion', baseline_std=None)` | v0.1 | DONE | `openxp/stats/power.py` | **NO** — actual: `(n_per_group, baseline_rate=None, baseline_std=None, alpha=0.05, power=0.8)`. No explicit `metric_type` — inferred from which baseline is passed. Ratio metric path missing |
-| `duration_estimate` | `(n_required, daily_traffic, allocation=0.5)` | v0.1 | DONE | `openxp/stats/power.py` | Signature match (default `allocation=1.0` not `0.5`); 7-day rounding per D.27 — needs verification in test |
-| `extension_estimate` | `(current_n, required_n, daily_traffic, allocation=0.5)` | v0.1 | DONE | `openxp/stats/extension.py` | **NO** — actual: `(current_n, current_mde_observed, required_power, baseline_variance, daily_traffic, alpha=0.05)`. Wildly different parameterization. Takes MDE + variance + power target instead of required_n; mathematically equivalent input set but agents following PRD literally will call it wrong |
-| `power_sensitivity_table` | `(baseline, mde_values, traffic_values, mde_type='relative')` | v0.1 | DONE | `openxp/stats/power.py` | **NO** — actual: `(baseline_rate, mde_values, daily_traffic_values, alpha=0.05, power=0.8)`. No `mde_type`. Proportion-only (no `power_mean` sensitivity path) |
+| `power_proportion` | `(baseline, mde, alpha=0.05, power=0.80, mde_type='relative')` | v0.1 | DONE | `agentxp/stats/power.py` | **NO** — actual: `(baseline_rate, mde_relative, alpha=0.05, power=0.8)`. `mde_type` not exposed (relative-only hardcoded) — D.2 absolute-vs-relative contract not implemented |
+| `power_mean` | `(baseline_mean, baseline_std, mde, alpha=0.05, power=0.80, mde_type='relative')` | v0.1 | DONE | `agentxp/stats/power.py` | Same — no `mde_type` |
+| `power_ratio` | `(num_mean, num_var, den_mean, den_var, cov, mde, alpha=0.05, power=0.80, mde_type='relative')` | v0.1 | DONE | `agentxp/stats/ratio_power.py` | **NO** — actual: `(baseline_num_mean, baseline_den_mean, baseline_num_std, baseline_den_std, correlation_num_den, mde_relative, alpha=0.05, power=0.8)`. Takes `std`+`correlation` not `var`+`cov`; PRD math spec (`Var(R) = (num_var - 2*R*cov + R²*den_var) / ...`) is an equivalent reparameterization but docs mismatch |
+| `detectable_effect` | `(n, baseline, alpha=0.05, power=0.80, metric_type='proportion', baseline_std=None)` | v0.1 | DONE | `agentxp/stats/power.py` | **NO** — actual: `(n_per_group, baseline_rate=None, baseline_std=None, alpha=0.05, power=0.8)`. No explicit `metric_type` — inferred from which baseline is passed. Ratio metric path missing |
+| `duration_estimate` | `(n_required, daily_traffic, allocation=0.5)` | v0.1 | DONE | `agentxp/stats/power.py` | Signature match (default `allocation=1.0` not `0.5`); 7-day rounding per D.27 — needs verification in test |
+| `extension_estimate` | `(current_n, required_n, daily_traffic, allocation=0.5)` | v0.1 | DONE | `agentxp/stats/extension.py` | **NO** — actual: `(current_n, current_mde_observed, required_power, baseline_variance, daily_traffic, alpha=0.05)`. Wildly different parameterization. Takes MDE + variance + power target instead of required_n; mathematically equivalent input set but agents following PRD literally will call it wrong |
+| `power_sensitivity_table` | `(baseline, mde_values, traffic_values, mde_type='relative')` | v0.1 | DONE | `agentxp/stats/power.py` | **NO** — actual: `(baseline_rate, mde_values, daily_traffic_values, alpha=0.05, power=0.8)`. No `mde_type`. Proportion-only (no `power_mean` sensitivity path) |
 
 ### Experiment health (v0.1)
 
 | PRD function | PRD signature | Version | Status | File:line | Sig match? |
 |---|---|---|---|---|---|
-| `srm_check` | `(observed_counts, expected_ratios, threshold=0.0005)` | v0.1 | DONE | `openxp/stats/srm.py` | **NO** — actual default `threshold=0.01`. PRD mandates 0.0005 default. `run_monitor` and MODES.md override it at call sites, but the function default still violates D.7. Wave 1 M5 flagged this |
-| `srm_diagnose` | `(assignments_df, segments)` | v0.1 | DONE | `openxp/stats/srm.py` | Match (`group_col='variant'`, `segments=None` defaults) |
-| `denominator_srm` | `(metric_den_c, metric_den_t, expected_ratio)` | v0.1 | DONE | `openxp/stats/guardrails.py` | **NO** — actual: `(num_c, den_c, num_t, den_t, expected_ratio=1.0, threshold=0.05)`. Takes full numerator+denominator arrays, not just denominators |
+| `srm_check` | `(observed_counts, expected_ratios, threshold=0.0005)` | v0.1 | DONE | `agentxp/stats/srm.py` | **NO** — actual default `threshold=0.01`. PRD mandates 0.0005 default. `run_monitor` and MODES.md override it at call sites, but the function default still violates D.7. Wave 1 M5 flagged this |
+| `srm_diagnose` | `(assignments_df, segments)` | v0.1 | DONE | `agentxp/stats/srm.py` | Match (`group_col='variant'`, `segments=None` defaults) |
+| `denominator_srm` | `(metric_den_c, metric_den_t, expected_ratio)` | v0.1 | DONE | `agentxp/stats/guardrails.py` | **NO** — actual: `(num_c, den_c, num_t, den_t, expected_ratio=1.0, threshold=0.05)`. Takes full numerator+denominator arrays, not just denominators |
 
 ### Effect sizes (v0.1)
 
 | PRD function | PRD signature | Version | Status | File:line | Sig match? |
 |---|---|---|---|---|---|
-| `cohens_d` | `(control, treatment)` | v0.1 | DONE | `openxp/stats/effect_size.py` | Match |
-| `cohens_h` | `(p_control, p_treatment, n_control, n_treatment)` | v0.1 | DONE | `openxp/stats/effect_size_extras.py` | **NO** — actual: `(p_control, p_treatment)`. Sample sizes not taken → no CI for Cohen's h. PRD explicitly says "Without sample sizes, only the point estimate is computable — CI would be missing" — current impl is the no-CI variant, so D.24 is partial |
-| `relative_lift` | `(control_mean, treatment_mean, control_se, treatment_se, n_control, n_treatment)` | v0.1 | DONE | `openxp/stats/effect_size.py` | **NO** — actual: `(control_mean, treatment_mean)`. Point estimate only, no CI. PRD mandates overloaded API (aggregates OR raw arrays). Overload not implemented |
+| `cohens_d` | `(control, treatment)` | v0.1 | DONE | `agentxp/stats/effect_size.py` | Match |
+| `cohens_h` | `(p_control, p_treatment, n_control, n_treatment)` | v0.1 | DONE | `agentxp/stats/effect_size_extras.py` | **NO** — actual: `(p_control, p_treatment)`. Sample sizes not taken → no CI for Cohen's h. PRD explicitly says "Without sample sizes, only the point estimate is computable — CI would be missing" — current impl is the no-CI variant, so D.24 is partial |
+| `relative_lift` | `(control_mean, treatment_mean, control_se, treatment_se, n_control, n_treatment)` | v0.1 | DONE | `agentxp/stats/effect_size.py` | **NO** — actual: `(control_mean, treatment_mean)`. Point estimate only, no CI. PRD mandates overloaded API (aggregates OR raw arrays). Overload not implemented |
 
 ### Corrections (v0.1)
 
 | PRD function | PRD signature | Version | Status | File:line | Sig match? |
 |---|---|---|---|---|---|
-| `adjust_pvalues` | `(pvalues, method='holm')` | v0.1 | DONE | `openxp/stats/corrections.py` | Match (plus `alpha=0.05`) |
+| `adjust_pvalues` | `(pvalues, method='holm')` | v0.1 | DONE | `agentxp/stats/corrections.py` | Match (plus `alpha=0.05`) |
 
 ### Advanced v0.5 — bootstrap/nonparam
 
@@ -101,19 +101,19 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 
 | PRD function | PRD signature | Version | Status | File:line | Sig match? |
 |---|---|---|---|---|---|
-| `cuped_adjust` | `(pre, post, treatment, metric_type='continuous')` | v1.0 | DONE | `openxp/stats/cuped.py` | **NO** — actual: `(y_pre, y_post, treatment=None)`. Lost `metric_type`. Additional helpers `cuped_welch_test`, `variance_reduction` provide the full pipeline — a superset of PRD |
-| `confidence_sequence` | `(control, treatment, alpha=0.05, metric_type='continuous')` | v1.0 | DONE | `openxp/stats/sequential.py` | Renamed to `msprt_test` + `always_valid_ci` + `group_sequential_boundaries` + `sequential_proportion_test`. PRD name not exported; functionally covered via mSPRT + Howard et al. 2021. Agent docs must use the new names |
-| `bayesian_proportion` | `(c_success, c_n, t_success, t_n, prior_alpha=1, prior_beta=1)` | v1.0 | DONE | `openxp/stats/bayesian.py` | Renamed to `beta_binomial_test`. Match on params (plus n_samples, seed, loss thresholds) |
-| `normal_normal_test` | (not in PRD by name) | v1.0 | DONE | `openxp/stats/bayesian.py` | Continuous Bayesian analog — PRD bonus |
-| `prob_best` | `(posteriors)` → float | v1.0 | DONE | `openxp/stats/bayesian.py` | Renamed to `probability_to_beat` |
-| `expected_loss` | `(posteriors)` → float | v1.0 | DONE | `openxp/stats/bayesian.py` | Match |
+| `cuped_adjust` | `(pre, post, treatment, metric_type='continuous')` | v1.0 | DONE | `agentxp/stats/cuped.py` | **NO** — actual: `(y_pre, y_post, treatment=None)`. Lost `metric_type`. Additional helpers `cuped_welch_test`, `variance_reduction` provide the full pipeline — a superset of PRD |
+| `confidence_sequence` | `(control, treatment, alpha=0.05, metric_type='continuous')` | v1.0 | DONE | `agentxp/stats/sequential.py` | Renamed to `msprt_test` + `always_valid_ci` + `group_sequential_boundaries` + `sequential_proportion_test`. PRD name not exported; functionally covered via mSPRT + Howard et al. 2021. Agent docs must use the new names |
+| `bayesian_proportion` | `(c_success, c_n, t_success, t_n, prior_alpha=1, prior_beta=1)` | v1.0 | DONE | `agentxp/stats/bayesian.py` | Renamed to `beta_binomial_test`. Match on params (plus n_samples, seed, loss thresholds) |
+| `normal_normal_test` | (not in PRD by name) | v1.0 | DONE | `agentxp/stats/bayesian.py` | Continuous Bayesian analog — PRD bonus |
+| `prob_best` | `(posteriors)` → float | v1.0 | DONE | `agentxp/stats/bayesian.py` | Renamed to `probability_to_beat` |
+| `expected_loss` | `(posteriors)` → float | v1.0 | DONE | `agentxp/stats/bayesian.py` | Match |
 | `monitor_trend` | `(monitoring_history, metric_name)` | v1.0 | MISSING | — | No novelty/primacy trend detector across monitoring runs. Monitoring module has `srm_trend` which is a per-window SRM drift check — not the D.37 time-windowed effect estimation for novelty/primacy |
 
 ### Computation trace (D.9)
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| Every stats call emits `computation_trace` | DONE | `openxp/stats/_trace.py` — opt-in via `set_trace(True)`. Functions check `is_trace_enabled()` and attach `computation_trace` dict |
+| Every stats call emits `computation_trace` | DONE | `agentxp/stats/_trace.py` — opt-in via `set_trace(True)`. Functions check `is_trace_enabled()` and attach `computation_trace` dict |
 | Trace dict shape: `inputs`, `intermediate_values`, `formula_ref`, `timestamp` | DONE | `_trace.py:50-62` |
 | Skill validates trace before advancing state | PARTIAL | `skill.md:145` advertises D.9 validation — no runtime enforcement in code, enforcement lives in the agent-interpreted markdown layer |
 | Default trace-enabled for `/experiment` runs | MISSING | `_trace.py:36` `_TRACE_ENABLED = False`. Orchestrator must call `set_trace(True)` before every analyze, which is documented nowhere. Live probe confirms: calling `welch_test` without `set_trace(True)` returns dict with no `computation_trace` key |
@@ -122,8 +122,8 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| §5.4 | `schema_version: 1` | MISSING | `openxp/schemas/experiment.py` `ExperimentConfig` has no `schema_version` field |
-| §5.4 | Full lifecycle statuses: DESIGNING, POWERED, COLLECTING, ANALYZING, INTERPRETED, REPORTED, SHIPPED, COMPLETED, ABANDONED, INVALID, BLOCKED | PARTIAL | `openxp/schemas/experiment.py:15-22` `ExperimentStatus` has only 6 (DESIGNING/POWERED/COLLECTING/ANALYZING/INTERPRETED/REPORTED). Missing SHIPPED/COMPLETED/ABANDONED/INVALID/BLOCKED. `openxp.storage.lifecycle.ALL_STATES` has all 11 — **two sources of truth conflict**. The validator uses `lifecycle.ALL_STATES`; the Pydantic schema uses the 6-state enum. A yaml with `status: SHIPPED` passes the validator but fails Pydantic parse |
+| §5.4 | `schema_version: 1` | MISSING | `agentxp/schemas/experiment.py` `ExperimentConfig` has no `schema_version` field |
+| §5.4 | Full lifecycle statuses: DESIGNING, POWERED, COLLECTING, ANALYZING, INTERPRETED, REPORTED, SHIPPED, COMPLETED, ABANDONED, INVALID, BLOCKED | PARTIAL | `agentxp/schemas/experiment.py:15-22` `ExperimentStatus` has only 6 (DESIGNING/POWERED/COLLECTING/ANALYZING/INTERPRETED/REPORTED). Missing SHIPPED/COMPLETED/ABANDONED/INVALID/BLOCKED. `agentxp.storage.lifecycle.ALL_STATES` has all 11 — **two sources of truth conflict**. The validator uses `lifecycle.ALL_STATES`; the Pydantic schema uses the 6-state enum. A yaml with `status: SHIPPED` passes the validator but fails Pydantic parse |
 | §5.4 | `hypothesis` block (action/metric/direction/magnitude/mechanism) | DONE | `schemas/experiment.py:49-54` |
 | §5.4 | `hypothesis.goal_alignment`, `estimated_impact` | MISSING | Pydantic model doesn't have these fields |
 | §5.4 | `priority` / `priority_rationale` | MISSING | Not in schema |
@@ -143,11 +143,11 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| §5.5 | Schema-agnostic; no hardcoded column names | DONE | `openxp/data/discovery.py:20-62` — hint tuples (`TREATMENT_COLUMN_HINTS`, `CONTROL_VALUE_HINTS`, `ID_COLUMN_PATTERNS`, `TIMESTAMP_NAME_PATTERNS`), used only via iteration. Verified in Wave 1 review M5 |
+| §5.5 | Schema-agnostic; no hardcoded column names | DONE | `agentxp/data/discovery.py:20-62` — hint tuples (`TREATMENT_COLUMN_HINTS`, `CONTROL_VALUE_HINTS`, `ID_COLUMN_PATTERNS`, `TIMESTAMP_NAME_PATTERNS`), used only via iteration. Verified in Wave 1 review M5 |
 | §5.5 | Auto-detect treatment col from hints | DONE | `discovery.py` |
 | §5.5 | Numeric → metric candidates, categorical 2-20 → segments, datetime → timestamps | DONE | `discovery.py` |
 | §5.5 | Ask user when ambiguous | PARTIAL | Agent-layer behavior (`agents/experiment-analyzer.md:13-18`), not enforced in code |
-| §5.5 | Works on CSV / DuckDB / Snowflake | DONE | `openxp/data/csv_loader.py`, `duckdb_loader.py`, `snowflake_loader.py`, unified via `LoadResult` |
+| §5.5 | Works on CSV / DuckDB / Snowflake | DONE | `agentxp/data/csv_loader.py`, `duckdb_loader.py`, `snowflake_loader.py`, unified via `LoadResult` |
 
 ## §5.6 — Sample data
 
@@ -160,8 +160,8 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| §5.7 | `metrics/*.yaml` format with name/type/definition/unit/formula | PARTIAL | `openxp/metrics/schema.py` `MetricDefinition` Pydantic model + `openxp/metrics/registry.py` `MetricRegistry`. Missing `test_family` field to route metrics to Bayesian/CUPED/sequential tests — Wave 1 I2 flagged, Wave 2 did not address. Only routes to proportion_test/welch_test/ratio_metric_test |
-| §5.7 | `metrics/` directory at repo root | PARTIAL | `metrics/` exists at repo root (separate from `openxp/metrics/`); contains no yaml files — just empty scaffold |
+| §5.7 | `metrics/*.yaml` format with name/type/definition/unit/formula | PARTIAL | `agentxp/metrics/schema.py` `MetricDefinition` Pydantic model + `agentxp/metrics/registry.py` `MetricRegistry`. Missing `test_family` field to route metrics to Bayesian/CUPED/sequential tests — Wave 1 I2 flagged, Wave 2 did not address. Only routes to proportion_test/welch_test/ratio_metric_test |
+| §5.7 | `metrics/` directory at repo root | PARTIAL | `metrics/` exists at repo root (separate from `agentxp/metrics/`); contains no yaml files — just empty scaffold |
 | §5.7 | Metric registry with `/experiment design` lookup | PARTIAL | `MetricRegistry` class exists, agent-layer lookup not wired |
 | §5.7 | SQL and column-ref metric types | DONE | `schema.py` supports both |
 
@@ -169,17 +169,17 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| §5.8 | CSV connector | DONE | `openxp/data/csv_loader.py` |
-| §5.8 | DuckDB connector | DONE | `openxp/data/duckdb_loader.py` — v0.5 target met |
-| §5.8 | Snowflake MCP connector | DONE (code only) | `openxp/data/snowflake_loader.py` — v1.0 target. S4 from Wave 1 (`where` param raw-SQL injection) still present |
-| §5.8 | Unified `LoadResult` with discovery metadata | DONE | `openxp/data/base.py` |
+| §5.8 | CSV connector | DONE | `agentxp/data/csv_loader.py` |
+| §5.8 | DuckDB connector | DONE | `agentxp/data/duckdb_loader.py` — v0.5 target met |
+| §5.8 | Snowflake MCP connector | DONE (code only) | `agentxp/data/snowflake_loader.py` — v1.0 target. S4 from Wave 1 (`where` param raw-SQL injection) still present |
+| §5.8 | Unified `LoadResult` with discovery metadata | DONE | `agentxp/data/base.py` |
 | §5.8 | Expression-eval pandas formulas with whitelist | MISSING | D.18 security model — no AST-parsed formula evaluator for metric definitions |
 
 ## §5.9 — Results storage and history
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| §5.9 | `ExperimentStore` with atomic writes | DONE | `openxp/storage/store.py` — `_atomic_write_bytes` uses tempfile + fsync + os.replace. Interrupt test present |
+| §5.9 | `ExperimentStore` with atomic writes | DONE | `agentxp/storage/store.py` — `_atomic_write_bytes` uses tempfile + fsync + os.replace. Interrupt test present |
 | §5.9 | `save_experiment` / `load_experiment` | DONE | `store.py` public API |
 | §5.9 | `save_analysis` / `load_latest_analysis` | DONE | `store.py`. Wave 1 I3 microsecond-sort bug unaddressed |
 | §5.9 | `save_interpretation` / `save_report` | DONE | `store.py` |
@@ -192,9 +192,9 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| §5.10 | `amendments.jsonl` per experiment | DONE | `openxp/amendments/tracker.py` — AmendmentTracker |
+| §5.10 | `amendments.jsonl` per experiment | DONE | `agentxp/amendments/tracker.py` — AmendmentTracker |
 | §5.10 | Amendment with date/author/change/reason | DONE | `tracker.py` `Amendment` dataclass, min-10-char reason, USER default |
-| §5.10 | `diff_experiments` | DONE | `openxp/amendments/diff.py` |
+| §5.10 | `diff_experiments` | DONE | `agentxp/amendments/diff.py` |
 | §5.10 | `classify_change` material/administrative | DONE | `diff.py:104-187` |
 | §5.10 | `require_amendment_for_transition` | DONE | `tracker.py:107` — delegates to `is_backward` |
 
@@ -202,23 +202,23 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| §5.14 | `OpenXPError` envelope with code/message/hint/severity/details | DONE | `openxp/errors/base.py` |
-| §5.14 | Subclasses: ValidationError, DataError, StatsError, StorageError, LifecycleError | DONE | `openxp/errors/base.py` |
-| §5.14 | `codes.py` with error code constants + MESSAGES/HINTS templates | DONE | `openxp/errors/codes.py` — 17 codes defined |
+| §5.14 | `AgentXPError` envelope with code/message/hint/severity/details | DONE | `agentxp/errors/base.py` |
+| §5.14 | Subclasses: ValidationError, DataError, StatsError, StorageError, LifecycleError | DONE | `agentxp/errors/base.py` |
+| §5.14 | `codes.py` with error code constants + MESSAGES/HINTS templates | DONE | `agentxp/errors/codes.py` — 17 codes defined |
 | §5.14 | Error format `[CODE] message\n  hint: ...` | DONE | `base.py:63-67` |
 | §5.14 | `to_dict` JSON-serializable | DONE | `base.py:75-84` |
-| §5.14 | Stats functions return `{error: True, error_type: ...}` on failure | PARTIAL | `openxp/stats/sequential.py:145-153` mixes error-return shapes (Wave 1 S2); `ab_tests.py` uses string `"error"`; no unified convention |
-| §5.14 | Data loading errors with specific types | PARTIAL | `openxp/data/*` raises Python exceptions but no consistent `OpenXPError` wrapping |
+| §5.14 | Stats functions return `{error: True, error_type: ...}` on failure | PARTIAL | `agentxp/stats/sequential.py:145-153` mixes error-return shapes (Wave 1 S2); `ab_tests.py` uses string `"error"`; no unified convention |
+| §5.14 | Data loading errors with specific types | PARTIAL | `agentxp/data/*` raises Python exceptions but no consistent `AgentXPError` wrapping |
 
 ## §5.15 — Schema validation
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| §5.15 | `validate_experiment_yaml` collects all findings in one pass | DONE | `openxp/validators/experiment_validator.py:272-477` |
+| §5.15 | `validate_experiment_yaml` collects all findings in one pass | DONE | `agentxp/validators/experiment_validator.py:272-477` |
 | §5.15 | Cross-field validation (primary_metric in metric_names, allocation sum = 1.0 ± 0.001) | DONE | `experiment_validator.py`. Tested |
-| §5.15 | `validate_metric_yaml` | DONE | `openxp/validators/metric_validator.py` |
-| §5.15 | Pydantic model for experiment.yaml | PARTIAL | `openxp/schemas/experiment.py` present but incomplete vs §5.4 (see above) |
-| §5.15 | Pydantic result-type schemas (TestResult, GuardrailResult, PowerResult, etc.) | MISSING | `openxp/schemas/results.py` — file exists but empty/minimal scaffolding. Stats functions return plain dicts, not Pydantic models, contradicting §5.3 "(Pydantic model in v0.1)" |
+| §5.15 | `validate_metric_yaml` | DONE | `agentxp/validators/metric_validator.py` |
+| §5.15 | Pydantic model for experiment.yaml | PARTIAL | `agentxp/schemas/experiment.py` present but incomplete vs §5.4 (see above) |
+| §5.15 | Pydantic result-type schemas (TestResult, GuardrailResult, PowerResult, etc.) | MISSING | `agentxp/schemas/results.py` — file exists but empty/minimal scaffolding. Stats functions return plain dicts, not Pydantic models, contradicting §5.3 "(Pydantic model in v0.1)" |
 
 ## Appendix A — Result Interpretation Tree
 
@@ -235,7 +235,7 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 
 | PRD ref | Requirement | Status | Evidence |
 |---|---|---|---|
-| App B | 11 states (DESIGNING / POWERED / COLLECTING / ANALYZING / INTERPRETED / REPORTED / SHIPPED / COMPLETED / ABANDONED / INVALID / BLOCKED) | DONE | `openxp/storage/lifecycle.py` `ALL_STATES` |
+| App B | 11 states (DESIGNING / POWERED / COLLECTING / ANALYZING / INTERPRETED / REPORTED / SHIPPED / COMPLETED / ABANDONED / INVALID / BLOCKED) | DONE | `agentxp/storage/lifecycle.py` `ALL_STATES` |
 | App B | Forward transitions per Table | DONE | `lifecycle.py` |
 | App B | Backward transitions (POWERED→DESIGNING, ANALYZING→COLLECTING, INTERPRETED→COLLECTING) | DONE | `lifecycle.py` `_BACKWARD` |
 | App B | Backward transition requires amendment reason | DONE | `amendments/tracker.py:107` delegates to `is_backward` |
@@ -250,7 +250,7 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 | Deliverable | Status | Evidence |
 |---|---|---|
 | Repo scaffold (CLAUDE.md, README, LICENSE, pyproject.toml) | DONE | All present at repo root |
-| Vendor stats engine | DONE | `openxp/stats/` — 18 modules |
+| Vendor stats engine | DONE | `agentxp/stats/` — 18 modules |
 | Test suite | DONE | 367 tests, 3× deterministic |
 | CLAUDE.md orchestrator | DONE | Root `CLAUDE.md` |
 | `/experiment design` | DONE | Skill + agent |
@@ -258,7 +258,7 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 | `/experiment analyze` | DONE | Skill + agent |
 | `/experiment interpret` | DONE | Skill + agent |
 | 5 agents | DONE | `agents/*.md` |
-| Metric definitions | PARTIAL | `openxp/metrics/` registry present, no `metrics/` yaml files, no test_family routing |
+| Metric definitions | PARTIAL | `agentxp/metrics/` registry present, no `metrics/` yaml files, no test_family routing |
 | Experiment directories | DONE | `ExperimentStore` handles `experiments/<slug>/` structure |
 | `analysis_results.json` | DONE | `store.save_analysis` |
 | Templates (experiment.yaml, metric.yaml, report template, stats cheat sheet) | PARTIAL | `templates/experiment.yaml`, `templates/experiment-report.md`, `templates/stats-cheat-sheet.md`. **No `templates/metric.yaml`** |
@@ -281,22 +281,22 @@ All 32 PRD-required functions are exported via `openxp.stats`. Signatures resolv
 | Deliverable | Status | Evidence |
 |---|---|---|
 | `/experiment full` | DONE | `MODES.md §7` |
-| `/experiment monitor` | DONE | `MODES.md §5` + `openxp/monitoring/` |
+| `/experiment monitor` | DONE | `MODES.md §5` + `agentxp/monitoring/` |
 | `/experiment report` | DONE | `MODES.md §6` + `agents/experiment-readout.md` |
 | experiment.yaml lifecycle | DONE | `storage/lifecycle.py` |
 | amendments.yaml | DONE | `amendments/` module (uses `.jsonl` not `.yaml` — same audit log semantics) |
 | Exposure filtering (`exposure_query`, `analysis_population: exposed`) | MISSING | Not in schema or prep |
 | Metric registry | PARTIAL | Scaffolded, not wired to designer |
-| DuckDB connector | DONE | `openxp/data/duckdb_loader.py` |
+| DuckDB connector | DONE | `agentxp/data/duckdb_loader.py` |
 | Monitoring history | DONE | `monitoring/history.yaml` per `MODES.md §5`; amendments tracker for cross-session audit |
 
 ### v1.0
 
 | Deliverable | Status | Evidence |
 |---|---|---|
-| CUPED | DONE | `openxp/stats/cuped.py` (cuped_adjust, cuped_welch_test, variance_reduction) |
-| Sequential testing (always-valid CIs) | DONE | `openxp/stats/sequential.py` (msprt_test, always_valid_ci, group_sequential_boundaries, sequential_proportion_test) |
-| Bayesian mode | DONE | `openxp/stats/bayesian.py` (beta_binomial_test, normal_normal_test, expected_loss, probability_to_beat) |
+| CUPED | DONE | `agentxp/stats/cuped.py` (cuped_adjust, cuped_welch_test, variance_reduction) |
+| Sequential testing (always-valid CIs) | DONE | `agentxp/stats/sequential.py` (msprt_test, always_valid_ci, group_sequential_boundaries, sequential_proportion_test) |
+| Bayesian mode | DONE | `agentxp/stats/bayesian.py` (beta_binomial_test, normal_normal_test, expected_loss, probability_to_beat) |
 | Snowflake MCP | PARTIAL | Code present. Not wired through MCP protocol — direct `snowflake-connector-python` usage. S4 `where` injection unresolved |
 | Metric reuse (cross-experiment trending) | MISSING | No cross-experiment metric trending UI or agent mode |
 | Polish (error messages, edges, docs) | PARTIAL | Error envelope exists, not universally wired |
@@ -318,7 +318,7 @@ Static trace: I read `skill.md`, `MODES.md`, each referenced agent and function,
 1. Scaffold `experiments/<slug>/` — slug derived from conversation or flag.
 2. Invoke `agents/experiment-designer.md` — agent doc exists. 7-step flow documented.
 3. Step 2.4 power calc: dispatch on metric type. Agent says "Calls: power_proportion()/power_mean()/power_ratio()/..." — functions exist.
-4. MODES.md §1 step 2 → "Step 4: Power calculation via `openxp.stats.power.power_proportion` / `power_mean` / `power_ratio`".
+4. MODES.md §1 step 2 → "Step 4: Power calculation via `agentxp.stats.power.power_proportion` / `power_mean` / `power_ratio`".
    - `power_proportion(baseline_rate, mde_relative, alpha=0.05, power=0.8)` — agent would pass `(baseline, mde)`. OK.
    - `power_ratio` — **signature drift.** MODES.md §2 step 2 literally says: `power_ratio(num_mean, num_var, den_mean, den_var, cov, mde, alpha, power)`. Actual is `(baseline_num_mean, baseline_den_mean, baseline_num_std, baseline_den_std, correlation_num_den, mde_relative, alpha, power)`. **An agent following MODES.md §2 verbatim will TypeError: unexpected keyword argument 'num_var'.**
 5. Power viability check: C.
@@ -334,7 +334,7 @@ MODES.md §7 step 3: "If YAML transitions to POWERED and no data file is present
 
 ### Step 4 — `/experiment analyze sample-data/clean_ab.csv` (MODES.md §3)
 
-1. **Data Discovery Protocol** — calls `openxp.data.discovery.discover_schema` implicitly via the analyzer agent. Function exists. `sample-data/clean_ab.csv` has columns `user_id,variant,converted,revenue,platform,signup_days` — discovery would flag `variant` as treatment (hint match), `converted`/`revenue`/`signup_days` as metric candidates, `platform` as segment (2-20 unique).
+1. **Data Discovery Protocol** — calls `agentxp.data.discovery.discover_schema` implicitly via the analyzer agent. Function exists. `sample-data/clean_ab.csv` has columns `user_id,variant,converted,revenue,platform,signup_days` — discovery would flag `variant` as treatment (hint match), `converted`/`revenue`/`signup_days` as metric candidates, `platform` as segment (2-20 unique).
 
 2. **Data preparation**: `prepare_experiment_data(df, variant_col, metric_col, unit_col, metric_type)` per MODES.md §3 step 2. **Signature drift.** Actual: `prepare_experiment_data(df, treatment_col=None, metric_cols=None, segment_cols=None, winsorize_spec=None)`. MODES.md's kwarg names (`variant_col`, `metric_col`, `unit_col`, `metric_type`) are wrong — an agent passing them verbatim will TypeError.
 
@@ -397,8 +397,8 @@ MODES.md §7 step 3: "If YAML transitions to POWERED and no data file is present
 9. **`full` mode on a data file with no yaml** — dispatch prose is contradictory (design requires conversation; full-with-data wants to run analyze). Ambiguity, not a hard break.
 
 **Will work cleanly on clean_ab.csv if the orchestrator:**
-- Calls `openxp.stats._trace.set_trace(True)` before step 4.
-- Uses MODES.md §3's (incorrect-per-actual-signature) positional calls but the agent author reads the actual function signatures from `openxp/stats/*.py` rather than copying MODES.md verbatim.
+- Calls `agentxp.stats._trace.set_trace(True)` before step 4.
+- Uses MODES.md §3's (incorrect-per-actual-signature) positional calls but the agent author reads the actual function signatures from `agentxp/stats/*.py` rather than copying MODES.md verbatim.
 - Skips the `extension_estimate` path (only hit on underpowered-learn, `clean_ab.csv` is SHIP).
 - Ignores the Pydantic `ExperimentStatus` enum and treats the yaml as a plain dict.
 
@@ -410,28 +410,28 @@ Net: **a competent agent that reads the real signatures rather than trusting MOD
 
 | Symbol referenced in skill.md / MODES.md | Exists? | Notes |
 |---|---|---|
-| `openxp.stats.prep.prepare_experiment_data` | Yes | Kwarg names differ from MODES.md |
-| `openxp.stats.ab_tests.welch_test` | Yes | No `alternative` param |
-| `openxp.stats.ab_tests.proportion_test` | Yes | No `alternative` param |
-| `openxp.stats.ab_tests.fishers_exact_test` | **Lives in `openxp.stats.fishers`** | Re-exported via `openxp.stats` top-level. `openxp.stats.ab_tests.fishers_exact_test` does NOT exist. MODES.md §3 says "from openxp.stats.ab_tests import proportion_test" (OK for that symbol) and lists fishers in the ab_tests block of the skill.md Quick Reference — an agent doing `from openxp.stats.ab_tests import fishers_exact_test` ImportErrors |
-| `openxp.stats.ab_tests.ratio_metric_test` | Yes | No `alternative` param |
-| `openxp.stats.ab_tests.guardrail_test` | **Lives in `openxp.stats.guardrails`** | Re-exported at top level. `openxp.stats.ab_tests.guardrail_test` does NOT exist. Same submodule-path hazard as above |
-| `openxp.stats.power.power_proportion` | Yes | No `mde_type` |
-| `openxp.stats.power.power_mean` | Yes | No `mde_type` |
-| `openxp.stats.power.power_ratio` | **Lives in `openxp.stats.ratio_power`** | Re-exported at top level. `openxp.stats.power.power_ratio` does NOT exist. Same hazard |
-| `openxp.stats.power.detectable_effect` | Yes | No metric_type kwarg |
-| `openxp.stats.power.duration_estimate` | Yes | Match |
-| `openxp.stats.power.extension_estimate` | **Lives in `openxp.stats.extension`** | Re-exported at top level. `openxp.stats.power.extension_estimate` does NOT exist. Plus signature drift described above |
-| `openxp.stats.power.power_sensitivity_table` | Yes | Proportion-only; no `mde_type` |
-| `openxp.stats.srm.srm_check` | Yes | Default threshold wrong (0.01 vs 0.0005) |
-| `openxp.stats.srm.srm_diagnose` | Yes | Match |
-| `openxp.stats.srm.denominator_srm` | **Lives in `openxp.stats.guardrails`** | Re-exported at top level. `openxp.stats.srm.denominator_srm` does NOT exist |
-| `openxp.stats.effect_size.cohens_d` | Yes | Match |
-| `openxp.stats.effect_size.cohens_h` | **Lives in `openxp.stats.effect_size_extras`** | Re-exported at top level. `openxp.stats.effect_size.cohens_h` does NOT exist. Plus no sample-size kwargs |
-| `openxp.stats.effect_size.relative_lift` | Yes | No CI overload |
-| `openxp.stats.corrections.adjust_pvalues` | Yes | Match |
+| `agentxp.stats.prep.prepare_experiment_data` | Yes | Kwarg names differ from MODES.md |
+| `agentxp.stats.ab_tests.welch_test` | Yes | No `alternative` param |
+| `agentxp.stats.ab_tests.proportion_test` | Yes | No `alternative` param |
+| `agentxp.stats.ab_tests.fishers_exact_test` | **Lives in `agentxp.stats.fishers`** | Re-exported via `agentxp.stats` top-level. `agentxp.stats.ab_tests.fishers_exact_test` does NOT exist. MODES.md §3 says "from agentxp.stats.ab_tests import proportion_test" (OK for that symbol) and lists fishers in the ab_tests block of the skill.md Quick Reference — an agent doing `from agentxp.stats.ab_tests import fishers_exact_test` ImportErrors |
+| `agentxp.stats.ab_tests.ratio_metric_test` | Yes | No `alternative` param |
+| `agentxp.stats.ab_tests.guardrail_test` | **Lives in `agentxp.stats.guardrails`** | Re-exported at top level. `agentxp.stats.ab_tests.guardrail_test` does NOT exist. Same submodule-path hazard as above |
+| `agentxp.stats.power.power_proportion` | Yes | No `mde_type` |
+| `agentxp.stats.power.power_mean` | Yes | No `mde_type` |
+| `agentxp.stats.power.power_ratio` | **Lives in `agentxp.stats.ratio_power`** | Re-exported at top level. `agentxp.stats.power.power_ratio` does NOT exist. Same hazard |
+| `agentxp.stats.power.detectable_effect` | Yes | No metric_type kwarg |
+| `agentxp.stats.power.duration_estimate` | Yes | Match |
+| `agentxp.stats.power.extension_estimate` | **Lives in `agentxp.stats.extension`** | Re-exported at top level. `agentxp.stats.power.extension_estimate` does NOT exist. Plus signature drift described above |
+| `agentxp.stats.power.power_sensitivity_table` | Yes | Proportion-only; no `mde_type` |
+| `agentxp.stats.srm.srm_check` | Yes | Default threshold wrong (0.01 vs 0.0005) |
+| `agentxp.stats.srm.srm_diagnose` | Yes | Match |
+| `agentxp.stats.srm.denominator_srm` | **Lives in `agentxp.stats.guardrails`** | Re-exported at top level. `agentxp.stats.srm.denominator_srm` does NOT exist |
+| `agentxp.stats.effect_size.cohens_d` | Yes | Match |
+| `agentxp.stats.effect_size.cohens_h` | **Lives in `agentxp.stats.effect_size_extras`** | Re-exported at top level. `agentxp.stats.effect_size.cohens_h` does NOT exist. Plus no sample-size kwargs |
+| `agentxp.stats.effect_size.relative_lift` | Yes | No CI overload |
+| `agentxp.stats.corrections.adjust_pvalues` | Yes | Match |
 
-**Observation:** skill.md §"Stats Function Quick Reference" tables list functions under their submodule path (`openxp.stats.power.extension_estimate` etc.), but the actual submodule structure is split into narrower files (`ratio_power.py`, `fishers.py`, `guardrails.py`, `effect_size_extras.py`, `extension.py`, `prep.py`). The functions are re-exported at the `openxp.stats` top level and importable as `from openxp.stats import extension_estimate`, but **not** from the submodule path the skill claims. An agent that does `from openxp.stats.power import power_ratio` will ImportError. This is the modern replay of Wave 1 C1 — the exports exist, but the import paths the skill documents don't match the actual module layout.
+**Observation:** skill.md §"Stats Function Quick Reference" tables list functions under their submodule path (`agentxp.stats.power.extension_estimate` etc.), but the actual submodule structure is split into narrower files (`ratio_power.py`, `fishers.py`, `guardrails.py`, `effect_size_extras.py`, `extension.py`, `prep.py`). The functions are re-exported at the `agentxp.stats` top level and importable as `from agentxp.stats import extension_estimate`, but **not** from the submodule path the skill claims. An agent that does `from agentxp.stats.power import power_ratio` will ImportError. This is the modern replay of Wave 1 C1 — the exports exist, but the import paths the skill documents don't match the actual module layout.
 
 ---
 

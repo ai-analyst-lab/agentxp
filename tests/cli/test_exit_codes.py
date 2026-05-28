@@ -1,5 +1,5 @@
 """Closure test for CLI exit codes."""
-from openxp.cli.exit_codes import EXIT_OK, EXIT_USER_ERROR, EXIT_WARNING, EXIT_FATAL
+from agentxp.cli.exit_codes import EXIT_OK, EXIT_USER_ERROR, EXIT_WARNING, EXIT_FATAL
 
 
 def test_exit_codes_are_canonical_values():

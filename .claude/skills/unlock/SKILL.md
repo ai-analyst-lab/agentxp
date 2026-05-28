@@ -58,8 +58,8 @@ Flags:
 
 - Session continuation after unlock: `/resume <exp_id>`.
 - Lock-handling semantics: Plan §10.6.3.
-- CLI entry: `openxp/cli/unlock.py`.
-- Lock module: `openxp/orchestrator/project_lock.py`.
+- CLI entry: `agentxp/cli/unlock.py`.
+- Lock module: `agentxp/orchestrator/project_lock.py`.
 - Top-level orientation: `CLAUDE.md`.
 
 ## Example walkthrough

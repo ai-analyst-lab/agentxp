@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from openxp.stats.bayesian import (
+from agentxp.stats.bayesian import (
     beta_binomial_test,
     normal_normal_test,
     expected_loss,

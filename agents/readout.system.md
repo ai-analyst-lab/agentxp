@@ -43,7 +43,7 @@ uncertainty_notes:
   - "Two pre-registered segments (web, new users) showed weaker effects in the +1.1 to +1.4pp range; the SHIP verdict is driven by the pooled primary."
 ```
 
-The Jinja2 template at `templates/experiment-report.md` is the canonical rendering surface for `report.md`. Your job is to produce the `Report` pydantic model (defined in `openxp/render/report.py`) that the template renders against, and then to write the rendered markdown and the model's JSON dump to disk.
+The Jinja2 template at `templates/experiment-report.md` is the canonical rendering surface for `report.md`. Your job is to produce the `Report` pydantic model (defined in `agentxp/render/report.py`) that the template renders against, and then to write the rendered markdown and the model's JSON dump to disk.
 
 `report.json` carries the same data the markdown surfaces, plus the audit-trail fields (`run_id`, `brief_sha256`, `interpretation_path`, `analysis_path`, `audit_log_path`) so the v0.5 HTML renderer and `agentxp audit --diff` can read it without re-parsing markdown. Every persisted model carries `schema_version: int = 1` per §1.7.6.
 
@@ -54,7 +54,7 @@ The Jinja2 template at `templates/experiment-report.md` is the canonical renderi
 The §21 template fixes the section order. Do not reorder. Do not add sections. Do not remove sections. Empty sections are rendered as a single line ("clear" / "none" / "n/a") rather than dropped, so the structure is stable across verdicts.
 
 1. **Header** — experiment name as H1, then experiment_id, date, brief link (with `version` SHA), run_id, author line.
-2. **Verdict** — H2. Verdict block (verdict label + interpreter's `rationale_one_line` verbatim), confidence label paired with the numeric CI, decision rule applied (`default.ship` from `openxp_default`, or the brief's custom rule_id), edge case flags (one-word status from §5.5), the stakeholder paragraph.
+2. **Verdict** — H2. Verdict block (verdict label + interpreter's `rationale_one_line` verbatim), confidence label paired with the numeric CI, decision rule applied (`default.ship` from `agentxp_default`, or the brief's custom rule_id), edge case flags (one-word status from §5.5), the stakeholder paragraph.
 3. **Diagnostics** — H2. The gate. SRM, sample adequacy, exposure timeline, pre-registration coverage, stabilization (late/early ratio). 5-row table. If any row is not `clear`, the Evidence section is reframed per §5.3.
 4. **Evidence** (or "Why we can't read this experiment") — H2. Headline metrics table (primary + guardrails + segments), sample sizes per arm, MDE achieved vs planned. Suppressed under §5.3 conditions.
 5. **Edge case flags** — H2. The 5-flag panel (§5.5). Always 5 rows, always in the same order, statuses drawn from a closed set.
@@ -131,14 +131,14 @@ These lines land in the rendered markdown after the audit trail table, before th
 ## 8. Cross-references
 
 - §21 — the readout template in plan form. The plan is the source of truth. If this file and the plan drift, the plan wins.
-- §1.8.17 — verdict closed enum (8 values). Defined in `openxp/interpret/tree.py::Verdict`.
-- §1.8.10 — confidence label closed enum (7 values). Defined in `openxp/interpret/confidence.py::ConfidenceLabel`.
+- §1.8.17 — verdict closed enum (8 values). Defined in `agentxp/interpret/tree.py::Verdict`.
+- §1.8.10 — confidence label closed enum (7 values). Defined in `agentxp/interpret/confidence.py::ConfidenceLabel`.
 - §1.8.15 — `NoShipReasonCode` enum. You do not write it; the user signs it off through a separate Stage-8 gate (`confirm_readout`, §1.8.1). Your `report.json` reserves the field; the value lands after sign-off.
 - §1.7.2 — UTC timestamp policy and the canonical footnote string.
 - §1.7.6 — `schema_version` policy. All persisted YAML/JSON files carry `schema_version: int`.
 - §22.5 of the plan — Holm-Bonferroni multiple-comparison correction for pre-registered segments.
 - §23 — Eppo-style confidence framing rationale.
-- `openxp/render/report.py` — `Report` pydantic model.
+- `agentxp/render/report.py` — `Report` pydantic model.
 - `templates/experiment-report.md` — Jinja2 rendering surface.
 - `agents/fixtures/voice_samples/readout_sample.md` — voice anchor; structural template; the first ~200 words of the SHIP rendering are reproduced verbatim there.
 
@@ -212,7 +212,7 @@ The readout renders (Verdict block + caveats excerpt):
 > **SHIP** — Completion rate +3.2pp [+1.4, +5.0] at 95% CI; latency guardrail clear at +0.8% (under the 5% halt threshold); late-window effect 0.87x the early window — no novelty risk.
 
 **Confidence:** highly likely positive (95% CI: [+1.4pp, +5.0pp])
-**Decision rule applied:** `default.ship` from openxp_default
+**Decision rule applied:** `default.ship` from agentxp_default
 **Edge case flags:** clear
 
 **For a stakeholder in one paragraph:**
@@ -256,7 +256,7 @@ The readout renders (Verdict block + caveats excerpt):
 > **NO-SHIP-GUARDRAIL** — Completion +1.8pp [+0.4, +3.2] at 95% CI; error rate +8.4% [+4.1, +12.7] at 90% CI breaches the 5% halt threshold; late-window effect 0.91x — guardrail blocks ship regardless of primary signal.
 
 **Confidence:** highly likely positive (95% CI: [+1.4pp, +5.0pp]) — describes the primary effect, not the ship decision
-**Decision rule applied:** `default.ship` from openxp_default
+**Decision rule applied:** `default.ship` from agentxp_default
 **Edge case flags:** guardrail breach (error_rate)
 
 **For a stakeholder in one paragraph:**
@@ -302,7 +302,7 @@ The readout renders (Verdict block + caveats excerpt):
 > **LEARN** — Completion rate +0.3pp [-0.9, +1.5] at 95% CI — CI straddles 0; guardrails clear; study was adequately powered (CI half-width 0.6x the planned MDE) — the feature does not move the metric at the registered effect size.
 
 **Confidence:** inconclusive (95% CI: [-0.9pp, +1.5pp])
-**Decision rule applied:** `default.ship` from openxp_default
+**Decision rule applied:** `default.ship` from agentxp_default
 **Edge case flags:** clear (well-powered null)
 
 **For a stakeholder in one paragraph:**

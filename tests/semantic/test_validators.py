@@ -1,4 +1,4 @@
-"""Tests for ``openxp.semantic.validators``.
+"""Tests for ``agentxp.semantic.validators``.
 
 Covers happy-path validation, ``extra='forbid'`` rejection of unknown keys,
 and the cross-field invariants for each YAML shape per §8.
@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from openxp.semantic.validators import (
+from agentxp.semantic.validators import (
     AssignmentYAML,
     FactSource,
     MetricYAML,

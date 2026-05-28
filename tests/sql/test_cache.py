@@ -1,4 +1,4 @@
-"""Tests for openxp.sql.cache.
+"""Tests for agentxp.sql.cache.
 
 Covers SQL normalisation (comment / whitespace / keyword stripping), sha256
 cache-key determinism, and the on-disk read/write/update helpers under
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from openxp.sql.cache import (
+from agentxp.sql.cache import (
     ValidatedQueryCacheEntry,
     cache_lookup,
     cache_update_hit,

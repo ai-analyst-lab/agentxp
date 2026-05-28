@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from openxp.cli.exit_codes import EXIT_OK, EXIT_USER_ERROR
+from agentxp.cli.exit_codes import EXIT_OK, EXIT_USER_ERROR
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ def _write_state(project_root: Path, exp_id: str, state: dict) -> Path:
 
 
 def test_list_empty_state(tmp_path: Path, capsys):
-    from openxp.cli.list import main
+    from agentxp.cli.list import main
 
     rc = main(["--project", str(tmp_path)])
     captured = capsys.readouterr()
@@ -73,7 +73,7 @@ def test_list_empty_state(tmp_path: Path, capsys):
 
 
 def test_list_renders_table_with_one_experiment(tmp_path: Path, capsys):
-    from openxp.cli.list import main
+    from agentxp.cli.list import main
 
     _write_state(tmp_path, "exp_001", _minimal_state(intent="Checkout button test"))
     rc = main(["--project", str(tmp_path)])
@@ -85,7 +85,7 @@ def test_list_renders_table_with_one_experiment(tmp_path: Path, capsys):
 
 
 def test_list_json_flag(tmp_path: Path, capsys):
-    from openxp.cli.list import main
+    from agentxp.cli.list import main
 
     _write_state(tmp_path, "exp_001", _minimal_state())
     rc = main(["--project", str(tmp_path), "--json"])
@@ -98,7 +98,7 @@ def test_list_json_flag(tmp_path: Path, capsys):
 
 
 def test_list_filter_by_status(tmp_path: Path, capsys):
-    from openxp.cli.list import main
+    from agentxp.cli.list import main
 
     _write_state(tmp_path, "exp_a", _minimal_state(exp_id="exp_a", stage="data_loaded", last_committed="data_loaded"))
     _write_state(tmp_path, "exp_b", _minimal_state(exp_id="exp_b", stage="brief_drafted", last_committed="brief_drafted"))
@@ -118,7 +118,7 @@ def test_list_filter_by_status(tmp_path: Path, capsys):
 
 
 def test_unlock_missing_lock_returns_user_error(tmp_path: Path, capsys):
-    from openxp.cli.unlock import main
+    from agentxp.cli.unlock import main
 
     exp_dir = tmp_path / "experiments" / "exp_001"
     exp_dir.mkdir(parents=True)
@@ -129,7 +129,7 @@ def test_unlock_missing_lock_returns_user_error(tmp_path: Path, capsys):
 
 
 def test_unlock_releases_dead_pid_lock(tmp_path: Path, capsys):
-    from openxp.cli.unlock import main
+    from agentxp.cli.unlock import main
 
     exp_dir = _write_state(tmp_path, "exp_001", _minimal_state())
     lock_path = exp_dir / ".state.lock"
@@ -150,7 +150,7 @@ def test_unlock_releases_dead_pid_lock(tmp_path: Path, capsys):
 
 
 def test_unlock_refuses_live_pid_without_force(tmp_path: Path, capsys):
-    from openxp.cli.unlock import main
+    from agentxp.cli.unlock import main
 
     exp_dir = _write_state(tmp_path, "exp_001", _minimal_state())
     lock_path = exp_dir / ".state.lock"
@@ -170,7 +170,7 @@ def test_unlock_refuses_live_pid_without_force(tmp_path: Path, capsys):
 
 
 def test_unlock_force_overrides_live_pid(tmp_path: Path, capsys):
-    from openxp.cli.unlock import main
+    from agentxp.cli.unlock import main
 
     exp_dir = _write_state(tmp_path, "exp_001", _minimal_state())
     lock_path = exp_dir / ".state.lock"
@@ -189,7 +189,7 @@ def test_unlock_force_overrides_live_pid(tmp_path: Path, capsys):
 
 
 def test_unlock_emits_audit_event(tmp_path: Path):
-    from openxp.cli.unlock import main
+    from agentxp.cli.unlock import main
 
     exp_dir = _write_state(tmp_path, "exp_001", _minimal_state())
     lock_path = exp_dir / ".state.lock"
@@ -224,7 +224,7 @@ def test_unlock_emits_audit_event(tmp_path: Path):
 
 
 def test_resume_missing_exp_returns_user_error(tmp_path: Path, capsys):
-    from openxp.cli.resume import main
+    from agentxp.cli.resume import main
 
     rc = main(["exp_nope", "--project", str(tmp_path)])
     captured = capsys.readouterr()
@@ -233,7 +233,7 @@ def test_resume_missing_exp_returns_user_error(tmp_path: Path, capsys):
 
 
 def test_resume_case_1_nothing_to_resume(tmp_path: Path, capsys):
-    from openxp.cli.resume import main
+    from agentxp.cli.resume import main
 
     _write_state(
         tmp_path, "exp_001",
@@ -247,7 +247,7 @@ def test_resume_case_1_nothing_to_resume(tmp_path: Path, capsys):
 
 
 def test_resume_case_2_pending_decision(tmp_path: Path, capsys):
-    from openxp.cli.resume import main
+    from agentxp.cli.resume import main
 
     state = _minimal_state(
         stage="brief_drafted",
@@ -270,7 +270,7 @@ def test_resume_case_2_pending_decision(tmp_path: Path, capsys):
 
 
 def test_resume_case_8_old_schema(tmp_path: Path, capsys):
-    from openxp.cli.resume import main
+    from agentxp.cli.resume import main
 
     state = _minimal_state(schema_version=2)
     _write_state(tmp_path, "exp_001", state)
@@ -287,7 +287,7 @@ def test_resume_case_8_old_schema(tmp_path: Path, capsys):
 
 
 def test_experiment_prints_claude_code_guidance(capsys):
-    from openxp.cli.experiment import main
+    from agentxp.cli.experiment import main
 
     rc = main([])
     captured = capsys.readouterr()
@@ -296,7 +296,7 @@ def test_experiment_prints_claude_code_guidance(capsys):
 
 
 def test_experiment_with_data_flag(capsys):
-    from openxp.cli.experiment import main
+    from agentxp.cli.experiment import main
 
     rc = main(["--data", "foo.parquet"])
     captured = capsys.readouterr()

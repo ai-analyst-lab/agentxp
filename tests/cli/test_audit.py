@@ -1,4 +1,4 @@
-"""Tests for openxp.cli.audit — §15 (audit CLI, 3 subcommands per D4)."""
+"""Tests for agentxp.cli.audit — §15 (audit CLI, 3 subcommands per D4)."""
 from __future__ import annotations
 
 import json
@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from openxp.cli.audit import main
-from openxp.cli.exit_codes import (
+from agentxp.cli.audit import main
+from agentxp.cli.exit_codes import (
     EXIT_FATAL,
     EXIT_OK,
     EXIT_USER_ERROR,

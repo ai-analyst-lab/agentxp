@@ -1,4 +1,4 @@
-"""Tests for openxp.orchestrator.conversation — ConversationStore."""
+"""Tests for agentxp.orchestrator.conversation — ConversationStore."""
 from __future__ import annotations
 
 import json
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from openxp.orchestrator.conversation import (
+from agentxp.orchestrator.conversation import (
     CONTENT_MAX_BYTES,
     SIZE_REFUSE_BYTES,
     SIZE_WARN_BYTES,

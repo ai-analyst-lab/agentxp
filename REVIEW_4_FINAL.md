@@ -37,7 +37,7 @@
 
 ### Detailed Finding: mSPRT Radius Formula
 
-**Location:** `openxp/stats/sequential.py`, function `_msprt_core`, lines 99-105.
+**Location:** `agentxp/stats/sequential.py`, function `_msprt_core`, lines 99-105.
 
 **Issue:** The variance term in the always-valid CI radius computation is:
 ```python
@@ -68,13 +68,13 @@ variance_term = s2*(s2 + n_eff*tau^2) / (n_eff^2 * tau^2)
 
 | Chain | Result | Notes |
 |-------|--------|-------|
-| `from openxp.stats import *` → all 34 names resolve | PASS | |
+| `from agentxp.stats import *` → all 34 names resolve | PASS | |
 | `load_data` → `discover_schema` → `welch_test` | PASS | Loaded `no_effect.csv`, discovered schema, ran welch_test. Note: `LoadResult` attribute is `dataframe`, not `df`. |
 | `ExperimentStore` → save → load → save_analysis → history | PASS | 2 events in history after save + analysis. |
 | `AmendmentTracker` → record → list | PASS | Correctly classified name change as non-material. |
 | `run_monitor` → construct context → run → check report shape | PASS | Report has `srm_trend`, `guardrail_health`, `sample_accumulation` checks. |
 | `validate_experiment_yaml` → validate template | PASS | Template has 8 findings (expected — template has placeholder values). |
-| `OpenXPError` → raise → str → to_dict | PASS | `to_dict` returns 6 keys: type, code, message, hint, severity, details. |
+| `AgentXPError` → raise → str → to_dict | PASS | `to_dict` returns 6 keys: type, code, message, hint, severity, details. |
 
 All 7 integration chains pass.
 

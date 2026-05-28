@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from openxp.stats.ab_tests import (
+from agentxp.stats.ab_tests import (
     welch_test,
     proportion_test,
     ratio_metric_test,

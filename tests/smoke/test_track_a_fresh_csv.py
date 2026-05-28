@@ -1,6 +1,6 @@
 """Track A — FRESH CSV path smoke tests.
 
-Verifies the plumbing: a tiny CSV fixture flows through ``openxp profile``,
+Verifies the plumbing: a tiny CSV fixture flows through ``agentxp profile``,
 ``bundles/profiler.out.yaml`` lands on disk with chmod 600, and the CLI exits
 cleanly. We do NOT exercise the LLM dispatch loop here — v0.1's
 ``dispatch._invoke_llm`` is still stubbed.
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from openxp.cli import profile as profile_cli
+from agentxp.cli import profile as profile_cli
 
 from tests.smoke.conftest import mode_of
 

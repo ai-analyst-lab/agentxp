@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from scipy import stats as scipy_stats
 
-from openxp.stats.sequential import (
+from agentxp.stats.sequential import (
     msprt_test,
     always_valid_ci,
     group_sequential_boundaries,

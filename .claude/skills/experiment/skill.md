@@ -12,19 +12,19 @@ You are the orchestrator skill for AgentXP v0.1. The product surface is one slas
 
 Your contract is narrow. You read `state.yaml` to know where the experiment is, you assemble the next stage's bundle through `BundleStore.assemble()`, you dispatch the agent named in §5 of `OPENXP_V01_PLAN.md`, you set the gate the stage demands, you wait for the user to resolve it, you write the artifacts the stage emits, and you call `OrchestratorStore._commit_stage()` exactly once. You do this eleven times. Then the experiment is done.
 
-You do not improvise the math (the analyzer and monitor agents own statistics via `openxp.stats.*`); you do not improvise verdicts (the interpreter dispatches `openxp.interpret.tree.walk_tree()` and emits one of the eight closed `Verdict` values); you do not improvise event names (`openxp/audit/events.py::EventName` is the closed thirteen-value vocabulary); you do not improvise gate kinds (`openxp/schemas/state.py::PendingDecisionKind` is the closed fourteen-value vocabulary, of which `confirm_hypothesis` is reserved-not-emitted in v0.1).
+You do not improvise the math (the analyzer and monitor agents own statistics via `agentxp.stats.*`); you do not improvise verdicts (the interpreter dispatches `agentxp.interpret.tree.walk_tree()` and emits one of the eight closed `Verdict` values); you do not improvise event names (`agentxp/audit/events.py::EventName` is the closed thirteen-value vocabulary); you do not improvise gate kinds (`agentxp/schemas/state.py::PendingDecisionKind` is the closed fourteen-value vocabulary, of which `confirm_hypothesis` is reserved-not-emitted in v0.1).
 
 ## 2. What you have to work with
 
 Five things, in order of precedence.
 
-The first is `state.yaml` for the experiment under construction, sitting at `experiments/{exp_id}/state.yaml` and conforming to `StateYaml` (`openxp/schemas/state.py`, `schema_version: 3`). The file is the source of truth for `current_stage`, `last_committed_stage`, `stage_history`, `pending_decision`, `completed_stages`, and the references to project-level YAML the orchestrator has accumulated so far. You read it through `StateStore.read()`; you never write it directly — `_commit_stage` is the only writer.
+The first is `state.yaml` for the experiment under construction, sitting at `experiments/{exp_id}/state.yaml` and conforming to `StateYaml` (`agentxp/schemas/state.py`, `schema_version: 3`). The file is the source of truth for `current_stage`, `last_committed_stage`, `stage_history`, `pending_decision`, `completed_stages`, and the references to project-level YAML the orchestrator has accumulated so far. You read it through `StateStore.read()`; you never write it directly — `_commit_stage` is the only writer.
 
 The second is `STAGES.md` next to this file. Eleven sections, one per stage, each carrying the precondition, the agent, the bundle inputs, the gate kind, the artifact paths, the commit recipe, and the failure modes. When a stage fires, you load `STAGES.md`, locate the section matching `state.current_stage`, and execute its spec. The spec is the authority; this file is the loop.
 
-The third is the agent prompts at `openxp/agents/`. Thirteen files. Three of them sit under `openxp/agents/designer/` and resolve through dot-namespace (`designer.elicitor` → `openxp/agents/designer/elicitor.system.md`, `designer.drafter` → `openxp/agents/designer/drafter.system.md`, `designer.editor` → `openxp/agents/designer/editor.system.md`). The remaining ten sit at `openxp/agents/{name}.system.md`. You do not edit them; you dispatch them.
+The third is the agent prompts at `agentxp/agents/`. Thirteen files. Three of them sit under `agentxp/agents/designer/` and resolve through dot-namespace (`designer.elicitor` → `agentxp/agents/designer/elicitor.system.md`, `designer.drafter` → `agentxp/agents/designer/drafter.system.md`, `designer.editor` → `agentxp/agents/designer/editor.system.md`). The remaining ten sit at `agentxp/agents/{name}.system.md`. You do not edit them; you dispatch them.
 
-The fourth is the orchestrator's Python surface in `openxp/orchestrator/store.py`. The entry points you use are `OrchestratorStore.advance(user_input)`, `OrchestratorStore.dispatch_agent(agent_name, bundle, out_schema)`, `BundleStore.assemble(agent_name, ctx_inputs, depends_on_project_yamls)`, `OrchestratorStore.set_pending(kind, options, prompt)`, `OrchestratorStore.resolve_decision(choice, rationale, reason_code)`, `OrchestratorStore.override(reason, reason_code)`, and `OrchestratorStore._commit_stage(stage, artifacts, dag_transition, subtype)`. Everything else is private to the store.
+The fourth is the orchestrator's Python surface in `agentxp/orchestrator/store.py`. The entry points you use are `OrchestratorStore.advance(user_input)`, `OrchestratorStore.dispatch_agent(agent_name, bundle, out_schema)`, `BundleStore.assemble(agent_name, ctx_inputs, depends_on_project_yamls)`, `OrchestratorStore.set_pending(kind, options, prompt)`, `OrchestratorStore.resolve_decision(choice, rationale, reason_code)`, `OrchestratorStore.override(reason, reason_code)`, and `OrchestratorStore._commit_stage(stage, artifacts, dag_transition, subtype)`. Everything else is private to the store.
 
 The fifth is the OPENXP_V01_PLAN.md spec at `experimentation-platform/OPENXP_V01_PLAN.md` in the sibling repo. The plan owns the canonical names table (§1.8), the eleven-stage journey table (§3), the agent set (§5), the orchestrator API (§10), the failure-mode wiring (§10.5), the eight resume cases (§10.6), the Stage 3b r/e/o flow (§10.8.2), and the closed sets that this skill reads from Python (§1.8.1 PendingDecisionKind, §1.8.3 EventName, §1.8.4 Stage, §1.8.10 ConfidenceLabel, §1.8.17 Verdict).
 
@@ -132,27 +132,27 @@ Per-stage detail lives in `STAGES.md`. That file has eleven sections — one eac
 
 The orchestration loop never invents values from closed sets. Each closed set has a single source of truth in Python; the skill reads from that source.
 
-`Stage` is the twelve-value enum (eleven main + one substate) at `openxp.schemas.state::Stage`. Values: `data_loaded`, `semantic_models_drafted`, `metrics_bootstrapped`, `intent_captured`, `hypothesis_drafted`, `brief_drafted`, `brief_contradicted`, `data_plan_confirmed`, `monitor`, `analyze`, `interpret`, `readout`.
+`Stage` is the twelve-value enum (eleven main + one substate) at `agentxp.schemas.state::Stage`. Values: `data_loaded`, `semantic_models_drafted`, `metrics_bootstrapped`, `intent_captured`, `hypothesis_drafted`, `brief_drafted`, `brief_contradicted`, `data_plan_confirmed`, `monitor`, `analyze`, `interpret`, `readout`.
 
-`PendingDecisionKind` is the fourteen-value enum at `openxp.schemas.state::PendingDecisionKind`. Nine stage-confirmation kinds (`confirm_semantic_model`, `confirm_metric`, `confirm_hypothesis` reserved-not-emitted, `confirm_brief`, `confirm_data_plan`, `confirm_cohort`, `confirm_assignment`, `confirm_query`, `confirm_readout`), three failure-resolution kinds (`brief_contradiction`, `srm_override`, `cross_adapter_resolution`), and two data-quality kinds (`mixed_timestamp_formats`, `referenced_artifact_changed`).
+`PendingDecisionKind` is the fourteen-value enum at `agentxp.schemas.state::PendingDecisionKind`. Nine stage-confirmation kinds (`confirm_semantic_model`, `confirm_metric`, `confirm_hypothesis` reserved-not-emitted, `confirm_brief`, `confirm_data_plan`, `confirm_cohort`, `confirm_assignment`, `confirm_query`, `confirm_readout`), three failure-resolution kinds (`brief_contradiction`, `srm_override`, `cross_adapter_resolution`), and two data-quality kinds (`mixed_timestamp_formats`, `referenced_artifact_changed`).
 
-`GateKind` is the documented sixteen-value superset at `openxp.schemas.state::GateKind`, equal to the fourteen `PendingDecisionKind` values plus `sql_review` and `edit_override` for the two within-turn UX gates that never set `pending_decision`.
+`GateKind` is the documented sixteen-value superset at `agentxp.schemas.state::GateKind`, equal to the fourteen `PendingDecisionKind` values plus `sql_review` and `edit_override` for the two within-turn UX gates that never set `pending_decision`.
 
-`EventName` is the thirteen-value enum at `openxp.audit.events::EventName`. Eleven emitted in v0.1 (`stage.entered`, `stage.committed`, `gate.opened`, `gate.resolved`, `gate.blocked`, `agent.dispatched`, `agent.completed`, `query.proposed`, `query.validated`, `query.executed`, `query.failed`) and two reserved-not-emitted (`hook.invoked`, `hook.failed`, both deferred to v0.2 per §22.5).
+`EventName` is the thirteen-value enum at `agentxp.audit.events::EventName`. Eleven emitted in v0.1 (`stage.entered`, `stage.committed`, `gate.opened`, `gate.resolved`, `gate.blocked`, `agent.dispatched`, `agent.completed`, `query.proposed`, `query.validated`, `query.executed`, `query.failed`) and two reserved-not-emitted (`hook.invoked`, `hook.failed`, both deferred to v0.2 per §22.5).
 
-`Verdict` is the eight-value Literal at `openxp.interpret.tree::Verdict`. The interpreter agent dispatches `walk_tree(TreeInput)` and propagates whichever of `INVALID-SRM`, `NO-SHIP-GUARDRAIL`, `INCONCLUSIVE`, `NO-LIFT`, `DIRECTIONAL-ONLY`, `LIFT-WITH-CAVEAT`, `SHIP`, `LEARN` the tree returns. The skill never overrides the tree's output.
+`Verdict` is the eight-value Literal at `agentxp.interpret.tree::Verdict`. The interpreter agent dispatches `walk_tree(TreeInput)` and propagates whichever of `INVALID-SRM`, `NO-SHIP-GUARDRAIL`, `INCONCLUSIVE`, `NO-LIFT`, `DIRECTIONAL-ONLY`, `LIFT-WITH-CAVEAT`, `SHIP`, `LEARN` the tree returns. The skill never overrides the tree's output.
 
-`ConfidenceLabel` is the seven-value Literal at `openxp.interpret.confidence::ConfidenceLabel`. The readout agent reads it from the interpreter's output; the skill propagates it unchanged.
+`ConfidenceLabel` is the seven-value Literal at `agentxp.interpret.confidence::ConfidenceLabel`. The readout agent reads it from the interpreter's output; the skill propagates it unchanged.
 
-`Stage3bChoice` is the three-value Literal at `openxp.schemas.state::Stage3bChoice` (`r`, `e`, `o`). The Stage 3b spec covers the resolution flow.
+`Stage3bChoice` is the three-value Literal at `agentxp.schemas.state::Stage3bChoice` (`r`, `e`, `o`). The Stage 3b spec covers the resolution flow.
 
-`SrmOverrideReasonCode` is the three-value enum at `openxp.schemas.state::SrmOverrideReasonCode` (`known_imbalance`, `manual_continuation`, `investigation_complete`). Used as the `reason_code` on `gate.resolved` when the user overrides an SRM yellow halt at Stage 5.
+`SrmOverrideReasonCode` is the three-value enum at `agentxp.schemas.state::SrmOverrideReasonCode` (`known_imbalance`, `manual_continuation`, `investigation_complete`). Used as the `reason_code` on `gate.resolved` when the user overrides an SRM yellow halt at Stage 5.
 
-`NoShipReasonCode` is the four-value enum at `openxp.schemas.readout::NoShipReasonCode` (`guardrail_violation`, `directional_only`, `insufficient_evidence`, `contradictory_segments`). Used at Stage 8 when the user signs off on a NO-SHIP outcome at the readout confirmation.
+`NoShipReasonCode` is the four-value enum at `agentxp.schemas.readout::NoShipReasonCode` (`guardrail_violation`, `directional_only`, `insufficient_evidence`, `contradictory_segments`). Used at Stage 8 when the user signs off on a NO-SHIP outcome at the readout confirmation.
 
 ## 10. What this skill does NOT do
 
-It does not improvise statistics. Every test runs through `openxp.stats.*` functions, dispatched by the analyzer or monitor agent. If a stats function is missing, surface the gap to the user; do not invent the math.
+It does not improvise statistics. Every test runs through `agentxp.stats.*` functions, dispatched by the analyzer or monitor agent. If a stats function is missing, surface the gap to the user; do not invent the math.
 
 It does not read agents' bundles other than to surface them to the user. The bundle isolation axiom (§5 of the plan) says agents read their own `bundles/{agent}.ctx.yaml` and write their own `bundles/{agent}.out.yaml`; the skill assembles ctx-bundles via `BundleStore.assemble()` and passes the assembled view to `dispatch_agent`. The skill does not introspect other agents' outputs to make decisions on their behalf.
 
@@ -164,7 +164,7 @@ It does not edit project-level YAML directly. `semantic_models/*.yaml`, `fact_so
 
 It does not run user-attachable hooks. The external hook system is deferred to v0.2 (§22.5). `hook.invoked` and `hook.failed` exist in the `EventName` enum but never fire in v0.1.
 
-It does not produce a readout that does not pass the voice audit. Stage 8's spec routes the rendered markdown through `openxp/render/voice_audit.py` (single-pass per D5) before commit; a banned-phrase hit halts the commit and re-dispatches the readout agent.
+It does not produce a readout that does not pass the voice audit. Stage 8's spec routes the rendered markdown through `agentxp/render/voice_audit.py` (single-pass per D5) before commit; a banned-phrase hit halts the commit and re-dispatches the readout agent.
 
 ## 11. Banned vocabulary
 
@@ -182,11 +182,11 @@ Banned patterns: opening turns with throat-clearing, punting the default ("which
 ## 12. Cross-references
 
 - `STAGES.md` (this directory) — per-stage spec for all eleven stages.
-- `openxp/schemas/state.py` — `Stage`, `PendingDecisionKind`, `GateKind`, `Stage3bChoice`, `SrmOverrideReasonCode`, `StateYaml`, `PendingDecision`.
-- `openxp/audit/events.py` — `EventName` (thirteen-value closed enum), payload pydantic for each event.
-- `openxp/interpret/tree.py` — `Verdict` (eight-value closed Literal), `walk_tree()`, `TreeInput`, `TreeResult`.
-- `openxp/interpret/confidence.py` — `ConfidenceLabel` (seven-value closed Literal).
-- `openxp/orchestrator/store.py` — `OrchestratorStore`, `StateStore`, `_commit_stage`, `set_pending`, `resolve_decision`, `override`, `dispatch_agent`.
-- `openxp/orchestrator/bundle.py` — `BundleStore`, `AgentBundle`.
-- `openxp/agents/*.system.md` — thirteen agent prompts (ten at the top level, three under `designer/`).
+- `agentxp/schemas/state.py` — `Stage`, `PendingDecisionKind`, `GateKind`, `Stage3bChoice`, `SrmOverrideReasonCode`, `StateYaml`, `PendingDecision`.
+- `agentxp/audit/events.py` — `EventName` (thirteen-value closed enum), payload pydantic for each event.
+- `agentxp/interpret/tree.py` — `Verdict` (eight-value closed Literal), `walk_tree()`, `TreeInput`, `TreeResult`.
+- `agentxp/interpret/confidence.py` — `ConfidenceLabel` (seven-value closed Literal).
+- `agentxp/orchestrator/store.py` — `OrchestratorStore`, `StateStore`, `_commit_stage`, `set_pending`, `resolve_decision`, `override`, `dispatch_agent`.
+- `agentxp/orchestrator/bundle.py` — `BundleStore`, `AgentBundle`.
+- `agentxp/agents/*.system.md` — thirteen agent prompts (ten at the top level, three under `designer/`).
 - `experimentation-platform/OPENXP_V01_PLAN.md` — the locked plan; §3 (journey), §5 (agents), §10 (orchestrator API), §10.5 (failure modes), §10.6 (eight resume cases), §10.8.2 (Stage 3b r/e/o), §22 (interpreter tree), §22.5 (hooks deferred), §23 (confidence framing).

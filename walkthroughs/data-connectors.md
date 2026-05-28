@@ -13,7 +13,7 @@ If discovery is confident, analysis proceeds. If not, you're asked to disambigua
 ## CSV: the Default
 
 ```python
-from openxp.data.csv_loader import CSVLoader
+from agentxp.data.csv_loader import CSVLoader
 
 loader = CSVLoader()
 result = loader.load("sample-data/clean_ab.csv")
@@ -46,7 +46,7 @@ for chunk in loader.stream("big_experiment.csv", chunk_size=100_000):
 For datasets over a million rows, or when you want to keep the data in a persistent analytical database, use DuckDB:
 
 ```python
-from openxp.data.duckdb_loader import DuckDBLoader
+from agentxp.data.duckdb_loader import DuckDBLoader
 
 with DuckDBLoader() as loader:
     loader.connect(":memory:")
@@ -78,10 +78,10 @@ Snowflake has two modes. Both respect a 10M-row guardrail on unbounded queries.
 
 ### Direct mode
 
-Uses `snowflake-connector-python` (optional extra: `pip install 'agentxp[snowflake]'`). Credentials come from `connection_params` or `OPENXP_SNOWFLAKE_*` environment variables.
+Uses `snowflake-connector-python` (optional extra: `pip install 'agentxp[snowflake]'`). Credentials come from `connection_params` or `AGENTXP_SNOWFLAKE_*` environment variables.
 
 ```python
-from openxp.data.snowflake_loader import SnowflakeLoader
+from agentxp.data.snowflake_loader import SnowflakeLoader
 
 with SnowflakeLoader() as loader:
     df = loader.query("""
@@ -121,7 +121,7 @@ In MCP mode, `query()` intentionally doesn't execute. The orchestrator skill cal
 Given a DataFrame, `discover_schema` returns a `SchemaDiscovery` with every field the rest of AgentXP needs.
 
 ```python
-from openxp.data.discovery import discover_schema
+from agentxp.data.discovery import discover_schema
 
 schema = discover_schema(df)
 print(schema.treatment_column)    # 'variant'

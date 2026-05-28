@@ -90,12 +90,12 @@ The audit vocabulary is a closed set of thirteen events: `stage.entered`, `stage
 | Path | Contents |
 |------|----------|
 | `agents/*.system.md` | The 13 LLM agent system prompts |
-| `openxp/schemas/` | Pydantic models for state, profile reports, semantic models, metrics, fact sources, assignments |
-| `openxp/audit/` | Append-only audit log, conversation log, `validate_chain` invariant checker |
-| `openxp/profiler/` | Stage 0 implementation (DuckDB `SUMMARIZE` + data-quality heuristics) |
-| `openxp/semantic/` | YAML validators and project-lock-wrapped I/O for semantic models, metrics, fact sources, assignments |
-| `openxp/stats/` | Deterministic statistical routines (Welch, SRM, proportion tests, CUPED, sequential, Bayesian) |
-| `openxp/cli/` | Command-line entry points |
+| `agentxp/schemas/` | Pydantic models for state, profile reports, semantic models, metrics, fact sources, assignments |
+| `agentxp/audit/` | Append-only audit log, conversation log, `validate_chain` invariant checker |
+| `agentxp/profiler/` | Stage 0 implementation (DuckDB `SUMMARIZE` + data-quality heuristics) |
+| `agentxp/semantic/` | YAML validators and project-lock-wrapped I/O for semantic models, metrics, fact sources, assignments |
+| `agentxp/stats/` | Deterministic statistical routines (Welch, SRM, proportion tests, CUPED, sequential, Bayesian) |
+| `agentxp/cli/` | Command-line entry points |
 | `tests/` | Unit and integration tests |
 
 ---

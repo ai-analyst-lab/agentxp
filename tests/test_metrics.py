@@ -1,4 +1,4 @@
-"""Tests for the OpenXP metric definitions library (openxp.metrics)."""
+"""Tests for the AgentXP metric definitions library (agentxp.metrics)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from openxp.metrics import (
+from agentxp.metrics import (
     MetricDefinition,
     MetricRegistry,
     MetricValidationError,
@@ -15,7 +15,7 @@ from openxp.metrics import (
     to_test_function,
     validate,
 )
-from openxp.stats.ab_tests import proportion_test, ratio_metric_test, welch_test
+from agentxp.stats.ab_tests import proportion_test, ratio_metric_test, welch_test
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 METRICS_DIR = REPO_ROOT / "metrics"
@@ -224,13 +224,13 @@ def test_tags_must_be_list() -> None:
 
 def test_default_metrics_dir_falls_back_to_home(tmp_path, monkeypatch) -> None:
     """When ./metrics doesn't exist, the default dir should resolve to
-    ~/.openxp/metrics by way of Path.home()."""
-    from openxp.metrics.registry import _default_metrics_dir
+    ~/.agentxp/metrics by way of Path.home()."""
+    from agentxp.metrics.registry import _default_metrics_dir
 
-    # Point HOME at a fresh tmp directory with a populated .openxp/metrics.
+    # Point HOME at a fresh tmp directory with a populated .agentxp/metrics.
     fake_home = tmp_path / "home"
-    openxp_metrics = fake_home / ".openxp" / "metrics"
-    openxp_metrics.mkdir(parents=True)
+    agentxp_metrics = fake_home / ".agentxp" / "metrics"
+    agentxp_metrics.mkdir(parents=True)
 
     # Move cwd somewhere without a ./metrics directory.
     empty_cwd = tmp_path / "cwd"
@@ -242,14 +242,14 @@ def test_default_metrics_dir_falls_back_to_home(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("pathlib.Path.home", lambda: fake_home)
 
     resolved = _default_metrics_dir()
-    assert resolved == openxp_metrics
+    assert resolved == agentxp_metrics
 
 
 def test_default_metrics_dir_returns_none_when_neither_exists(
     tmp_path, monkeypatch
 ) -> None:
-    """If neither ./metrics nor ~/.openxp/metrics exists, return None."""
-    from openxp.metrics.registry import _default_metrics_dir
+    """If neither ./metrics nor ~/.agentxp/metrics exists, return None."""
+    from agentxp.metrics.registry import _default_metrics_dir
 
     fake_home = tmp_path / "nowhere"
     fake_home.mkdir()
@@ -264,9 +264,9 @@ def test_default_metrics_dir_returns_none_when_neither_exists(
 
 def test_registry_autoloads_from_home_when_cwd_empty(tmp_path, monkeypatch) -> None:
     """A MetricRegistry() with default args should discover metric YAMLs in
-    ~/.openxp/metrics when the current working directory has no ./metrics."""
+    ~/.agentxp/metrics when the current working directory has no ./metrics."""
     fake_home = tmp_path / "home"
-    home_metrics = fake_home / ".openxp" / "metrics"
+    home_metrics = fake_home / ".agentxp" / "metrics"
     home_metrics.mkdir(parents=True)
     (home_metrics / "dummy_rate.yaml").write_text(
         "name: dummy_rate\n"

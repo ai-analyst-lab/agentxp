@@ -1,10 +1,10 @@
-"""Tests for openxp.interpret.confidence.map_confidence (§23 / §1.8.10)."""
+"""Tests for agentxp.interpret.confidence.map_confidence (§23 / §1.8.10)."""
 
 from __future__ import annotations
 
 import pytest
 
-from openxp.interpret.confidence import (
+from agentxp.interpret.confidence import (
     ConfidenceLabel,
     map_confidence,
 )

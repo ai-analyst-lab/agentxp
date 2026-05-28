@@ -1,1 +1,0 @@
-"""OpenXP CLI package."""

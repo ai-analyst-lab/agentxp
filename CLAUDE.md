@@ -6,7 +6,7 @@ AgentXP is an open-source system for the design and analysis of controlled exper
 
 The canonical journey is eleven stages: `data_loaded` (0), `semantic_models_drafted` (0.5), `metrics_bootstrapped` (0.75), `intent_captured` (1), `hypothesis_drafted` (2), `brief_drafted` (3) — with a `brief_contradicted` (3b) substate when the consistency judge flags a hypothesis-vs-brief mismatch — `data_plan_confirmed` (4), `monitor` (5), `analyze` (6), `interpret` (7), and `readout` (8). Stages 0 through 0.75 run once per dataset; stages 1 through 8 run per experiment.
 
-The architecture has six layers — warehouse, semantic, metric, assignment, experiment, analysis, readout — and a single orchestration chokepoint (`openxp.orchestrator.store.OrchestratorStore.advance`) through which every stage transition flows. Statistical work is handled by deterministic Python in `openxp.stats.*`; agents handle only the steps that require judgment, with their context strictly bounded by the bundle they were dispatched with. The audit guarantee derives from this isolation: two reviewers running the same audit log against the same project YAMLs reach the same answer.
+The architecture has six layers — warehouse, semantic, metric, assignment, experiment, analysis, readout — and a single orchestration chokepoint (`agentxp.orchestrator.store.OrchestratorStore.advance`) through which every stage transition flows. Statistical work is handled by deterministic Python in `agentxp.stats.*`; agents handle only the steps that require judgment, with their context strictly bounded by the bundle they were dispatched with. The audit guarantee derives from this isolation: two reviewers running the same audit log against the same project YAMLs reach the same answer.
 
 ---
 
@@ -34,9 +34,9 @@ On the first user turn in a project, before responding to substantive intent, sc
 2. If the directory is non-empty, surface a short list: for each experiment, read `state.yaml` and report `experiment_id`, `current_stage`, and `pending_decision.kind` if set. Ask: "Resume which?" The user picks one (or says "new"), at which point routing proceeds via `/resume <chosen_id>` or `/experiment`.
 3. If the directory is empty, proceed directly to `/experiment` intent capture.
 
-The bootstrap is what prevents Claude from re-running completed stages or scaffolding a duplicate experiment when a prior session was interrupted. Never bootstrap directly into Stage 0 when `state.yaml` exists; always route through `/resume` so the eight-case classifier in `openxp/cli/resume.py` decides whether to re-present a gate, retry a dispatch, or surface a stale-lock recovery.
+The bootstrap is what prevents Claude from re-running completed stages or scaffolding a duplicate experiment when a prior session was interrupted. Never bootstrap directly into Stage 0 when `state.yaml` exists; always route through `/resume` so the eight-case classifier in `agentxp/cli/resume.py` decides whether to re-present a gate, retry a dispatch, or surface a stale-lock recovery.
 
-The eight cases the resume classifier recognizes — referenced from §10.6 of the plan and from `openxp/cli/resume.py`:
+The eight cases the resume classifier recognizes — referenced from §10.6 of the plan and from `agentxp/cli/resume.py`:
 
 - Case 1 — `RESUME_AT_CLEAN_END`: terminal no-op. The experiment finished; nothing to resume.
 - Case 2 — `RESUME_AT_PENDING_DECISION`: re-render the gate dialog. The previous session set `pending_decision` and exited; the user resolves it now.
@@ -90,7 +90,7 @@ The orchestrator infers the plan from the slash command arguments. `/experiment 
 
 Every user prose turn is appended to `experiments/<exp_id>/conversation.jsonl` via `ConversationStore.append_turn(...)`. The turn carries a `turn_id` (ULID), a `role` (`user` or `system`), a `content` block, and a `timestamp`. Bundles reference a `through_turn_id` rather than embedding the full conversation; the `BundleStore.assemble` step rolls the most recent fifty turns into a `prior_turns_compressed` block per `OPENXP_V01_PLAN.md` §10.8.1. Agents see only the compressed view; the full log is for audit replay and for the PII redactor.
 
-Before any user prose is appended to `conversation.jsonl` or written into a `decisions/*.yaml`, route it through `openxp.audit.redactor.redact_pii(...)`. The redactor is the canonical entry point for the built-in PII pre-flight; downstream readers assume `conversation.jsonl` has already been redacted.
+Before any user prose is appended to `conversation.jsonl` or written into a `decisions/*.yaml`, route it through `agentxp.audit.redactor.redact_pii(...)`. The redactor is the canonical entry point for the built-in PII pre-flight; downstream readers assume `conversation.jsonl` has already been redacted.
 
 ---
 
@@ -126,11 +126,11 @@ Every agent loads its system prompt from disk and runs against a bundle assemble
 
 The bundle convention is the load-bearing axiom of the architecture. Read it carefully.
 
-When `OrchestratorStore.advance` reaches a stage that requires an agent, it calls `BundleStore.assemble()` (in `openxp/orchestrator/bundle.py`) to build the agent's context file at `bundles/<agent>.ctx.yaml`. The assembly step **copies** — does not reference — every project-level YAML the agent depends on (`{project}/semantic_models/*.yaml`, `{project}/fact_sources/*.yaml`, `{project}/metrics/*.yaml`, `{project}/assignments/*.yaml`) into the bundle directory. The SHA256 of each copied file is recorded in `bundles/<agent>.ctx.yaml.metadata.source_hashes`.
+When `OrchestratorStore.advance` reaches a stage that requires an agent, it calls `BundleStore.assemble()` (in `agentxp/orchestrator/bundle.py`) to build the agent's context file at `bundles/<agent>.ctx.yaml`. The assembly step **copies** — does not reference — every project-level YAML the agent depends on (`{project}/semantic_models/*.yaml`, `{project}/fact_sources/*.yaml`, `{project}/metrics/*.yaml`, `{project}/assignments/*.yaml`) into the bundle directory. The SHA256 of each copied file is recorded in `bundles/<agent>.ctx.yaml.metadata.source_hashes`.
 
 Once assembled, the bundle is the source of truth for that single agent invocation. If a parallel session edits a project YAML between bundle assembly and the dispatched agent's return, the in-flight agent still sees the version captured at assembly time. This eliminates a whole class of race conditions and is the substrate `validate_chain` Invariant 3 walks during commit.
 
-The assembly runs under a shared (read) lock on `{project}/.openxp/.project.lock`, which permits multiple concurrent assemblies but excludes any concurrent `metric_drafter` or `semantic_modeler` write.
+The assembly runs under a shared (read) lock on `{project}/.agentxp/.project.lock`, which permits multiple concurrent assemblies but excludes any concurrent `metric_drafter` or `semantic_modeler` write.
 
 Agents observe three constraints that follow from the bundle policy:
 
@@ -147,7 +147,7 @@ The bundle is the agent's whole world. This is what makes two reviewers running 
 There is one chokepoint and only one. Every stage transition flows through `OrchestratorStore.advance`. Never bypass it. Never mutate `state.yaml` directly — the SIGINT guard and `validate_chain` are what make the audit chain credible, and direct mutation strips both.
 
 ```python
-from openxp.orchestrator.store import OrchestratorStore
+from agentxp.orchestrator.store import OrchestratorStore
 
 store = OrchestratorStore(project_root, exp_id)
 store.advance(user_input=...)
@@ -185,11 +185,11 @@ Stage 3 fires `confirm_brief` after two agents run in sequence: `designer.drafte
 
 Stage 4 fires three gates in sequence: `confirm_data_plan` (top-level binding of brief metrics to fact sources), then `confirm_cohort` once per cohort (each window has its own gate), then `confirm_assignment` for the assignment table. The DAG transition `null→DESIGNING` rides on the Stage 3 `stage.committed`; the `DESIGNING→POWERED` transition rides on the Stage 4 `stage.committed.metadata.dag_transition: {from: "DESIGNING", to: "POWERED"}`.
 
-Stage 5 runs the SQL safety pipeline. `sql_query_writer` proposes SRM queries; each query fires `query.proposed` with `query_id` (a ULID) and `raw_hash` + `ast_hash`. The pipeline then runs five safety layers — `sqlglot` parse, read-only check, cross-adapter consistency check, semantic-model deny-list, resource-bounds check — implemented in `openxp/sql/safety.py`. If any layer fails, the query routes to `sql_corrector` for up to three correction attempts. If all layers pass, the orchestrator opens a `sql_review` gate (`GateKind`, not `PendingDecisionKind` — this gate fires within a single user turn and does not persist to `state.yaml.pending_decision`). The user picks `"accepted"`, `"edited"`, or `"rejected"`; on `"edited"` an `edit_override` gate fires for the modified SQL. On acceptance, the query executes against the warehouse adapter, `query.executed` fires, and the result lands at `queries/results/<hash>.parquet`. The `monitor` agent then runs `srm_check` against the result with `threshold=0.0005`. If χ² returns WARNING or BLOCK, the orchestrator opens a `srm_override` gate with `options=["override:known_imbalance", "override:manual_continuation", "override:investigation_complete", "halt"]`; the `SrmOverrideReasonCode` enum constrains the override codes.
+Stage 5 runs the SQL safety pipeline. `sql_query_writer` proposes SRM queries; each query fires `query.proposed` with `query_id` (a ULID) and `raw_hash` + `ast_hash`. The pipeline then runs five safety layers — `sqlglot` parse, read-only check, cross-adapter consistency check, semantic-model deny-list, resource-bounds check — implemented in `agentxp/sql/safety.py`. If any layer fails, the query routes to `sql_corrector` for up to three correction attempts. If all layers pass, the orchestrator opens a `sql_review` gate (`GateKind`, not `PendingDecisionKind` — this gate fires within a single user turn and does not persist to `state.yaml.pending_decision`). The user picks `"accepted"`, `"edited"`, or `"rejected"`; on `"edited"` an `edit_override` gate fires for the modified SQL. On acceptance, the query executes against the warehouse adapter, `query.executed` fires, and the result lands at `queries/results/<hash>.parquet`. The `monitor` agent then runs `srm_check` against the result with `threshold=0.0005`. If χ² returns WARNING or BLOCK, the orchestrator opens a `srm_override` gate with `options=["override:known_imbalance", "override:manual_continuation", "override:investigation_complete", "halt"]`; the `SrmOverrideReasonCode` enum constrains the override codes.
 
-Stage 6 runs the analyzer over the same SQL safety pipeline. Every analysis query fires `confirm_query` per the same shape as Stage 5. The `analyzer` agent's bundle carries `purpose="metric_compute"`, which the resource-bounds matrix in `openxp/sql/schema.py` consumes to set per-purpose limits. Every stats call returns a `computation_trace`; the trace is preserved verbatim into `analyses/<ts>.json` and the audit replay walks it.
+Stage 6 runs the analyzer over the same SQL safety pipeline. Every analysis query fires `confirm_query` per the same shape as Stage 5. The `analyzer` agent's bundle carries `purpose="metric_compute"`, which the resource-bounds matrix in `agentxp/sql/schema.py` consumes to set per-purpose limits. Every stats call returns a `computation_trace`; the trace is preserved verbatim into `analyses/<ts>.json` and the audit replay walks it.
 
-Stage 7 has no user gate. The `interpreter` agent loads its bundle (latest analysis, brief decision rules), runs the eight-step decision tree in `openxp/interpret/tree.py`, and emits `interpretation.json` with `verdict` (one of eight `Verdict` values) and `step_fired` (one of `Literal[1, 2, 3, 4, 5, 6, 7, 8]`) recording which step of the tree produced the verdict. The confidence label is computed by `openxp/interpret/confidence.py::map_confidence` against the 90/95% CI bounds. The interpreter's prose is single-pass voice-audited by `openxp/render/voice_audit.py` before commit.
+Stage 7 has no user gate. The `interpreter` agent loads its bundle (latest analysis, brief decision rules), runs the eight-step decision tree in `agentxp/interpret/tree.py`, and emits `interpretation.json` with `verdict` (one of eight `Verdict` values) and `step_fired` (one of `Literal[1, 2, 3, 4, 5, 6, 7, 8]`) recording which step of the tree produced the verdict. The confidence label is computed by `agentxp/interpret/confidence.py::map_confidence` against the 90/95% CI bounds. The interpreter's prose is single-pass voice-audited by `agentxp/render/voice_audit.py` before commit.
 
 Stage 8 fires `confirm_readout` once. The `readout` agent renders `report.md` from `report.json` using the verdict-first template at `templates/experiment-report.md`. Every claim in `report.md` carries an `AuditPaths` block pointing at a `decisions/*.yaml`, an `analyses/*.json`, a `queries/<ulid>.yaml`, or a `bundles/*.yaml`. The voice audit runs once over the rendered markdown; if it flags a banned phrase the commit aborts and the readout re-runs with a corrective preamble.
 
@@ -197,18 +197,18 @@ Stage 8 fires `confirm_readout` once. The `readout` agent renders `report.md` fr
 
 ## 8. CLI surface
 
-The Python CLI binary is `agentxp`. Its source lives under `openxp/cli/`. Each subcommand maps to a user intent and writes a specific artifact.
+The Python CLI binary is `agentxp`. Its source lives under `agentxp/cli/`. Each subcommand maps to a user intent and writes a specific artifact.
 
 | User intent | CLI command | Source | What it writes |
 |-------------|------------|--------|----------------|
-| Inspect a dataset (Stage 0 only) | `agentxp profile <path>` | `openxp/cli/profile.py` | `bundles/profiler.out.yaml` |
-| Replay the timeline | `agentxp audit <exp_id>` | `openxp/cli/audit.py` | (stdout text) |
+| Inspect a dataset (Stage 0 only) | `agentxp profile <path>` | `agentxp/cli/profile.py` | `bundles/profiler.out.yaml` |
+| Replay the timeline | `agentxp audit <exp_id>` | `agentxp/cli/audit.py` | (stdout text) |
 | Diff two experiments | `agentxp audit <exp_id> --diff <other_exp_id>` | same | (stdout diff) |
-| Render audit as HTML | `agentxp audit <exp_id> --html` | `openxp/cli/audit_html.py` | (stdout HTML) |
-| Show experiments in the project | `agentxp list` (`--status`, `--since`, `--json`) | `openxp/cli/list.py` | (stdout table or JSON) |
-| Re-enter an interrupted experiment | `agentxp resume <exp_id>` | `openxp/cli/resume.py` | classifies into one of 8 cases (§9) |
-| Release a stale `.state.lock` | `agentxp unlock <exp_id>` | `openxp/cli/unlock.py` | removes lock if holder PID is dead |
-| Walk the full eleven stages | `agentxp experiment` | `openxp/cli/experiment.py` | placeholder; prints "talk to Claude" and exits |
+| Render audit as HTML | `agentxp audit <exp_id> --html` | `agentxp/cli/audit_html.py` | (stdout HTML) |
+| Show experiments in the project | `agentxp list` (`--status`, `--since`, `--json`) | `agentxp/cli/list.py` | (stdout table or JSON) |
+| Re-enter an interrupted experiment | `agentxp resume <exp_id>` | `agentxp/cli/resume.py` | classifies into one of 8 cases (§9) |
+| Release a stale `.state.lock` | `agentxp unlock <exp_id>` | `agentxp/cli/unlock.py` | removes lock if holder PID is dead |
+| Walk the full eleven stages | `agentxp experiment` | `agentxp/cli/experiment.py` | placeholder; prints "talk to Claude" and exits |
 
 The `experiment` CLI is intentionally a placeholder. The actual orchestration runs through the `/experiment` slash command, which dispatches the conversational walk via `OrchestratorStore.advance`. The placeholder exists so users who type `agentxp experiment` from a shell get a clear message about where the workflow lives.
 
@@ -226,17 +226,17 @@ The following table condenses `OPENXP_V01_PLAN.md` §10.5. Every failure mode is
 | SIGINT mid `_commit_stage` | `_deferred_sigint()` context manager | `stage.committed` then `gate.blocked(reason="user_interrupt")` if SIGINT arrived inside; nothing emitted if outside | `agentxp resume <exp_id>` — Case 3 (RESUME_AT_MID_COMMIT) classifies and re-enters |
 | ENOSPC (< 100MB free) | `_check_disk_space()` pre-flight in `_commit_stage` | `gate.blocked(reason="disk_full", metadata.subtype="disk_full", metadata.free_bytes, metadata.required_bytes=104857600)` | free disk space; `agentxp resume <exp_id>` re-runs pre-flight |
 | Malformed YAML from agent | `dispatch_agent` after `yaml.safe_load` + pydantic | `agent.completed` with `metadata.subtype="retry"`, then on exhaustion `subtype="failed_after_retries"` | retried under same `RetryPolicy`; corrective preamble prepended; r/a/s on exhaustion |
-| Warehouse credentials expired | adapter `is_auth_error()` predicate in `openxp/sql/dispatch.py` | `query.failed(metadata.subtype="auth_expired", metadata.profile_name=<x>)` then `gate.blocked(reason="auth_expired")` | run `agentxp connect <profile>` in a separate terminal, then `agentxp resume <exp_id>` |
+| Warehouse credentials expired | adapter `is_auth_error()` predicate in `agentxp/sql/dispatch.py` | `query.failed(metadata.subtype="auth_expired", metadata.profile_name=<x>)` then `gate.blocked(reason="auth_expired")` | run `agentxp connect <profile>` in a separate terminal, then `agentxp resume <exp_id>` |
 | `conversation.jsonl` exceeds 50MB | `ConversationStore.append()` pre-write check | warn at 50MB; at 100MB cap, rotate via `stage.committed(metadata.subtype="log_rotation", metadata.rotated_to="conversation.{N}.jsonl.gz")` | transparent — orchestrator never reads rotated files during normal stage execution |
 | Agent response > 50KB | `dispatch_agent` length check before parsing | `agent.completed(metadata.subtype="oversize_response", metadata.size_bytes=<N>)` | same `RetryPolicy` and r/a/s as malformed YAML |
-| `validate_chain` violation in `_commit_stage` | `openxp/audit/chain.py::validate_chain` | `gate.blocked(reason="chain_validation_failed", metadata.details={violations: [...]}, metadata.ms=<runtime>)`; `state.yaml` rolled back from `.bak` | unsupported in v0.1; user runs `agentxp audit <exp_id> --diff` and files a bug |
+| `validate_chain` violation in `_commit_stage` | `agentxp/audit/chain.py::validate_chain` | `gate.blocked(reason="chain_validation_failed", metadata.details={violations: [...]}, metadata.ms=<runtime>)`; `state.yaml` rolled back from `.bak` | unsupported in v0.1; user runs `agentxp audit <exp_id> --diff` and files a bug |
 | Project YAML edited between bundle assemblies | resume-time `source_hashes` comparison | `gate.opened(kind="referenced_artifact_changed")` | user accepts the new version (re-assembles) or reverts the project YAML |
 
 The bundle snapshot policy in §10.5.9 is not a failure mode but the preventive policy that eliminates a class of would-be failures. The mechanics are in §6.
 
 ### Cross-references between failure modes and resume cases
 
-Each failure mode in the table above terminates by writing some combination of `state.yaml.pending_decision`, a `gate.blocked` event, and an artifact rollback. The resume CLI in `openxp/cli/resume.py` reads those rows back and classifies the experiment's position. The mapping is direct:
+Each failure mode in the table above terminates by writing some combination of `state.yaml.pending_decision`, a `gate.blocked` event, and an artifact rollback. The resume CLI in `agentxp/cli/resume.py` reads those rows back and classifies the experiment's position. The mapping is direct:
 
 - 5xx exhaustion → Case 7 (`RESUME_AT_GATE_BLOCKED`). The user picks `r` (retry with a fresh `RetryPolicy` budget), `a` (abort the stage, roll back to the prior committed stage), or `s` (save; the experiment stays at pre-dispatch and a later `agentxp resume` re-enters at the same point).
 - SIGINT mid `_commit_stage` → Case 3 (`RESUME_AT_MID_COMMIT`). The classifier reads the last two events; if `stage.committed` is present the commit landed and the resume continues from the next stage; if not, the resume re-enters at the prior committed stage.
@@ -255,7 +255,7 @@ Every closed set below is reproduced verbatim from the Python source. Use only t
 
 ### 10.1 Stage — 12 values
 
-Source: `openxp/schemas/state.py` class `Stage`.
+Source: `agentxp/schemas/state.py` class `Stage`.
 
 ```
 data_loaded              # Stage 0
@@ -274,7 +274,7 @@ readout                  # Stage 8
 
 ### 10.2 PendingDecisionKind — 14 values (1 reserved)
 
-Source: `openxp/schemas/state.py` class `PendingDecisionKind`.
+Source: `agentxp/schemas/state.py` class `PendingDecisionKind`.
 
 ```
 confirm_semantic_model        # Stage 0.5 → 0.75
@@ -297,7 +297,7 @@ The pydantic validator on `PendingDecision.kind` raises `ValueError` if `confirm
 
 ### 10.3 GateKind — 16 values
 
-Source: `openxp/schemas/state.py` `GateKind = Literal[...]`. Documented superset of `PendingDecisionKind`: the 14 PendingDecisionKind values plus two within-turn UX gates.
+Source: `agentxp/schemas/state.py` `GateKind = Literal[...]`. Documented superset of `PendingDecisionKind`: the 14 PendingDecisionKind values plus two within-turn UX gates.
 
 ```
 # 14 PendingDecisionKind values mirrored as strings (see §10.2)
@@ -323,7 +323,7 @@ edit_override    # fires when user edits a SQL query at sql_review
 
 ### 10.4 EventName — 13 values (2 reserved for v0.2)
 
-Source: `openxp/audit/events.py` class `EventName`.
+Source: `agentxp/audit/events.py` class `EventName`.
 
 ```
 stage.entered
@@ -345,7 +345,7 @@ The two reserved values exist in the enum so v0.1 readers continue to parse v0.2
 
 ### 10.5 Verdict — 8 values
 
-Source: `openxp/schemas/report.py` class `Verdict`.
+Source: `agentxp/schemas/report.py` class `Verdict`.
 
 ```
 INVALID-SRM
@@ -360,7 +360,7 @@ LEARN
 
 ### 10.6 ConfidenceLabel — 7 values
 
-Source: `openxp/interpret/confidence.py` `ConfidenceLabel = Literal[...]`. Decision rule and orientation logic are in the same module.
+Source: `agentxp/interpret/confidence.py` `ConfidenceLabel = Literal[...]`. Decision rule and orientation logic are in the same module.
 
 ```
 highly likely positive
@@ -374,7 +374,7 @@ highly likely negative
 
 ### 10.7 SrmOverrideReasonCode — 3 values
 
-Source: `openxp/schemas/state.py` class `SrmOverrideReasonCode`.
+Source: `agentxp/schemas/state.py` class `SrmOverrideReasonCode`.
 
 ```
 known_imbalance          # external cause acknowledged
@@ -384,7 +384,7 @@ investigation_complete   # investigated; safe to continue
 
 ### 10.8 Stage3bChoice — 3 values
 
-Source: `openxp/schemas/state.py` `Stage3bChoice = Literal["r", "e", "o"]`.
+Source: `agentxp/schemas/state.py` `Stage3bChoice = Literal["r", "e", "o"]`.
 
 ```
 r   # revert (drop the contradicting edit)
@@ -437,7 +437,7 @@ Under the project root:
 ├── fact_sources/<name>.yaml
 ├── metrics/<name>.yaml
 ├── assignments/<name>.yaml
-└── .openxp/
+└── .agentxp/
     ├── credentials/<adapter>/<profile>.yaml  # chmod 600
     ├── cache/validated_queries/              # tracked in git; SQL comments stripped
     ├── config.yaml                           # incl. pruning policy
@@ -450,16 +450,16 @@ The semantic models, fact sources, metrics, and assignments are deliberately pro
 
 ## 12. Stats whitelist
 
-Every statistical routine in `openxp.stats.*` is deterministic Python, not an LLM call. Stats functions are imported by the orchestrator and used only inside the two agents whose work is statistical interpretation. No other agent calls a stats function.
+Every statistical routine in `agentxp.stats.*` is deterministic Python, not an LLM call. Stats functions are imported by the orchestrator and used only inside the two agents whose work is statistical interpretation. No other agent calls a stats function.
 
 ### Allowed stats calls per agent
 
 | Agent | Stage | Allowed calls (module → function) |
 |-------|-------|-----------------------------------|
-| `monitor` | 5 | `openxp.stats.srm.srm_check`; `openxp.stats.guardrails.denominator_srm` |
-| `analyzer` | 6 | `openxp.stats.ab_tests.welch_test`; `openxp.stats.ab_tests.proportion_test`; `openxp.stats.ab_tests.ratio_metric_test`; `openxp.stats.guardrails.guardrail_test`; `openxp.stats.effect_size.cohens_d`; `openxp.stats.effect_size_extras.cohens_h`; `openxp.stats.effect_size.relative_lift`; `openxp.stats.power.detectable_effect`; `openxp.stats.corrections.adjust_pvalues`; `openxp.stats.ab_tests.winsorize`; `openxp.stats.guardrails.compute_late_ratio` |
+| `monitor` | 5 | `agentxp.stats.srm.srm_check`; `agentxp.stats.guardrails.denominator_srm` |
+| `analyzer` | 6 | `agentxp.stats.ab_tests.welch_test`; `agentxp.stats.ab_tests.proportion_test`; `agentxp.stats.ab_tests.ratio_metric_test`; `agentxp.stats.guardrails.guardrail_test`; `agentxp.stats.effect_size.cohens_d`; `agentxp.stats.effect_size_extras.cohens_h`; `agentxp.stats.effect_size.relative_lift`; `agentxp.stats.power.detectable_effect`; `agentxp.stats.corrections.adjust_pvalues`; `agentxp.stats.ab_tests.winsorize`; `agentxp.stats.guardrails.compute_late_ratio` |
 
-All other agents — `profiler`, `semantic_modeler`, `metric_drafter`, `designer.elicitor`, `designer.drafter`, `designer.editor`, `consistency_judge`, `sql_query_writer`, `sql_corrector`, `interpreter`, `readout` — never call a stats function. They reason over the outputs that `monitor` and `analyzer` produced. The interpreter at Stage 7 consumes the `MetricResult` rows from `analyses/<ts>.json` and dispatches the eight-step decision tree in `openxp/interpret/tree.py`; it does not recompute the underlying statistics.
+All other agents — `profiler`, `semantic_modeler`, `metric_drafter`, `designer.elicitor`, `designer.drafter`, `designer.editor`, `consistency_judge`, `sql_query_writer`, `sql_corrector`, `interpreter`, `readout` — never call a stats function. They reason over the outputs that `monitor` and `analyzer` produced. The interpreter at Stage 7 consumes the `MetricResult` rows from `analyses/<ts>.json` and dispatches the eight-step decision tree in `agentxp/interpret/tree.py`; it does not recompute the underlying statistics.
 
 ### Function reference for the two allowed agents
 
@@ -486,9 +486,9 @@ All functions return a dict (or pydantic model) with a `computation_trace` field
 | `detectable_effect` | `(n_per_group, baseline_rate=None, baseline_std=None, alpha=0.05, power=0.80)` | `MDEResult` | Post-hoc MDE check after underpowered null |
 | `adjust_pvalues` | `(pvalues, method="holm", alpha=0.05)` | `CorrectionResult` | Holm-Bonferroni for pre-registered segments |
 | `winsorize` | `(series, lower=0.01, upper=0.99)` | `pd.Series` | Pre-test cleanup on heavy-tailed continuous metrics |
-| `compute_late_ratio` | (per signature in `openxp/stats/guardrails.py`) | dict | Late-arriving-data ratio for novelty/late-ratio diagnostics |
+| `compute_late_ratio` | (per signature in `agentxp/stats/guardrails.py`) | dict | Late-arriving-data ratio for novelty/late-ratio diagnostics |
 
-When the analyzer's bundle has `purpose="metric_compute"`, the resource-bounds matrix applies the per-purpose limits in `openxp/sql/schema.py`. The `analyses/<ts>.json` written at Stage 6 includes the `computation_trace` for every metric row.
+When the analyzer's bundle has `purpose="metric_compute"`, the resource-bounds matrix applies the per-purpose limits in `agentxp/sql/schema.py`. The `analyses/<ts>.json` written at Stage 6 includes the `computation_trace` for every metric row.
 
 ---
 
@@ -510,8 +510,8 @@ Five examples that land on five different starting stages. Each shows how Claude
 
 ## 14. Voice and register
 
-Every user-facing surface — readout prose, gate prompts, audit annotations, conversational replies — sits in an academic register. Sober and clear, with subordinate clauses doing the work that bullet lists and adjective stacks do in marketing copy. Anglo-Saxon vocabulary by default. The voice audit at `openxp/render/voice_audit.py` is a single-pass banned-phrase grep; it runs on the interpreter and readout outputs before commit and on every CLAUDE-authored response by convention.
+Every user-facing surface — readout prose, gate prompts, audit annotations, conversational replies — sits in an academic register. Sober and clear, with subordinate clauses doing the work that bullet lists and adjective stacks do in marketing copy. Anglo-Saxon vocabulary by default. The voice audit at `agentxp/render/voice_audit.py` is a single-pass banned-phrase grep; it runs on the interpreter and readout outputs before commit and on every CLAUDE-authored response by convention.
 
 The banned phrase list includes "co-pilot," "colleague," "powerful," "robust," "seamless," "cutting-edge," "Let me walk you through," "Before we begin," "Great question," and "Excellent observation." These are flags for a register the system rejects; their presence implies the writer is selling the result rather than reporting it. The readout's job is to report the result, which is why the verdict-first template at `templates/experiment-report.md` opens with the verdict and the `step_fired` rationale and only then surfaces diagnostics.
 
-Two further rules govern the conversational surface. First, never manufacture certainty the analysis does not support: when a metric's `ConfidenceLabel` is `inconclusive` or `leaning positive`, the readout says so plainly; it does not promote the result to `very likely positive` by adjective choice. Second, every claim must trace to an audit-path block; the `AuditPaths` model in `openxp/schemas/report.py` enforces this at the schema level, but the conversational reply should observe the same discipline — when Claude says "the SRM check passed at threshold 0.0005," the next sentence (or the receipt at the end of the response) should cite `analyses/<ts>.json#srm` or the corresponding `query.executed` row.
+Two further rules govern the conversational surface. First, never manufacture certainty the analysis does not support: when a metric's `ConfidenceLabel` is `inconclusive` or `leaning positive`, the readout says so plainly; it does not promote the result to `very likely positive` by adjective choice. Second, every claim must trace to an audit-path block; the `AuditPaths` model in `agentxp/schemas/report.py` enforces this at the schema level, but the conversational reply should observe the same discipline — when Claude says "the SRM check passed at threshold 0.0005," the next sentence (or the receipt at the end of the response) should cite `analyses/<ts>.json#srm` or the corresponding `query.executed` row.

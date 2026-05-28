@@ -1,4 +1,4 @@
-"""Tests for openxp.orchestrator.dispatch — W_pre3.6 single-agent dispatcher.
+"""Tests for agentxp.orchestrator.dispatch — W_pre3.6 single-agent dispatcher.
 
 Covers:
   - §1.8.8 canonical agent-name gating
@@ -21,8 +21,8 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from openxp.orchestrator import dispatch as dispatch_mod
-from openxp.orchestrator.dispatch import (
+from agentxp.orchestrator import dispatch as dispatch_mod
+from agentxp.orchestrator.dispatch import (
     CANONICAL_AGENT_NAMES,
     AuthExpiredError,
     DispatchRequest,
@@ -71,7 +71,7 @@ def stub_prompt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     prompt_path.parent.mkdir(parents=True, exist_ok=True)
     prompt_path.write_text("# stub profiler system prompt\n")
     # Redirect default-path resolution into tmp_path so we don't depend on
-    # the real openxp/agents/ on the filesystem.
+    # the real agentxp/agents/ on the filesystem.
     monkeypatch.setattr(
         dispatch_mod,
         "_default_system_prompt_path",

@@ -1,4 +1,4 @@
-"""Tests for openxp.sql.dispatch.
+"""Tests for agentxp.sql.dispatch.
 
 Covers the synchronous §22.5 SQL dispatch chokepoint: 5-layer safety pass,
 correction retry loop, auth_expired surrender, artifact + audit emission.
@@ -10,14 +10,14 @@ from pathlib import Path
 
 import pytest
 
-from openxp.sql.adapter import (
+from agentxp.sql.adapter import (
     AdapterError,
     AdapterResult,
     AuthExpiredError,
     PreviewResult,
 )
-from openxp.sql.dispatch import SqlIntent, dispatch_sql
-from openxp.sql.schema import QueryOutcome
+from agentxp.sql.dispatch import SqlIntent, dispatch_sql
+from agentxp.sql.schema import QueryOutcome
 
 
 # ──────────────────────────────────────────────────────────────────────────

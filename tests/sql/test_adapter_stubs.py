@@ -1,7 +1,7 @@
 """Tests for the v0.1 Snowflake + BigQuery adapter stubs.
 
 The full implementations land in v0.1.1. v0.1 ships stubs that satisfy the
-:class:`openxp.sql.adapter.BaseAdapter` Protocol shape (so the connect wizard
+:class:`agentxp.sql.adapter.BaseAdapter` Protocol shape (so the connect wizard
 + dispatcher can resolve them) but raise NotImplementedError on any actual
 warehouse call.
 """
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from openxp.sql.adapters.bigquery_adapter import BigQueryAdapter
-from openxp.sql.adapters.snowflake_adapter import SnowflakeAdapter
+from agentxp.sql.adapters.bigquery_adapter import BigQueryAdapter
+from agentxp.sql.adapters.snowflake_adapter import SnowflakeAdapter
 
 
 def test_snowflake_execute_raises_not_implemented():
