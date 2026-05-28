@@ -161,7 +161,12 @@ def _hash_bundle(bundle: dict[str, Any]) -> str:
 def _default_system_prompt_path(project_root: Path, agent_name: str) -> Path:
     """Resolve the default system-prompt path for an agent.
 
-    Layout: ``<repo_root>/agents/{name}.system.md``.
+    Layout:
+      - Flat: ``<repo_root>/agents/{name}.system.md`` (e.g., ``profiler``,
+        ``consistency_judge``, ``monitor``, ``analyzer``, ``interpreter``,
+        ``readout``, ``sql_query_writer``, ``sql_corrector``).
+      - Subdirectory: dots in the agent name map to path separators
+        (e.g., ``designer.elicitor`` → ``agents/designer/elicitor.system.md``).
 
     The `project_root` argument is the user's experiment project root (where
     state.yaml lives), NOT the openxp install root. The agent prompts ship
@@ -176,7 +181,9 @@ def _default_system_prompt_path(project_root: Path, agent_name: str) -> Path:
     # __file__ → .../openxp/orchestrator/dispatch.py
     # parents[0] = orchestrator/, parents[1] = openxp/, parents[2] = repo root
     repo_root = Path(__file__).resolve().parents[2]
-    return repo_root / "agents" / f"{agent_name}.system.md"
+    # Dotted agent names map to subdirectories; flat names stay flat.
+    relative_path = agent_name.replace(".", "/") + ".system.md"
+    return repo_root / "agents" / relative_path
 
 
 def _invoke_llm(system_prompt: str, ctx_bundle: dict[str, Any]) -> str:
