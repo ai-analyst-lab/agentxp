@@ -59,6 +59,13 @@ class UnparseableSQL(SafetyViolation):
     """Layer 1: sqlglot returned None / raised ParseError."""
 
 
+class DialectHazardViolation(SafetyViolation):
+    """Pre-execution: the query uses a construct that the target dialect
+    silently rewrites to a non-equivalent form (e.g. a recursive CTE against
+    ``databricks``, which has no recursive-CTE support and which sqlglot
+    silently de-recurses). Reject rather than ship a silently-wrong query."""
+
+
 # ──────────────────────────────────────────────────────────────────────────
 # Resource-bounds matrix (§11)
 #
@@ -154,6 +161,49 @@ def layer_2_assert_read_only(tree: exp.Expression) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# Dialect hazard guard (pre-execution)
+#
+# sqlglot SILENTLY rewrites some constructs when targeting a dialect that
+# lacks them, producing a non-equivalent query. The W0 transpile audit found
+# two databricks cases: (1) a recursive CTE is de-recursed (Databricks SQL has
+# no recursive CTE) and (2) exact PERCENTILE_CONT is rewritten to approximate
+# PERCENTILE_APPROX. Case (1) is cheap and unambiguous to detect on the parsed
+# tree (``exp.With.args["recursive"] is True``), so we reject it outright here
+# rather than ship a silently-wrong result. Case (2) is harder to detect
+# reliably pre-transpile without false positives, so it is left as a documented
+# hazard for a later wave (see NOTE below) rather than guarded here.
+#
+# NOTE (databricks PERCENTILE_CONT hazard, deferred): sqlglot rewrites exact
+# ``PERCENTILE_CONT`` to approximate ``PERCENTILE_APPROX`` when targeting the
+# ``databricks`` dialect. That changes result semantics (exact → approximate)
+# without warning. A later wave should either reject or explicitly warn on this
+# rewrite; v0.1.1 does not guard it (matching-on-function-name pre-transpile is
+# prone to false positives, and the transpiler is out of this wave's scope).
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def assert_no_dialect_hazard(tree: exp.Expression, dialect: str) -> None:
+    """Reject query shapes the target ``dialect`` would silently mis-translate.
+
+    v0.1.1 guards exactly one case: a **recursive CTE targeting databricks**.
+    Databricks SQL has no recursive CTE, and sqlglot silently de-recurses it
+    into a single non-recursive CTE — a non-equivalent query. Rather than ship
+    that, raise :class:`DialectHazardViolation`. All other dialects (and all
+    other shapes) are a no-op.
+    """
+    if dialect != "databricks":
+        return
+    for node in walk_ast(tree):
+        if isinstance(node, exp.With) and node.args.get("recursive") is True:
+            raise DialectHazardViolation(
+                "Recursive CTE (WITH RECURSIVE) is not supported by the "
+                "databricks dialect; sqlglot would silently de-recurse it into "
+                "a non-equivalent query. Rewrite without recursion before "
+                "dispatching to databricks."
+            )
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Layer 3a — single-adapter assertion
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -164,6 +214,7 @@ _ADAPTER_PREFIXES: frozenset[str] = frozenset({
     "snowflake",
     "bigquery",
     "duckdb",
+    "databricks",
 })
 
 
@@ -431,6 +482,9 @@ def run_pipeline(
     tree = parse_sql(sql, dialect)
     layers: list[int] = [1]
 
+    # Pre-execution dialect-hazard guard (currently: recursive CTE → databricks).
+    assert_no_dialect_hazard(tree, dialect)
+
     layer_2_assert_read_only(tree)
     layers.append(2)
 
@@ -459,9 +513,11 @@ __all__ = [
     "DenyListViolation",
     "ResourceBoundsViolation",
     "UnparseableSQL",
+    "DialectHazardViolation",
     # Result
     "SafetyResult",
     # Layer entry points
+    "assert_no_dialect_hazard",
     "layer_2_assert_read_only",
     "layer_3a_assert_single_adapter",
     "layer_3b_semantic_model_check",

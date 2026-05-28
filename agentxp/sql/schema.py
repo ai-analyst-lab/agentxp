@@ -47,11 +47,12 @@ from agentxp.schemas.state import _enforce_utc
 # ──────────────────────────────────────────────────────────────────────────
 
 
-AdapterType = Literal["duckdb", "snowflake", "bigquery"]
-"""The 3 warehouse adapters shipping in v0.1 (§12).
+AdapterType = Literal["duckdb", "snowflake", "bigquery", "databricks"]
+"""The 4 warehouse adapters shipping by v0.1.1 (§12).
 
-Closure invariant: ``len(AdapterType.__args__) == 3``. Tested in
-``tests/coherence/test_canonical_names.py``.
+duckdb (reference) + snowflake / bigquery / databricks (real adapters added in
+v0.1.1). Used by ``ConnectionConfig.adapter`` and
+``QueryDialectInfo.rendered_dialect``.
 """
 
 

@@ -52,7 +52,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--adapter",
-        choices=("duckdb", "snowflake", "bigquery"),
+        choices=("duckdb", "snowflake", "bigquery", "databricks"),
         default="duckdb",
         help="Warehouse adapter (default: duckdb).",
     )

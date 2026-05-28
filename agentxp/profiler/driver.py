@@ -68,7 +68,7 @@ def _compose_suggestions(columns: list[ColumnProfile], row_count: int) -> list[s
 def profile_dataset(
     source_ref: str,
     *,
-    adapter_type: Literal["duckdb", "snowflake", "bigquery"] = "duckdb",
+    adapter_type: Literal["duckdb", "snowflake", "bigquery", "databricks"] = "duckdb",
     file_path: Optional[Path] = None,
     sample_values_n: int = 10,
     flag_null_rate_threshold: float = 0.5,

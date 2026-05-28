@@ -2,10 +2,11 @@
 
 Each module in this package implements the :class:`agentxp.sql.adapter.BaseAdapter`
 Protocol for one warehouse. v0.1 ships DuckDB as the reference implementation;
-Snowflake, BigQuery, and Databricks ship as stubs (full implementations land in
-v0.1.1) so the dispatcher / connect wizard can resolve every supported dialect
-string to a registered class and refuse cleanly with NotImplementedError rather
-than ImportError.
+v0.1.1 ships real Snowflake, BigQuery, and Databricks adapters so the
+dispatcher / connect wizard can resolve every supported dialect string to a
+registered class. Each warehouse driver is an optional dependency imported
+lazily at first use (never at module import), so this package imports cleanly
+without any warehouse driver installed.
 
 ``ADAPTER_REGISTRY`` maps a dialect string to its adapter class. Construct an
 adapter by dialect with::

@@ -40,6 +40,9 @@ snowflake = [
 bigquery = [
     "google-cloud-bigquery>=3.0",
 ]
+databricks = [
+    "databricks-sql-connector>=3.0",
+]
 duckdb = [
     "duckdb>=0.10",
 ]

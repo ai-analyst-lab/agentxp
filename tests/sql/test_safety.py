@@ -5,9 +5,11 @@ import pytest
 
 from agentxp.sql.safety import (
     DenyListViolation,
+    DialectHazardViolation,
     ReadOnlyViolation,
     SafetyResult,
     UnparseableSQL,
+    assert_no_dialect_hazard,
     layer_3a_assert_single_adapter,
     layer_4_enforce_resource_bounds,
     run_pipeline,
@@ -173,3 +175,42 @@ def test_layer_4_direct_injects_limit():
     tree = parse_sql("SELECT * FROM t", "duckdb")
     new_tree = layer_4_enforce_resource_bounds(tree, purpose="preview")
     assert "LIMIT 1000" in new_tree.sql().upper()
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Dialect-hazard guard (recursive CTE → databricks)
+# ──────────────────────────────────────────────────────────────────────────
+
+
+_RECURSIVE_CTE = (
+    "WITH RECURSIVE t(n) AS ("
+    "SELECT 1 UNION ALL SELECT n + 1 FROM t WHERE n < 5"
+    ") SELECT * FROM t"
+)
+
+
+def test_recursive_cte_rejected_for_databricks():
+    with pytest.raises(DialectHazardViolation):
+        run_pipeline(_RECURSIVE_CTE, "databricks", "preview")
+
+
+def test_recursive_cte_allowed_for_duckdb():
+    # duckdb supports recursive CTEs; the hazard guard must not fire. (The
+    # arithmetic in the recursive body trips Layer 3c's allowlist, which is a
+    # separate concern — so assert the guard itself is a no-op here.)
+    tree = parse_sql(_RECURSIVE_CTE, "duckdb")
+    assert_no_dialect_hazard(tree, "duckdb")  # no raise
+
+
+def test_non_recursive_cte_allowed_for_databricks():
+    r = run_pipeline(
+        "WITH t AS (SELECT 1 AS n) SELECT * FROM t", "databricks", "preview"
+    )
+    assert isinstance(r, SafetyResult)
+
+
+def test_assert_no_dialect_hazard_noop_for_other_dialects():
+    tree = parse_sql(_RECURSIVE_CTE, "duckdb")
+    # snowflake/bigquery support recursive CTEs — explicit no-op.
+    assert_no_dialect_hazard(tree, "snowflake")
+    assert_no_dialect_hazard(tree, "bigquery")

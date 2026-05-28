@@ -56,7 +56,7 @@ MetricType = Literal[
 
 MetricDirection = Literal["higher_is_better", "lower_is_better", "neither"]
 
-AdapterType = Literal["duckdb", "snowflake", "bigquery"]
+AdapterType = Literal["duckdb", "snowflake", "bigquery", "databricks"]
 
 AggregationGrain = Literal["hour", "day", "week"]
 
