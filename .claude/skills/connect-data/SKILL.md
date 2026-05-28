@@ -1,98 +1,105 @@
 ---
 name: connect-data
-description: Connect a warehouse. DuckDB ships v0.1; Snowflake and BigQuery wizards ship v0.1.1.
+description: Connect a warehouse. DuckDB, BigQuery, Snowflake, and Databricks all have working connect wizards.
 ---
 
 # Skill: `/connect-data` — Warehouse Connection
 
 ## Purpose
 
-Wire a warehouse connection so SQL dispatches can execute. v0.1 ships only DuckDB (file-based or in-memory). Snowflake and BigQuery adapters exist as stubs at `agentxp/sql/adapters/` that raise `NotImplementedError`; the connect wizards (`agentxp connect snowflake|bigquery`) ship in v0.1.1 within two weeks of v0.1 ship. This skill makes that boundary explicit and routes users who need Snowflake or BigQuery today toward workable v0.1 paths instead of failing into a stub.
+Wire a warehouse connection so SQL dispatches can execute. All four dialects have a working `agentxp connect <dialect>` wizard that collects credentials, runs a live `SELECT 1` probe, and writes a chmod-600 credential profile under `~/.agentxp/credentials/{dialect}/{name}.yaml`:
+
+- **DuckDB** — file-based or in-memory; no credentials.
+- **BigQuery** — Application Default Credentials (ADC) or service-account JSON.
+- **Snowflake** — four auth surfaces: password, externalbrowser SSO, OAuth token, key-pair.
+- **Databricks** — Personal Access Token (PAT) or OAuth M2M (service principal).
+
+This skill routes the user to the right wizard. Secrets are read with no-echo prompts, never printed back, and only ever written to the chmod-600 profile file.
 
 ## When to invoke
 
 - `/connect-data` (no warehouse specified) — ask which warehouse the user wants
 - `/connect-data duckdb` — wire a local DuckDB file or in-memory database
-- `/connect-data snowflake` — print the v0.1.1 deferral message and route to DuckDB
-- `/connect-data bigquery` — same as Snowflake: deferral message plus DuckDB route
+- `/connect-data bigquery` — run the BigQuery wizard (ADC or service account)
+- `/connect-data snowflake` — run the Snowflake wizard (four auth surfaces)
+- `/connect-data databricks` — run the Databricks wizard (PAT or OAuth M2M)
 - Plain-English routing:
   - "Hook up my Snowflake instance" → `/connect-data snowflake`
   - "Use this DuckDB file" → `/connect-data duckdb` (with path)
   - "Point AgentXP at BigQuery" → `/connect-data bigquery`
+  - "Connect my Databricks warehouse" → `/connect-data databricks`
 
 ## Arguments
 
 ```
-/connect-data [warehouse] [path]
+/connect-data [warehouse] [name]
 ```
 
-- `<warehouse>` — optional; one of `duckdb | snowflake | bigquery`. If omitted, ask once.
-- `<path>` — DuckDB only; file path or `:memory:`. If omitted on the DuckDB branch, ask.
+- `<warehouse>` — optional; one of `duckdb | bigquery | snowflake | databricks`. If omitted, ask once.
+- `<name>` — profile name (e.g. `prod`, `dev`); stored as `{name}.yaml`. If omitted, default to `default` or ask.
 
 ## Workflow
 
-### Branch A: DuckDB (ships v0.1)
+Every dialect routes to its wizard via `agentxp connect <dialect> <name>`. The wizard prompts for that dialect's fields, runs a live `SELECT 1` probe, and on success writes the profile. On a failed probe nothing is written.
 
-1. Prompt for a path to a DuckDB file, or `:memory:` for an in-memory database.
-2. If a file path was given, confirm the file exists on disk. If it does not, print `file not found: <path>` to stderr and exit.
-3. Note that DuckDB is file-based: no credentials, no credential persistence.
-4. Suggest the immediate next step:
+### Branch A: DuckDB
+
+1. Run `agentxp connect duckdb <name>`. It prompts for a DuckDB file path, or in-memory.
+2. DuckDB is file-based: no credentials, no secret persistence.
+3. Suggest the next step:
    - `/profile <path>` to inspect a table
    - `/experiment --data <path>` to run a full pipeline
 
-### Branch B: Snowflake or BigQuery (ships v0.1.1)
+### Branch B: BigQuery
 
-1. Print the deferral message verbatim:
+1. Run `agentxp connect bigquery <name>`. It prompts for the GCP project and the auth method (ADC or service-account JSON).
+2. ADC is the safer default (no key material in the app). A service-account key is stored as a *path reference*; an inline JSON paste lives only in the chmod-600 profile.
 
-   ```
-   Snowflake and BigQuery connect wizards ship in v0.1.1 within two weeks of
-   v0.1. The Snowflake adapter has four auth surfaces (password, externalbrowser
-   SSO, OAuth, key-pair); the BigQuery adapter uses ADC or service account JSON.
-   Both adapters' Python stubs already exist at agentxp/sql/adapters/, but they
-   raise NotImplementedError until v0.1.1.
-   ```
+### Branch C: Snowflake
 
-2. Offer the v0.1 workable paths:
+1. Run `agentxp connect snowflake <name>`. It prompts for `account`, `user`, `warehouse`, `database`, `schema`, `role`, then the auth method:
+   - `password` — no-echo password prompt
+   - `externalbrowser` — browser SSO, no secret stored
+   - `oauth` — no-echo OAuth token prompt
+   - `keypair` — private-key file path plus optional passphrase (no-echo)
+2. The chosen `auth_method` is stored in the profile so the adapter selects the surface directly.
 
-   ```
-   For v0.1 today, you can:
-   - Point at a local DuckDB file: /connect-data duckdb
-   - Export a Snowflake/BigQuery table to parquet and run /profile on it
-   - Wait two weeks for the v0.1.1 release
-   ```
+### Branch D: Databricks
 
-3. Ask which path the user wants and exit.
+1. Run `agentxp connect databricks <name>`. It prompts for `server_hostname`, `http_path`, optional Unity Catalog defaults, then the auth method:
+   - `pat` — no-echo Personal Access Token prompt
+   - `oauth_m2m` — service-principal `client_id` plus no-echo `client_secret`
+2. The chosen `auth_method` is stored in the profile.
 
 ## What this skill does not do
 
-- It does not dispatch the Snowflake or BigQuery adapter. Those stubs raise `NotImplementedError`; surfacing that error is a worse experience than the explicit deferral message.
-- It does not write credentials. Credential persistence at `.agentxp/credentials/` is a v0.1.1 deliverable shipped alongside the wizards.
+- It does not store secrets in the clear. Every secret is read with a no-echo prompt and only written to the chmod-600 profile; confirmation output is always redacted.
 - It does not modify project state. No `state.yaml` update, no `stage.committed` event.
 
 ## Cross-references
 
 - For DuckDB inspection after connecting: `/profile`
 - For top-level orientation: `CLAUDE.md` at the repo root
-- v0.1.1 deliverables list: `experimentation-platform/BUILD_OUTCOMES_v0.1.md`
+- Auth-surface ground truth: `experimentation-platform/research/v0.1.1-warehouse-auth/WAREHOUSE_AUTH_BRIEF.md`
 - Adapter table: Plan §12
 
-## Example walkthrough — Snowflake (deferred)
+## Example walkthrough — Snowflake
 
 ```
-User: /connect-data snowflake
+User: /connect-data snowflake prod
 
-Snowflake and BigQuery connect wizards ship in v0.1.1 within two weeks
-of v0.1. The Snowflake adapter has four auth surfaces (password,
-externalbrowser SSO, OAuth, key-pair); the BigQuery adapter uses ADC
-or service account JSON. Both adapters' Python stubs already exist at
-agentxp/sql/adapters/, but they raise NotImplementedError until v0.1.1.
-
-For v0.1 today, you can:
-- Point at a local DuckDB file: /connect-data duckdb
-- Export a Snowflake table to parquet and run /profile on it
-- Wait two weeks for the v0.1.1 release
-
-Which do you want to do?
+$ agentxp connect snowflake prod
+Snowflake account identifier (e.g. myorg-myaccount, no domain suffix): myorg-acct
+User: SVC_AGENTXP
+Warehouse (e.g. WH_XS): WH_XS
+Database (e.g. ANALYTICS): ANALYTICS
+Schema (e.g. PUBLIC): PUBLIC
+Role (optional):
+Auth method (password (default), externalbrowser, oauth, keypair): password
+Password:                       # no echo
+  connection OK (SELECT 1 returned a row)
+wrote profile: ~/.agentxp/credentials/snowflake/prod.yaml
+  contents (redacted): {... 'password': '[REDACTED]'}
 ```
 
 ## Banned vocabulary
@@ -114,4 +121,4 @@ The output produced by this skill must avoid the tokens below. These mirror the 
 - `co-pilot`
 - `colleague`
 
-Banned patterns: throat-clearing openers; manufactured emotional beats; framing the deferral as anything other than what it is. State the v0.1.1 boundary plainly and route to the workable path.
+Banned patterns: throat-clearing openers; manufactured emotional beats; over-promising on auth surfaces a dialect does not support. State what each wizard collects plainly and route to the right wizard.

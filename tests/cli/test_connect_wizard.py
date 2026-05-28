@@ -21,7 +21,13 @@ import pytest
 
 import yaml
 
-from agentxp.cli import connect_bigquery, connect_common, connect_duckdb
+from agentxp.cli import (
+    connect_bigquery,
+    connect_common,
+    connect_databricks,
+    connect_duckdb,
+    connect_snowflake,
+)
 from agentxp.cli.exit_codes import EXIT_OK, EXIT_USER_ERROR
 
 
@@ -69,6 +75,8 @@ def patch_registry(monkeypatch: pytest.MonkeyPatch):
     fake_registry = {
         "duckdb": _FakeAdapter,
         "bigquery": _FakeAdapter,
+        "snowflake": _FakeAdapter,
+        "databricks": _FakeAdapter,
     }
     monkeypatch.setattr(connect_common, "ADAPTER_REGISTRY", fake_registry)
     return fake_registry
@@ -359,4 +367,339 @@ def test_reauth_refreshes_existing_profile(
 def test_wizards_registered():
     assert "duckdb" in connect_common.WIZARD_REGISTRY
     assert "bigquery" in connect_common.WIZARD_REGISTRY
+    assert "snowflake" in connect_common.WIZARD_REGISTRY
+    assert "databricks" in connect_common.WIZARD_REGISTRY
     assert connect_common.WIZARD_REGISTRY["duckdb"].dialect == "duckdb"
+    assert connect_common.WIZARD_REGISTRY["snowflake"].dialect == "snowflake"
+    assert connect_common.WIZARD_REGISTRY["databricks"].dialect == "databricks"
+
+
+def test_dispatcher_routes_new_dialects():
+    from agentxp.cli import connect as connect_router
+
+    assert connect_router._WIZARD_MODULES["snowflake"] == (
+        "agentxp.cli.connect_snowflake"
+    )
+    assert connect_router._WIZARD_MODULES["databricks"] == (
+        "agentxp.cli.connect_databricks"
+    )
+
+
+# ---------------------------------------------------------------------------
+# W2.B secret-handling helpers
+#
+# ``collect_secret`` lives in connect_common and reads the secret via
+# ``connect_common.prompt_secret`` then asks (via ``connect_common.prompt_yes_no``)
+# whether to store the raw value inline or an env-var reference. These helpers
+# patch BOTH the per-wizard prompts and the connect_common secret prompts.
+# ---------------------------------------------------------------------------
+
+
+def _patch_secret(monkeypatch, value: str, *, inline: bool):
+    """Patch connect_common's secret + yes/no prompts used by collect_secret."""
+    monkeypatch.setattr(connect_common, "prompt_secret", lambda *a, **k: value)
+    monkeypatch.setattr(connect_common, "prompt_yes_no", lambda *a, **k: inline)
+
+
+# ---------------------------------------------------------------------------
+# Snowflake wizard — four auth surfaces (W2.B)
+# ---------------------------------------------------------------------------
+
+
+def _patch_snowflake_common(monkeypatch, *, auth_method: str):
+    """Stub the common (non-secret) Snowflake prompts."""
+    texts = iter(
+        [
+            "myorg-acct",  # account
+            "SVC_AGENTXP",  # user
+            "WH_XS",  # warehouse
+            "ANALYTICS",  # database
+            "PUBLIC",  # schema
+            "",  # role (optional)
+        ]
+    )
+    monkeypatch.setattr(connect_snowflake, "prompt_text", lambda *a, **k: next(texts))
+    monkeypatch.setattr(
+        connect_snowflake, "prompt_choice", lambda *a, **k: auth_method
+    )
+
+
+def test_snowflake_collect_password_inline(monkeypatch):
+    _patch_snowflake_common(monkeypatch, auth_method="password")
+    _patch_secret(monkeypatch, "pw-PLANTED", inline=True)
+    conn_params, profile = connect_snowflake.collect("prod")
+    assert conn_params["auth_method"] == "password"
+    assert conn_params["account"] == "myorg-acct"
+    assert conn_params["user"] == "SVC_AGENTXP"
+    assert conn_params["warehouse"] == "WH_XS"
+    assert conn_params["password"] == "pw-PLANTED"
+    assert profile["auth_method"] == "password"
+    assert profile["adapter"] == "snowflake"
+    assert profile["password"] == "pw-PLANTED"
+
+
+def test_snowflake_collect_password_env_ref_default(monkeypatch):
+    _patch_snowflake_common(monkeypatch, auth_method="password")
+    _patch_secret(monkeypatch, "pw-PLANTED", inline=False)
+    conn_params, profile = connect_snowflake.collect("prod")
+    assert conn_params["password"] == "pw-PLANTED"
+    assert profile["password"].startswith("env:")
+    assert "pw-PLANTED" not in profile["password"]
+
+
+def test_snowflake_collect_externalbrowser_no_secret(monkeypatch):
+    _patch_snowflake_common(monkeypatch, auth_method="externalbrowser")
+
+    def _boom(*a, **k):  # pragma: no cover - asserts not reached
+        raise AssertionError("externalbrowser must not prompt for a secret")
+
+    monkeypatch.setattr(connect_common, "prompt_secret", _boom)
+    conn_params, profile = connect_snowflake.collect("prod")
+    assert conn_params["auth_method"] == "externalbrowser"
+    assert "password" not in conn_params
+    assert "token" not in conn_params
+    assert "private_key_file" not in conn_params
+
+
+def test_snowflake_collect_oauth_branch(monkeypatch):
+    _patch_snowflake_common(monkeypatch, auth_method="oauth")
+    _patch_secret(monkeypatch, "tok-PLANTED", inline=True)
+    conn_params, profile = connect_snowflake.collect("prod")
+    assert conn_params["auth_method"] == "oauth"
+    assert conn_params["token"] == "tok-PLANTED"
+    assert profile["token"] == "tok-PLANTED"
+
+
+def test_snowflake_collect_keypair_branch(monkeypatch):
+    texts = iter(
+        [
+            "myorg-acct",
+            "SVC_AGENTXP",
+            "WH_XS",
+            "ANALYTICS",
+            "PUBLIC",
+            "",  # role
+            "/keys/rsa_key.p8",  # private key file path
+        ]
+    )
+    monkeypatch.setattr(connect_snowflake, "prompt_text", lambda *a, **k: next(texts))
+    monkeypatch.setattr(connect_snowflake, "prompt_choice", lambda *a, **k: "keypair")
+    _patch_secret(monkeypatch, "pass-PLANTED", inline=True)
+    conn_params, profile = connect_snowflake.collect("prod")
+    assert conn_params["auth_method"] == "keypair"
+    assert conn_params["private_key_file"].endswith("/keys/rsa_key.p8")
+    assert profile["private_key_file"].endswith("/keys/rsa_key.p8")
+    assert conn_params["private_key_file_pwd"] == "pass-PLANTED"
+
+
+def test_snowflake_main_probes_and_redacts_secret(
+    tmp_path: Path, monkeypatch, patch_registry, capsys
+):
+    _patch_snowflake_common(monkeypatch, auth_method="password")
+    _patch_secret(monkeypatch, "pw-PLANTED", inline=False)
+    monkeypatch.setattr(connect_common.Path, "home", classmethod(lambda cls: tmp_path))
+
+    rc = connect_snowflake.main(["prod"])
+    assert rc == EXIT_OK
+
+    assert _FakeAdapter.executed_sql == ["SELECT 1"]
+    assert _FakeAdapter.last_init_kwargs["password"] == "pw-PLANTED"
+
+    out = capsys.readouterr().out
+    assert "pw-PLANTED" not in out
+    assert "[REDACTED]" in out
+
+    written = tmp_path / ".agentxp" / "credentials" / "snowflake" / "prod.yaml"
+    assert written.exists()
+    assert stat.S_IMODE(written.stat().st_mode) == 0o600
+    assert "pw-PLANTED" not in written.read_text()
+    loaded = yaml.safe_load(written.read_text())
+    assert loaded["auth_method"] == "password"
+    assert loaded["password"].startswith("env:")
+
+
+def test_snowflake_password_inline_redacted_in_stdout(
+    tmp_path: Path, monkeypatch, patch_registry, capsys
+):
+    """Even when the user opts to store inline, the secret never reaches stdout."""
+    _patch_snowflake_common(monkeypatch, auth_method="password")
+    _patch_secret(monkeypatch, "pw-PLANTED", inline=True)
+    monkeypatch.setattr(connect_common.Path, "home", classmethod(lambda cls: tmp_path))
+
+    rc = connect_snowflake.main(["prod"])
+    assert rc == EXIT_OK
+
+    out = capsys.readouterr().out
+    assert "pw-PLANTED" not in out
+    assert "[REDACTED]" in out
+
+    written = tmp_path / ".agentxp" / "credentials" / "snowflake" / "prod.yaml"
+    assert stat.S_IMODE(written.stat().st_mode) == 0o600
+
+
+def test_snowflake_keypair_passphrase_env_ref_never_in_file_or_stdout(
+    tmp_path: Path, monkeypatch, patch_registry, capsys
+):
+    texts = iter(
+        [
+            "myorg-acct",
+            "SVC_AGENTXP",
+            "",  # warehouse
+            "",  # database
+            "",  # schema
+            "",  # role
+            "/keys/rsa_key.p8",
+        ]
+    )
+    monkeypatch.setattr(connect_snowflake, "prompt_text", lambda *a, **k: next(texts))
+    monkeypatch.setattr(connect_snowflake, "prompt_choice", lambda *a, **k: "keypair")
+    _patch_secret(monkeypatch, "PASSPHRASE-PLANTED", inline=False)
+    monkeypatch.setattr(connect_common.Path, "home", classmethod(lambda cls: tmp_path))
+
+    rc = connect_snowflake.main(["prod"])
+    assert rc == EXIT_OK
+
+    out = capsys.readouterr().out
+    assert "PASSPHRASE-PLANTED" not in out
+
+    written = tmp_path / ".agentxp" / "credentials" / "snowflake" / "prod.yaml"
+    assert stat.S_IMODE(written.stat().st_mode) == 0o600
+    assert "PASSPHRASE-PLANTED" not in written.read_text()
+    loaded = yaml.safe_load(written.read_text())
+    assert loaded["private_key_file"].endswith("/keys/rsa_key.p8")
+    assert loaded["private_key_file_pwd"].startswith("env:")
+
+
+def test_snowflake_password_empty_is_user_error(
+    tmp_path: Path, monkeypatch, patch_registry, capsys
+):
+    _patch_snowflake_common(monkeypatch, auth_method="password")
+    _patch_secret(monkeypatch, "", inline=False)
+    monkeypatch.setattr(connect_common.Path, "home", classmethod(lambda cls: tmp_path))
+    rc = connect_snowflake.main(["prod"])
+    assert rc == EXIT_USER_ERROR
+    written = tmp_path / ".agentxp" / "credentials" / "snowflake" / "prod.yaml"
+    assert not written.exists()
+
+
+# ---------------------------------------------------------------------------
+# Databricks wizard — PAT vs OAuth M2M (W2.B)
+# ---------------------------------------------------------------------------
+
+
+def _patch_databricks_common(monkeypatch, *, auth_method: str, extra_text=None):
+    base = [
+        "adb-1234.5.azuredatabricks.net",  # server_hostname
+        "/sql/1.0/warehouses/abc123",  # http_path
+        "",  # catalog (optional)
+        "",  # schema (optional)
+    ]
+    if extra_text:
+        base += list(extra_text)
+    texts = iter(base)
+    monkeypatch.setattr(connect_databricks, "prompt_text", lambda *a, **k: next(texts))
+    monkeypatch.setattr(
+        connect_databricks, "prompt_choice", lambda *a, **k: auth_method
+    )
+
+
+def test_databricks_collect_pat_branch(monkeypatch):
+    _patch_databricks_common(monkeypatch, auth_method="pat")
+    _patch_secret(monkeypatch, "dapi-PLANTED", inline=True)
+    conn_params, profile = connect_databricks.collect("prod")
+    assert conn_params["auth_method"] == "pat"
+    assert conn_params["server_hostname"] == "adb-1234.5.azuredatabricks.net"
+    assert conn_params["http_path"] == "/sql/1.0/warehouses/abc123"
+    assert conn_params["access_token"] == "dapi-PLANTED"
+    assert profile["auth_method"] == "pat"
+    assert profile["adapter"] == "databricks"
+
+
+def test_databricks_collect_oauth_m2m_branch(monkeypatch):
+    _patch_databricks_common(
+        monkeypatch, auth_method="oauth_m2m", extra_text=["client-app-id"]
+    )
+    _patch_secret(monkeypatch, "secret-PLANTED", inline=True)
+    conn_params, profile = connect_databricks.collect("prod")
+    assert conn_params["auth_method"] == "oauth_m2m"
+    assert conn_params["client_id"] == "client-app-id"
+    assert conn_params["client_secret"] == "secret-PLANTED"
+    assert profile["client_id"] == "client-app-id"
+
+
+def test_databricks_main_pat_probes_and_redacts(
+    tmp_path: Path, monkeypatch, patch_registry, capsys
+):
+    _patch_databricks_common(monkeypatch, auth_method="pat")
+    _patch_secret(monkeypatch, "dapi-PLANTED", inline=False)
+    monkeypatch.setattr(connect_common.Path, "home", classmethod(lambda cls: tmp_path))
+
+    rc = connect_databricks.main(["prod"])
+    assert rc == EXIT_OK
+
+    assert _FakeAdapter.executed_sql == ["SELECT 1"]
+    assert _FakeAdapter.last_init_kwargs["access_token"] == "dapi-PLANTED"
+
+    out = capsys.readouterr().out
+    # access_token is NOT in adapter._SENSITIVE_KEYS; connect_common must scrub
+    # it via _EXTRA_SECRET_KEYS.
+    assert "dapi-PLANTED" not in out
+
+    written = tmp_path / ".agentxp" / "credentials" / "databricks" / "prod.yaml"
+    assert written.exists()
+    assert stat.S_IMODE(written.stat().st_mode) == 0o600
+    assert "dapi-PLANTED" not in written.read_text()
+    loaded = yaml.safe_load(written.read_text())
+    assert loaded["auth_method"] == "pat"
+    assert loaded["access_token"].startswith("env:")
+
+
+def test_databricks_pat_inline_token_redacted_in_stdout(
+    tmp_path: Path, monkeypatch, patch_registry, capsys
+):
+    """Inline-stored PAT must still never reach stdout — proves the
+    _EXTRA_SECRET_KEYS coverage for access_token."""
+    _patch_databricks_common(monkeypatch, auth_method="pat")
+    _patch_secret(monkeypatch, "dapi-PLANTED", inline=True)
+    monkeypatch.setattr(connect_common.Path, "home", classmethod(lambda cls: tmp_path))
+
+    rc = connect_databricks.main(["prod"])
+    assert rc == EXIT_OK
+    out = capsys.readouterr().out
+    assert "dapi-PLANTED" not in out
+    assert "[REDACTED]" in out
+
+
+def test_databricks_main_oauth_m2m_secret_never_in_stdout(
+    tmp_path: Path, monkeypatch, patch_registry, capsys
+):
+    _patch_databricks_common(
+        monkeypatch, auth_method="oauth_m2m", extra_text=["client-app-id"]
+    )
+    _patch_secret(monkeypatch, "secret-PLANTED", inline=False)
+    monkeypatch.setattr(connect_common.Path, "home", classmethod(lambda cls: tmp_path))
+
+    rc = connect_databricks.main(["prod"])
+    assert rc == EXIT_OK
+
+    out = capsys.readouterr().out
+    assert "secret-PLANTED" not in out
+
+    written = tmp_path / ".agentxp" / "credentials" / "databricks" / "prod.yaml"
+    assert stat.S_IMODE(written.stat().st_mode) == 0o600
+    assert "secret-PLANTED" not in written.read_text()
+    loaded = yaml.safe_load(written.read_text())
+    assert loaded["client_id"] == "client-app-id"
+    assert loaded["client_secret"].startswith("env:")
+
+
+def test_databricks_pat_empty_is_user_error(
+    tmp_path: Path, monkeypatch, patch_registry, capsys
+):
+    _patch_databricks_common(monkeypatch, auth_method="pat")
+    _patch_secret(monkeypatch, "", inline=False)
+    monkeypatch.setattr(connect_common.Path, "home", classmethod(lambda cls: tmp_path))
+    rc = connect_databricks.main(["prod"])
+    assert rc == EXIT_USER_ERROR
+    written = tmp_path / ".agentxp" / "credentials" / "databricks" / "prod.yaml"
+    assert not written.exists()

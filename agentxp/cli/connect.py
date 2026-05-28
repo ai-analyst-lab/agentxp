@@ -27,8 +27,8 @@ __all__ = ["main"]
 _WIZARD_MODULES: dict[str, str] = {
     "duckdb": "agentxp.cli.connect_duckdb",
     "bigquery": "agentxp.cli.connect_bigquery",
-    # W2.B: "snowflake": "agentxp.cli.connect_snowflake",
-    # W2.B: "databricks": "agentxp.cli.connect_databricks",
+    "snowflake": "agentxp.cli.connect_snowflake",
+    "databricks": "agentxp.cli.connect_databricks",
 }
 
 

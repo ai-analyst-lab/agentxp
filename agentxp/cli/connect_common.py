@@ -51,11 +51,29 @@ _SENSITIVE_NESTED_KEYS: frozenset[str] = frozenset(
     {"credentials_info", "service_account_info"}
 )
 
+# Secret connection-dict keys that the shared ``adapter._SENSITIVE_KEYS`` does
+# NOT cover. ``_redact_creds_for_log`` only blanket-redacts the keys it knows
+# about (password / token / private_key / …); these per-dialect secret keys
+# carry credential material with no internal structure the regex redactor
+# catches (a Snowflake key-file passphrase, a Databricks PAT / SP secret), so
+# they would otherwise pass through in the clear. :func:`_safe_for_log` scrubs
+# them before delegating — mirroring the databricks_adapter._safe_conn guard.
+# W2.B (snowflake / databricks) relies on this so the wizard confirmation
+# prints never echo these secrets.
+_EXTRA_SECRET_KEYS: frozenset[str] = frozenset(
+    {
+        "private_key_file_pwd",  # Snowflake key-pair passphrase
+        "access_token",  # Databricks PAT
+        "client_secret",  # Databricks OAuth M2M service-principal secret
+    }
+)
+
 __all__ = [
     "prompt_text",
     "prompt_secret",
     "prompt_choice",
     "prompt_yes_no",
+    "collect_secret",
     "live_probe",
     "credentials_dir",
     "profile_path",
@@ -140,6 +158,58 @@ def prompt_yes_no(label: str, *, default: bool = True) -> bool:
     return value in ("y", "yes", "true", "1")
 
 
+def collect_secret(
+    label: str,
+    *,
+    profile_name: str,
+    field: str,
+    adapter: str,
+    required: bool = True,
+) -> tuple[Optional[str], Optional[str]]:
+    """Prompt for a secret and decide how it is persisted.
+
+    Returns ``(raw_value, profile_value)``:
+
+    * ``raw_value`` — the actual secret, kept IN MEMORY only and passed to the
+      adapter for the live probe. ``None`` if the user supplied nothing and the
+      field is optional.
+    * ``profile_value`` — what gets written to the chmod-600 profile YAML. By
+      default this is an ``env:VAR_NAME`` REFERENCE (the documented preferred
+      policy — the raw secret never touches disk). The user may explicitly opt
+      in to storing the raw value inline (the same explicit-opt-in pattern the
+      BigQuery wizard uses for an inline service-account dict); in that case the
+      raw value lives only in the chmod-600 file and is never echoed.
+
+    The secret is read via :func:`prompt_secret` (no echo). Neither return value
+    is ever printed by this function.
+    """
+    raw = prompt_secret(label)
+    if not raw:
+        if required:
+            raise ValueError(f"{label} is required")
+        return None, None
+
+    inline = prompt_yes_no(
+        f"Store the {field} value inline in the chmod-600 profile? "
+        "(No = store an env-var reference instead)",
+        default=False,
+    )
+    if inline:
+        # Explicit opt-in: raw secret written to the chmod-600 file only.
+        return raw, raw
+
+    # Default: env-var reference. The profile records WHERE to read the secret;
+    # the raw value is used only for this session's live probe.
+    var_name = f"AGENTXP_{adapter.upper()}_{profile_name.upper()}_{field.upper()}"
+    print(
+        f"Storing an env-var reference: set {var_name} in your environment so "
+        "AgentXP can read this secret at dispatch time. The raw value is NOT "
+        "written to disk.",
+        file=sys.stderr,
+    )
+    return raw, f"env:{var_name}"
+
+
 # ──────────────────────────────────────────────────────────────────────────
 # Live-probe runner
 # ──────────────────────────────────────────────────────────────────────────
@@ -207,6 +277,9 @@ def _safe_for_log(conn: dict[str, Any]) -> dict[str, Any]:
     cleaned: dict[str, Any] = {}
     for key, value in conn.items():
         if key in _SENSITIVE_NESTED_KEYS and isinstance(value, dict):
+            cleaned[key] = "[REDACTED]"
+        elif key.lower() in _EXTRA_SECRET_KEYS and isinstance(value, str):
+            # Per-dialect secret keys the shared redactor doesn't know about.
             cleaned[key] = "[REDACTED]"
         else:
             cleaned[key] = value
