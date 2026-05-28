@@ -365,7 +365,7 @@ All stats calls use the top-level import path (e.g., `from openxp.stats import p
 - Updated `experiments/<slug>/experiment.yaml` (status: REPORTED).
 
 ### Next-State Transition
-`INTERPRETED -> REPORTED`. Next (external to OpenXP): user executes ship decision in flag system, transitions to `SHIPPED`, then `COMPLETED` after post-ship monitoring window.
+`INTERPRETED -> REPORTED`. Next (external to AgentXP): user executes ship decision in flag system, transitions to `SHIPPED`, then `COMPLETED` after post-ship monitoring window.
 
 ### Error Paths
 - Missing classification → refuse: "Run /experiment interpret first."

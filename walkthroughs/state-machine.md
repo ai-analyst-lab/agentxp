@@ -1,6 +1,6 @@
 # The Experiment State Machine
 
-Every experiment moves through a lifecycle. OpenXP enforces it — you can't analyze before powering, you can't report before interpreting, and you can't quietly revise a pre-registered design without an amendment reason.
+Every experiment moves through a lifecycle. AgentXP enforces it — you can't analyze before powering, you can't report before interpreting, and you can't quietly revise a pre-registered design without an amendment reason.
 
 ## The 11 States
 
@@ -10,7 +10,7 @@ From `openxp/storage/lifecycle.py`:
 |-------|---------|
 | **DESIGNING** | Initial state. Hypothesis, metrics, and decision rules are being drafted. |
 | **POWERED** | Power analysis complete. Sample size and duration are known. |
-| **COLLECTING** | Data is being collected in the product. OpenXP doesn't run the flag — this state marks that the experiment is live. |
+| **COLLECTING** | Data is being collected in the product. AgentXP doesn't run the flag — this state marks that the experiment is live. |
 | **ANALYZING** | Data loaded, SRM check passed, statistical tests running. |
 | **INTERPRETED** | Ship/Investigate/Abort/Learn/Invalid decision has been made. |
 | **REPORTED** | Stakeholder readout has been generated. |

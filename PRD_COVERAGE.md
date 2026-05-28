@@ -1,4 +1,4 @@
-# OpenXP PRD Coverage Matrix
+# AgentXP PRD Coverage Matrix
 
 Final end-to-end review. Snapshot: 367 tests passing, 3/3 deterministic runs.
 

@@ -1,10 +1,10 @@
 # Data Connectors
 
-OpenXP is data-agnostic. It loads experiment data from wherever you keep it — CSVs on disk, a DuckDB warehouse, or a live Snowflake connection — and discovers the schema on the fly.
+AgentXP is data-agnostic. It loads experiment data from wherever you keep it — CSVs on disk, a DuckDB warehouse, or a live Snowflake connection — and discovers the schema on the fly.
 
 ## The Principle: Data-Agnostic
 
-No agent, skill, or stats function in OpenXP references a specific column name, dataset, or file path. Everything is discovered at runtime from whatever data you hand it.
+No agent, skill, or stats function in AgentXP references a specific column name, dataset, or file path. Everything is discovered at runtime from whatever data you hand it.
 
 That's why `/experiment analyze foo.csv` works on any CSV, not just the sample data. The discovery layer inspects the first few rows, matches column names against a hint list, falls back to structural detection, and returns a `SchemaDiscovery` object with the treatment column, control value, metric columns, segments, and timestamps — each tagged with a confidence level.
 
@@ -106,7 +106,7 @@ Identifiers are validated against `[A-Za-z_][A-Za-z0-9_]*` to block SQL injectio
 
 ### MCP mode (inside Claude Code)
 
-When you're running `/experiment analyze` inside Claude Code, OpenXP prefers the Snowflake MCP server over direct connections — the credentials live in the Claude Code config, not the Python process.
+When you're running `/experiment analyze` inside Claude Code, AgentXP prefers the Snowflake MCP server over direct connections — the credentials live in the Claude Code config, not the Python process.
 
 ```python
 loader = SnowflakeLoader(mcp_mode=True)
@@ -114,11 +114,11 @@ loader = SnowflakeLoader(mcp_mode=True)
 # mcp__snowflake__run_snowflake_query itself and passes results back.
 ```
 
-In MCP mode, `query()` intentionally doesn't execute. The orchestrator skill calls the Snowflake MCP tool and injects the resulting DataFrame into OpenXP's analysis path.
+In MCP mode, `query()` intentionally doesn't execute. The orchestrator skill calls the Snowflake MCP tool and injects the resulting DataFrame into AgentXP's analysis path.
 
 ## Schema Discovery
 
-Given a DataFrame, `discover_schema` returns a `SchemaDiscovery` with every field the rest of OpenXP needs.
+Given a DataFrame, `discover_schema` returns a `SchemaDiscovery` with every field the rest of AgentXP needs.
 
 ```python
 from openxp.data.discovery import discover_schema

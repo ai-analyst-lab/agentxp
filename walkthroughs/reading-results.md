@@ -56,7 +56,7 @@ Cohen's d tells you if the effect is meaningfully large:
 
 Most experiment effects in tech are d < 0.1. This is normal — you're optimizing within an existing product.
 
-## Reading an OpenXP Analysis Report
+## Reading an AgentXP Analysis Report
 
 ### SRM Verdict (check first!)
 - **PASS:** Randomization is clean. Trust the results.

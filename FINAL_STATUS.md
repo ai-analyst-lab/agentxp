@@ -1,4 +1,4 @@
-# OpenXP Final Status
+# AgentXP Final Status
 
 Final end-to-end review after W0 baseline + Wave 1 + Wave 2 + Wave 3. Monitoring fix-up was landing in parallel; the monitoring walkthrough rewrite may still be in flight.
 

@@ -1,4 +1,4 @@
-# Your First Experiment with OpenXP
+# Your First Experiment with AgentXP
 
 A step-by-step walkthrough from hypothesis to ship/no-ship decision.
 
@@ -14,7 +14,7 @@ pip install -e .
 /experiment design
 ```
 
-OpenXP will ask you:
+AgentXP will ask you:
 1. What change are you making?
 2. What metric do you expect to move?
 3. In which direction and by how much?
@@ -28,7 +28,7 @@ It produces an `experiment.yaml` pre-registration file.
 /experiment power
 ```
 
-OpenXP reads your experiment.yaml and computes:
+AgentXP reads your experiment.yaml and computes:
 - Required sample size per group
 - Estimated duration at your traffic level
 - A sensitivity table showing MDE vs duration trade-offs
@@ -36,7 +36,7 @@ OpenXP reads your experiment.yaml and computes:
 
 ## Step 3: Run Your Experiment
 
-Collect data according to your experiment design. OpenXP doesn't manage randomization or data collection — that's your product's job.
+Collect data according to your experiment design. AgentXP doesn't manage randomization or data collection — that's your product's job.
 
 While collecting, you can monitor health:
 
@@ -54,7 +54,7 @@ Once data collection is complete:
 /experiment analyze my_results.csv
 ```
 
-OpenXP runs the 8-question analysis framework:
+AgentXP runs the 8-question analysis framework:
 1. Setup validation (SRM check)
 2. Treatment effect (with CI and p-value)
 3. Statistical reliability (effect size, power)
@@ -70,7 +70,7 @@ OpenXP runs the 8-question analysis framework:
 /experiment interpret
 ```
 
-OpenXP walks the Result Interpretation Tree and classifies the outcome:
+AgentXP walks the Result Interpretation Tree and classifies the outcome:
 - **SHIP** — positive result, clean guardrails
 - **INVESTIGATE** — positive but guardrail concerns
 - **ABORT** — negative result
@@ -87,7 +87,7 @@ Produces a stakeholder-ready report. Add `executive`, `technical`, or `cross-fun
 
 ## Try It With Sample Data
 
-OpenXP includes practice datasets in `sample-data/`:
+AgentXP includes practice datasets in `sample-data/`:
 
 ```
 /experiment analyze sample-data/clean_ab.csv

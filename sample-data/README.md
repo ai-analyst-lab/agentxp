@@ -1,6 +1,6 @@
 # Sample Data
 
-Optional practice datasets for learning OpenXP. **Nothing in the codebase depends on these files.** You can delete this entire directory without breaking anything.
+Optional practice datasets for learning AgentXP. **Nothing in the codebase depends on these files.** You can delete this entire directory without breaking anything.
 
 ## Datasets
 
@@ -28,4 +28,4 @@ All files share a common structure:
 - One or more outcome columns (metric-specific)
 - Segment columns (platform, device type, etc.)
 
-The exact column names vary by dataset — OpenXP auto-detects them at runtime.
+The exact column names vary by dataset — AgentXP auto-detects them at runtime.

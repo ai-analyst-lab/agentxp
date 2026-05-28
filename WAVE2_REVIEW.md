@@ -31,7 +31,7 @@ The "Python API" block is a spec from an earlier draft, not the code that shippe
 
 The walkthrough even acknowledges this with a "Note: the API above is the planned contract" disclaimer at the bottom (`monitoring.md:101`) — but the shipped implementation diverged, and the disclaimer was never removed. Every other Wave 2 walkthrough grep-checks clean against the real API; this one is the outlier. **Rewrite before integration.**
 
-### C2. `walkthroughs/monitoring.md:44-48` — verdict vocabulary contradicts the rest of OpenXP
+### C2. `walkthroughs/monitoring.md:44-48` — verdict vocabulary contradicts the rest of AgentXP
 The walkthrough documents the monitor as producing `HEALTHY / WATCH / WARN / STOP`. `MonitorReport.status` is `GREEN / YELLOW / RED`. Individual checks use the Wave 1 vocabulary `PASS / WARNING / BLOCK`. That's already two layers — adding a third that doesn't exist in the code will confuse agents and readers. Pick one and make the walkthrough match.
 
 ---

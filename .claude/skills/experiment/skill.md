@@ -1,13 +1,13 @@
 ---
 name: experiment
-description: Multi-mode orchestrator for the full A/B experiment lifecycle — design, power, analyze, interpret, monitor, report. Routes to the 5 OpenXP agents and calls `openxp.stats` functions instead of improvising statistics. Invoke as `/experiment <mode> [args]`. Modes — design | power | analyze | interpret | monitor | report | full | status.
+description: Multi-mode orchestrator for the full A/B experiment lifecycle — design, power, analyze, interpret, monitor, report. Routes to the 5 AgentXP agents and calls `openxp.stats` functions instead of improvising statistics. Invoke as `/experiment <mode> [args]`. Modes — design | power | analyze | interpret | monitor | report | full | status.
 ---
 
-# Skill: `/experiment` — OpenXP Multi-Mode Orchestrator
+# Skill: `/experiment` — AgentXP Multi-Mode Orchestrator
 
 ## Purpose
 
-One skill, eight modes. The entire OpenXP product surface. This file is the **dispatcher** — it picks the mode, validates required inputs, enforces checkpoints, advances `experiment.yaml` state, and hands off to the correct agent + stats functions. Deep per-mode implementation detail lives in `MODES.md` alongside this file.
+One skill, eight modes. The entire AgentXP product surface. This file is the **dispatcher** — it picks the mode, validates required inputs, enforces checkpoints, advances `experiment.yaml` state, and hands off to the correct agent + stats functions. Deep per-mode implementation detail lives in `MODES.md` alongside this file.
 
 **Non-negotiable rules (inherited from `CLAUDE.md`):**
 1. Never improvise statistics — every test must call a function from `openxp.stats.*`.

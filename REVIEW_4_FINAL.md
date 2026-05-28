@@ -58,7 +58,7 @@ variance_term = s2*(s2 + n_eff*tau^2) / (n_eff^2 * tau^2)
 - Users need approximately 2x more data to reach a STOP_REJECT decision
 - The CI is valid but wider than necessary
 
-**Severity:** MEDIUM. Not a correctness bug. The always-valid guarantee is the hard requirement, and it is satisfied. However, users comparing OpenXP's sequential test power to Optimizely/Netflix will find OpenXP requires more data.
+**Severity:** MEDIUM. Not a correctness bug. The always-valid guarantee is the hard requirement, and it is satisfied. However, users comparing AgentXP's sequential test power to Optimizely/Netflix will find AgentXP requires more data.
 
 **Recommendation:** Either (a) fix the formula to match the textbook, or (b) document the conservative choice and the reason. The `(denom / denom)` suggests this was a simplification error, not an intentional design decision.
 

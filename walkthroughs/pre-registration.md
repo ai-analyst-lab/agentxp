@@ -18,7 +18,7 @@ With pre-registration, you:
 
 ## The experiment.yaml File
 
-OpenXP uses `experiment.yaml` as the pre-registration document. It captures everything BEFORE data collection begins.
+AgentXP uses `experiment.yaml` as the pre-registration document. It captures everything BEFORE data collection begins.
 
 ### Creating It
 
@@ -26,7 +26,7 @@ OpenXP uses `experiment.yaml` as the pre-registration document. It captures ever
 /experiment design
 ```
 
-OpenXP walks you through an interactive conversation and produces the YAML.
+AgentXP walks you through an interactive conversation and produces the YAML.
 
 ### What It Contains
 

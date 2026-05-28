@@ -1,6 +1,6 @@
 # Statistics Cheat Sheet for Experiment Analysis
 
-Quick reference for the statistical concepts used in OpenXP.
+Quick reference for the statistical concepts used in AgentXP.
 
 ---
 
@@ -34,22 +34,22 @@ Quick reference for the statistical concepts used in OpenXP.
 
 ### Welch's t-test (continuous metrics)
 - **Use when:** Comparing means between two groups (e.g., revenue per user)
-- **OpenXP call:** `welch_test(control_series, treatment_series)`
+- **AgentXP call:** `welch_test(control_series, treatment_series)`
 - **Returns:** p_value, t_stat, mean_diff, ci_lower, ci_upper, effect_size, interpretation
 
 ### Proportion z-test (binary metrics)
 - **Use when:** Comparing rates between two groups (e.g., conversion rate)
-- **OpenXP call:** `proportion_test(c_success, c_n, t_success, t_n)`
+- **AgentXP call:** `proportion_test(c_success, c_n, t_success, t_n)`
 - **Returns:** p_value, z_stat, risk_difference, ci_lower, ci_upper, interpretation
 
 ### Delta method (ratio metrics)
 - **Use when:** Comparing ratios between groups (e.g., revenue per session)
-- **OpenXP call:** `ratio_metric_test(num_c, den_c, num_t, den_t)`
+- **AgentXP call:** `ratio_metric_test(num_c, den_c, num_t, den_t)`
 - **Returns:** p_value, z_stat, ratio_diff, ci_lower, ci_upper, interpretation
 
 ### Chi-squared SRM check
 - **Use when:** Verifying randomization is clean before analyzing results
-- **OpenXP call:** `srm_check(observed_counts, expected_ratios)`
+- **AgentXP call:** `srm_check(observed_counts, expected_ratios)`
 - **Returns:** chi2, p_value, verdict (PASS/WARNING/BLOCK), interpretation
 
 ---
@@ -62,7 +62,7 @@ Quick reference for the statistical concepts used in OpenXP.
 | **Relative lift** | (treatment - control) / control | "The treatment improved conversion by 10.5%" |
 | **Risk difference** | treatment_rate - control_rate | "1.6 more users per 100 converted" |
 
-**OpenXP calls:** `cohens_d(control, treatment)`, `relative_lift(control_mean, treatment_mean)`
+**AgentXP calls:** `cohens_d(control, treatment)`, `relative_lift(control_mean, treatment_mean)`
 
 ---
 
@@ -77,7 +77,7 @@ Quick reference for the statistical concepts used in OpenXP.
 | Alpha | False positive tolerance | Usually 0.05 |
 | Power | Detection probability | Usually 0.80 |
 
-**OpenXP calls:**
+**AgentXP calls:**
 - `power_proportion(baseline_rate, mde_relative)` — for conversion metrics
 - `power_mean(baseline_mean, baseline_std, mde_relative)` — for revenue metrics
 - `duration_estimate(n_required, daily_traffic)` — how long will it take?
@@ -95,7 +95,7 @@ When testing multiple metrics or segments, p-values need correction:
 | **Holm-Bonferroni** | Conservative, controls family-wise error rate. Default choice. |
 | **Benjamini-Hochberg** | Less conservative, controls false discovery rate. Use for exploratory analysis. |
 
-**OpenXP call:** `adjust_pvalues(pvalues, method="holm")`
+**AgentXP call:** `adjust_pvalues(pvalues, method="holm")`
 
 ---
 

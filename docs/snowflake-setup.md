@@ -1,6 +1,6 @@
 # Snowflake Setup
 
-OpenXP can pull experiment data from a Snowflake warehouse via two modes: a
+AgentXP can pull experiment data from a Snowflake warehouse via two modes: a
 direct Python connection using `snowflake-connector-python`, or MCP mode,
 which defers actual query execution to the Snowflake MCP server that Claude
 Code already has access to.
@@ -75,7 +75,7 @@ df = loader.load_experiment(
 
 Claude Code ships with a Snowflake MCP server exposing tools such as
 `mcp__snowflake__run_snowflake_query` and `mcp__snowflake__list_objects`.
-When OpenXP is driven by the `/experiment` skill, the orchestrator can call
+When AgentXP is driven by the `/experiment` skill, the orchestrator can call
 those tools directly — no Python Snowflake driver needed.
 
 ```python
@@ -113,7 +113,7 @@ The intended flow inside a skill:
   after confirming the query is bounded.
 - `load_experiment()` validates identifiers against a strict regex. Do not
   bypass this by assembling raw SQL from user input.
-- OpenXP never modifies data. Restrict the warehouse role to `SELECT` only.
+- AgentXP never modifies data. Restrict the warehouse role to `SELECT` only.
 
 ## Troubleshooting
 

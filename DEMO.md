@@ -1,4 +1,4 @@
-# OpenXP Hero Demo Script
+# AgentXP Hero Demo Script
 
 Recording script for the opening GIF on the README and the project homepage.
 
@@ -24,7 +24,7 @@ The recording starts with Claude Code's idle prompt visible.
 
 ## Scene 1 — SRM Gate Blocks (0:00 – 0:20)
 
-**Purpose:** show OpenXP catching a randomization failure before wasting an analysis.
+**Purpose:** show AgentXP catching a randomization failure before wasting an analysis.
 
 ### Beat 1 (0:00 – 0:03)
 
@@ -67,7 +67,7 @@ Recommended next step: /experiment investigate
 
 **Highlight:** the BLOCK verdict and the "Do NOT trust" line.
 
-**Voice-over idea:** *"OpenXP's SRM gate catches broken randomization before you waste a week analyzing bad data."*
+**Voice-over idea:** *"AgentXP's SRM gate catches broken randomization before you waste a week analyzing bad data."*
 
 ---
 
@@ -207,7 +207,7 @@ Next step: /experiment report --audience executive
 brew install asciinema
 
 # Record
-asciinema rec openxp-demo.cast -t "OpenXP — experiment analysis in Claude Code"
+asciinema rec openxp-demo.cast -t "AgentXP — experiment analysis in Claude Code"
 
 # Convert to GIF for embedding
 brew install agg
@@ -250,8 +250,8 @@ terminalizer render openxp-demo
 
 ## Voice-Over Script (optional, ~30 seconds total)
 
-> "This is OpenXP — an experiment analysis partner that runs inside Claude Code.
+> "This is AgentXP — an experiment analysis partner that runs inside Claude Code.
 > Scene one: it catches broken randomization before you waste a week on bad data.
 > Scene two: one command runs the full pipeline — design, power, analyze, interpret, report — and gives you a SHIP verdict.
 > Scene three: every decision is explained by a transparent interpretation tree you can show your stakeholders.
-> Statsig gives you a dashboard. OpenXP gives you a colleague who knows statistics."
+> Statsig gives you a dashboard. AgentXP gives you a colleague who knows statistics."

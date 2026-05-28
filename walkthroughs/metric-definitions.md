@@ -1,6 +1,6 @@
 # Reusable Metric Definitions
 
-Define a metric once, reference it everywhere. The OpenXP metric registry turns metrics into first-class YAML objects that experiments look up by name.
+Define a metric once, reference it everywhere. The AgentXP metric registry turns metrics into first-class YAML objects that experiments look up by name.
 
 ## Why Reusable Metrics
 

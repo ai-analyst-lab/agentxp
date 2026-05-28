@@ -44,7 +44,7 @@ For each metric, define:
 
 ### Step 3: Power Analysis
 
-Compute sample size requirements using the OpenXP stats library:
+Compute sample size requirements using the AgentXP stats library:
 
 ```python
 from openxp.stats import power_proportion, power_mean, duration_estimate, power_sensitivity_table

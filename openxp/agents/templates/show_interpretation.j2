@@ -1,0 +1,42 @@
+read: {{ source_ref }}
+rows: {{ row_count }}  cols: {{ column_count }}{% if date_range %}  date range: {{ date_range }}{% endif %}
+
+Here's what I see and what I think it is. Tell me what's wrong.
+
+```
+column            type       null%   sample                my read
+─────────────────────────────────────────────────────────────────────────────
+{% for col in columns %}
+{{ col.name }}{{ col.type }}{{ col.null_pct }}{{ col.sample }}{{ col.my_read }}{% if col.flagged %}  ⚠{% endif %}
+
+{% endfor %}
+```
+
+{% if things_to_check %}
+
+{% if things_to_check | length == 1 %}
+One thing I want to check before I save:
+{% else %}
+A few things I want to check before I save:
+{% endif %}
+{% for item in things_to_check %}
+- {{ item }}
+{% endfor %}
+{% endif %}
+{% if things_noticed %}
+
+{% if things_noticed | length == 1 %}
+One thing I noticed but didn't ask about:
+{% else %}
+Things I noticed but didn't ask about:
+{% endif %}
+{% for item in things_noticed %}
+- {{ item }}
+{% endfor %}
+{% endif %}
+
+{% if closing_question %}
+{{ closing_question }}
+{% else %}
+Looks right? Or fix one thing.
+{% endif %}

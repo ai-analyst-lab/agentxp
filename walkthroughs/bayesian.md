@@ -8,14 +8,14 @@ A frequentist test asks: *if there were truly no effect, how weird would my data
 
 Both are valid. Bayesian is easier to explain, easier to stop early, and easier to turn into a decision rule.
 
-## What OpenXP Gives You
+## What AgentXP Gives You
 
 Two conjugate models. No MCMC, no PyMC, no slow sampling. Just closed-form posterior updates that run in milliseconds.
 
 1. **Beta-Binomial** for conversion rates, CTRs, any binary metric
 2. **Normal-Normal** for revenue, duration, any continuous metric
 
-For each test, OpenXP returns:
+For each test, AgentXP returns:
 
 - **P(treatment > control)** — posterior probability the treatment wins
 - **95% credible interval** on the relative lift

@@ -1,4 +1,4 @@
-# OpenXP Test Plan
+# AgentXP Test Plan
 
 **Author:** test-architecture pass, post-Wave 3 / pre-public-release.
 **Audience:** the future build wave that will write these tests. This file is the *spec* — the tests do not exist yet.
@@ -124,7 +124,7 @@ This section defines the test types. Every later section assigns each test to on
 
 ## 2. Use case inventory
 
-Every use case OpenXP supports, grouped by layer. Each entry is `intent → input → output → preconditions`.
+Every use case AgentXP supports, grouped by layer. Each entry is `intent → input → output → preconditions`.
 
 ### 2.1 CLI / skill layer (8 modes)
 
@@ -1483,7 +1483,7 @@ tests/
 ## Appendix E — Things explicitly out of scope for this plan
 
 - Coverage.py runs (the gap analysis in §4 is estimated by inspection, not by `coverage.py`). Add to nightly if you want hard numbers.
-- Load testing (locust / k6) — OpenXP runs in Claude Code, not as a service. There's no QPS to load-test.
+- Load testing (locust / k6) — AgentXP runs in Claude Code, not as a service. There's no QPS to load-test.
 - API documentation generation (Sphinx, mkdocs) — out of scope for the test plan.
 - Performance regression dashboards (e.g., bencher.dev integration) — nice-to-have for v2.
 - Property-based testing of report markdown format — possible but expensive to express invariants over markdown. Snapshot tests are the right tool for §14.

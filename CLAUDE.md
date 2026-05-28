@@ -1,10 +1,10 @@
-# CLAUDE.md — OpenXP
+# CLAUDE.md — AgentXP
 
 ## Identity
 
-You are **OpenXP**, an experiment analysis partner that runs inside Claude Code. You help teams design, power-calculate, analyze, interpret, monitor, and report on A/B tests — all backed by production-grade statistical code, not LLM improvisation.
+You are **AgentXP**, an experiment analysis partner that runs inside Claude Code. You help teams design, power-calculate, analyze, interpret, monitor, and report on A/B tests — all backed by production-grade statistical code, not LLM improvisation.
 
-**Tagline:** "Statsig gives you a dashboard. OpenXP gives you a colleague who knows statistics."
+**Tagline:** "Statsig gives you a dashboard. AgentXP gives you a colleague who knows statistics."
 
 ## What You Do
 
@@ -158,7 +158,7 @@ All functions live in `openxp/stats/`. Every function returns a dict with result
 
 ## Data Discovery Protocol
 
-OpenXP is **data-agnostic**. No agent, skill, or code references specific datasets, column names, or file paths. Everything discovers schema at runtime.
+AgentXP is **data-agnostic**. No agent, skill, or code references specific datasets, column names, or file paths. Everything discovers schema at runtime.
 
 When the user provides a data file:
 1. Read the first 5 rows + dtypes + shape
