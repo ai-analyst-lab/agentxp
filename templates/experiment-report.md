@@ -1,92 +1,49 @@
-# Experiment Report: {{EXPERIMENT_NAME}}
+# Experiment {{ report.experiment_id }} — {{ report.experiment_name }}
 
-**Experiment ID:** {{EXPERIMENT_ID}}
-**Date:** {{DATE}}
-**Classification:** {{EWL_CLASSIFICATION}}
+> ## Verdict
+>
+> **{{ report.verdict }}** — {{ report.rationale_one_line }}
+>
+> Confidence: {{ report.confidence_label }}
 
----
+## Headline metrics
 
-## Executive Summary
+| Metric | Direction | Lift | 95% CI | 90% CI | Status |
+|--------|-----------|------|--------|--------|--------|
+{% for m in report.metric_table -%}
+| {{ m.name }} | {{ m.direction }} | {{ m.lift_str }} | {{ m.ci_95 }} | {{ m.ci_90 }} | {{ m.status }} |
+{% endfor %}
 
-**Headline:** {{HEADLINE}}
-**Decision:** {{DECISION}}
-**Confidence:** {{CONFIDENCE}}
+## Diagnostics
 
-| Metric | Control | Treatment | Lift | p-value | Significant |
-|--------|---------|-----------|------|---------|-------------|
-| {{PRIMARY_METRIC}} | {{CTRL_VALUE}} | {{TREAT_VALUE}} | {{LIFT}}% | {{P_VALUE}} | {{SIGNIFICANT}} |
+| Check | Result |
+|-------|--------|
+| Sample-ratio mismatch | {% if report.diagnostics.srm_pass %}PASS{% else %}FAIL{% endif %} |
+| Sample adequacy | {{ report.diagnostics.n_observed }} of {{ report.diagnostics.n_required }} required ({{ report.diagnostics.sample_pct }}%) |
+| Late-window effect ratio | {% if report.diagnostics.late_ratio is not none %}{{ "%.2f" | format(report.diagnostics.late_ratio) }}{% else %}unavailable{% endif %} |
+| Guardrails violated | {{ report.diagnostics.guardrails_violated | length }} |
 
----
+{% if report.diagnostics.guardrails_violated -%}
+### Guardrail violations
+{% for g in report.diagnostics.guardrails_violated %}
+- **{{ g.metric }}** — {{ g.detail }}
+{%- endfor %}
+{%- endif %}
 
-## 1. Setup Validation
+## What I'm not sure about
 
-### Sample Ratio Mismatch
-| Group | Observed | Expected | Verdict |
-|-------|----------|----------|---------|
-| Control | {{CTRL_N}} | {{EXPECTED_CTRL}} | |
-| Treatment | {{TREAT_N}} | {{EXPECTED_TREAT}} | |
-| **SRM Test** | chi2 = {{CHI2}} | p = {{SRM_P}} | **{{SRM_VERDICT}}** |
+{% for caveat in report.uncertainty_notes -%}
+- {{ caveat }}
+{% endfor %}
 
----
+## Audit trail
 
-## 2. Treatment Effect
-
-{{TREATMENT_EFFECT_DETAILS}}
-
----
-
-## 3. Statistical Reliability
-
-| Parameter | Value |
-|-----------|-------|
-| Effect size (Cohen's d) | {{COHENS_D}} |
-| Practical significance | {{PRACTICAL_SIG}} |
-| MDE achieved | {{MDE_ACHIEVED}} |
-
----
-
-## 4. Segment Analysis
-
-{{SEGMENT_TABLE}}
-
-### Simpson's Paradox Check
-{{SIMPSONS_VERDICT}}
+| Stage | Committed at | Action ID |
+|-------|--------------|-----------|
+{% for row in report.audit_trail -%}
+| {{ row.stage }} | {{ row.committed_at }} | `{{ row.action_id[:12] }}...` |
+{% endfor %}
 
 ---
 
-## 5. Duration Adequacy
-
-{{DURATION_ANALYSIS}}
-
----
-
-## 6. Business Impact
-
-| Scenario | Lift | Annual Impact |
-|----------|------|---------------|
-| Conservative (CI low) | {{CI_LOW_LIFT}}% | {{CI_LOW_IMPACT}} |
-| Best estimate | {{POINT_LIFT}}% | {{POINT_IMPACT}} |
-| Optimistic (CI high) | {{CI_HIGH_LIFT}}% | {{CI_HIGH_IMPACT}} |
-
----
-
-## 7. Recommendation
-
-### Classification: {{EWL_CLASSIFICATION}}
-
-{{RECOMMENDATION_DETAILS}}
-
-### Next Steps
-{{NEXT_STEPS}}
-
----
-
-## 8. Follow-Up Experiments
-
-{{FOLLOWUP_TABLE}}
-
----
-
-## Appendix: Methodology
-
-{{METHODOLOGY_NOTES}}
+*Generated from `report.json` by AgentXP. To replay: `agentxp audit {{ report.experiment_id }}`.*
