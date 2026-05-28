@@ -6,7 +6,7 @@
 
 AgentXP is an open-source system for the design and analysis of controlled experiments, opened inside Claude Code and driven through plain-English conversation, with a pipeline of LLM agents carrying the experiment from data profiling through a pre-registered brief, sample-ratio monitoring, statistical analysis, and a final readout. The statistical work itself is handled by deterministic Python functions; the agents take responsibility only for the steps that require judgment — drafting the brief, naming the events the analysis depends on, and interpreting the result against the decision rule that was fixed at brief time. Every choice the system makes is written to an audit log that any reviewer can replay.
 
-Apache 2.0. Runs locally. Reads from DuckDB, Snowflake, or BigQuery.
+Apache 2.0. Runs locally. Reads from DuckDB in v0.1; Snowflake, BigQuery, and Databricks arrive in v0.1.1.
 
 ---
 
@@ -123,7 +123,7 @@ v0.1 ships deliberately narrow.
 - **v0.1 is in active development.** The data-profiling stage and the audit substrate are complete; the brief-drafting, analysis, interpretation, and readout stages land through the W1-W7 build waves. See `BUILD_STATUS.yaml` for current state.
 - Single-user. No team collaboration, no shared project locks.
 - Randomized A/B tests only. Causal inference and quasi-experimental designs are a separate project.
-- Three warehouse adapters in v0.1 (DuckDB, Snowflake, BigQuery). Redshift, Databricks, MySQL, and Postgres land in v0.1.1, within two weeks of v0.1.
+- v0.1 ships one warehouse adapter (DuckDB). The three analytical warehouses — Snowflake, BigQuery, and Databricks — land in v0.1.1, within two weeks of v0.1. The operational stores (Postgres, MySQL, Redshift) follow in v0.1.2.
 - No external hook system. The internal `validate_chain` runs on every stage commit. Hooks land in v0.2.
 - No OpenTelemetry export. The append-only log is the audit substrate. OTel lands in v0.5.
 
