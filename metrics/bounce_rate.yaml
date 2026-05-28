@@ -1,14 +1,21 @@
 metric:
   name: bounce_rate
   type: proportion
-  description: "Fraction of sessions that exit after viewing only the landing page. Lower is better."
-  numerator: "bounced"
-  unit: "session_id"
-  baseline_range: [0.30, 0.70]
+  description: Fraction of sessions that exit after viewing only the landing page.
+    Lower is better.
+  numerator: bounced
+  unit: session_id
+  baseline_range:
+  - 0.3
+  - 0.7
   winsorize: false
-  winsorize_bounds: [0.01, 0.99]
+  winsorize_bounds:
+  - 0.01
+  - 0.99
   invert: true
   tags:
-    - engagement
-    - landing
-    - quality
+  - engagement
+  - landing
+  - quality
+schema_version: 2
+fact_source: inline

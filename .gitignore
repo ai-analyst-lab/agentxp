@@ -25,5 +25,8 @@ Thumbs.db
 # Pipeline intermediates
 **/working/
 
+# Migration backups (e.g. metric YAML v1->v2 via `agentxp metrics migrate`)
+*.bak
+
 # Experiment outputs (user-generated)
 experiments/

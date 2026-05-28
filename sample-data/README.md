@@ -7,6 +7,7 @@ Optional practice datasets for learning AgentXP. **Nothing in the codebase depen
 | File | Scenario | What to Learn | Expected Outcome |
 |------|----------|--------------|------------------|
 | `clean_ab.csv` | Standard A/B test with positive result | Basic analysis workflow | **SHIP** — positive lift on both conversion and revenue, SRM clean |
+| `ship_demo.csv` | Lightning-Lesson happy-path demo (n=3,000/group) | Full Stage 0→8 run to SHIP | **SHIP** — conversion +22.3% (control 10.5%, treatment 12.8%, p=0.005), revenue significantly positive, page_load_ms guardrail PASS, SRM clean (50/50), all platform segments positive (no reversal). The end-to-end integration-test anchor. Regenerate with `seeds/generate_ship_demo.py`. |
 | `checkout_redesign.csv` | Positive primary, clean guardrails, multiple segments | Full 8-question framework | **SHIP** — checkout_completed significant positive (+10.9%, p=0.039), revenue directionally positive but not significant; no guardrail violations. Interesting because the primary (proportion) clears significance while the revenue (continuous) does not, showing how metric type affects power. |
 | `no_effect.csv` | Null result, adequately powered | Interpreting non-significant results | **LEARN (powered)** — neither conversion nor revenue significant, n=5000/group is adequate power |
 | `underpowered.csv` | Null result, insufficient sample | Power and MDE concepts | **LEARN (underpowered)** — positive directional lifts but n=500/group is too small to detect moderate effects |
