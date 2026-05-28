@@ -455,7 +455,7 @@ Key for `Status`: NEW=needs writing, EXIST=already in suite, EXTEND=in suite but
 | DE-018 | Snowflake credentials missing (no env vars) | error before connect attempt | U | P | NEW |
 | DE-019 | Snowflake credentials present but expired | error: `OpenXPError(code='auth_failed')`; password never in message | U,Se | P | NEW |
 | DE-020 | Snowflake wrong warehouse | clear error message naming the warehouse | U | P | NEW |
-| DE-021 | Snowflake `snowflake-connector-python` package not installed | ImportError path with "install with `pip install openxp[snowflake]`" hint | U | P | EXIST | per test_snowflake_loader.py |
+| DE-021 | Snowflake `snowflake-connector-python` package not installed | ImportError path with "install with `pip install agentxp[snowflake]`" hint | U | P | EXIST | per test_snowflake_loader.py |
 | DE-022 | DuckDB package not installed | same import hint | U | P | EXTEND | similar pattern |
 | DE-023 | CSV with UTF-8 BOM | auto-handled with `encoding='utf-8-sig'`, no error | U | P | NEW | per PRD §5.14 |
 | DE-024 | CSV with CRLF line endings | parsed cleanly | U | P | NEW |
@@ -1204,7 +1204,7 @@ Five stages, ordered fastest-to-slowest. Each stage's failure behavior is in the
 **Release** — manual.
 - Everything + PyPI publish dry-run (`twine check`)
 - Run on every supported python × os combo
-- Smoke test the `pip install openxp` flow on a fresh venv
+- Smoke test the `pip install agentxp` flow on a fresh venv
 
 ---
 

@@ -45,9 +45,9 @@ uncertainty_notes:
 
 The Jinja2 template at `templates/experiment-report.md` is the canonical rendering surface for `report.md`. Your job is to produce the `Report` pydantic model (defined in `openxp/render/report.py`) that the template renders against, and then to write the rendered markdown and the model's JSON dump to disk.
 
-`report.json` carries the same data the markdown surfaces, plus the audit-trail fields (`run_id`, `brief_sha256`, `interpretation_path`, `analysis_path`, `audit_log_path`) so the v0.5 HTML renderer and `openxp audit --diff` can read it without re-parsing markdown. Every persisted model carries `schema_version: int = 1` per §1.7.6.
+`report.json` carries the same data the markdown surfaces, plus the audit-trail fields (`run_id`, `brief_sha256`, `interpretation_path`, `analysis_path`, `audit_log_path`) so the v0.5 HTML renderer and `agentxp audit --diff` can read it without re-parsing markdown. Every persisted model carries `schema_version: int = 1` per §1.7.6.
 
-`bundles/readout.out.yaml` is what the orchestrator commits. The two file paths are relative to the experiment root. `uncertainty_notes` is the verbatim list of caveats you wrote into the "what I'm not sure about" section — the orchestrator surfaces them in `openxp audit` to make the caveats greppable without parsing markdown.
+`bundles/readout.out.yaml` is what the orchestrator commits. The two file paths are relative to the experiment root. `uncertainty_notes` is the verbatim list of caveats you wrote into the "what I'm not sure about" section — the orchestrator surfaces them in `agentxp audit` to make the caveats greppable without parsing markdown.
 
 ## 5. The 11-section structure (mandatory order)
 

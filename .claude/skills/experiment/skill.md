@@ -116,13 +116,13 @@ Five runtime conditions divert the loop. Each routes to a recovery path document
 
 `FailedAfterRetriesError` from `dispatch_agent` (LLM transient failure exhausted the `RetryPolicy` budget per §10.5.1) opens a pending decision with the r/a/s prompt. Three single-keystroke choices: `r` re-dispatch with a fresh budget, `a` abort the stage and roll back, `s` save state and exit so the user can resume later. The gate kind here is the existing stage-confirmation kind for the stage (e.g., `confirm_brief` if the failure happened at Stage 3); the r/a/s choice rides on the resolution.
 
-`AuthExpiredError` from `dispatch_agent` or `dispatch_sql` (warehouse credentials expired per §10.5.5) fires `gate.blocked` with `reason="auth_expired"` and surfaces the §18 re-auth dialog. The user runs `openxp connect <profile>` in a separate terminal, then runs `openxp resume <exp_id>`; the resume case is Case 7 (§10.6).
+`AuthExpiredError` from `dispatch_agent` or `dispatch_sql` (warehouse credentials expired per §10.5.5) fires `gate.blocked` with `reason="auth_expired"` and surfaces the §18 re-auth dialog. The user runs `agentxp connect <profile>` in a separate terminal, then runs `agentxp resume <exp_id>`; the resume case is Case 7 (§10.6).
 
 Consistency-judge failure at Stage 3 (the judge fires at confidence ≥ 0.7, per §10.8.2) routes to the Stage 3b substate. The stage spec is in `STAGES.md`; the resolution surface is the three-keystroke `Stage3bChoice` (`Literal["r", "e", "o"]` per §1.8.7) gate, kind `brief_contradiction`.
 
-SIGINT mid-`_commit_stage` is handled inside the chokepoint by `_defer_sigint` (§10.5.2). The signal lands at block exit; the commit either completes or is rolled back atomically. The user-facing surface is the `KeyboardInterrupt` that propagates after the commit lands; the next `openxp resume` reads `state.yaml` and re-enters cleanly. No work for this skill beyond honoring the propagation.
+SIGINT mid-`_commit_stage` is handled inside the chokepoint by `_defer_sigint` (§10.5.2). The signal lands at block exit; the commit either completes or is rolled back atomically. The user-facing surface is the `KeyboardInterrupt` that propagates after the commit lands; the next `agentxp resume` reads `state.yaml` and re-enters cleanly. No work for this skill beyond honoring the propagation.
 
-`gate.blocked` with `reason="chain_validation_failed"` (§10.5.8) indicates a `validate_chain` violation during commit; `_commit_stage` rolls `state.yaml` back to its pre-attempt snapshot and raises `CommitRollback`. Surface the violation list to the user via `openxp audit <exp_id> --diff`; do not attempt automatic recovery.
+`gate.blocked` with `reason="chain_validation_failed"` (§10.5.8) indicates a `validate_chain` violation during commit; `_commit_stage` rolls `state.yaml` back to its pre-attempt snapshot and raises `CommitRollback`. Surface the violation list to the user via `agentxp audit <exp_id> --diff`; do not attempt automatic recovery.
 
 ## 8. Per-stage detail
 

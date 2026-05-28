@@ -173,7 +173,7 @@ The four supporting methods on `OrchestratorStore` that Claude routes through:
 
 The `_commit_stage` critical section runs under `_deferred_sigint()`: if SIGINT arrives mid-commit the on-disk writes complete, `stage.committed` emits, the file lock releases, and then `KeyboardInterrupt` is raised at block exit. There is no "half-committed" state. The `_write_artifact` method writes a pydantic model to a stage-specific path under atomic-rename semantics.
 
-If `validate_chain` returns `ok=False` mid-commit, `_commit_stage` rolls back `state.yaml` from the `.bak` backup, emits `gate.blocked(reason="chain_validation_failed")`, and refuses to commit. The user-facing recovery is `openxp audit <exp_id> --diff`.
+If `validate_chain` returns `ok=False` mid-commit, `_commit_stage` rolls back `state.yaml` from the `.bak` backup, emits `gate.blocked(reason="chain_validation_failed")`, and refuses to commit. The user-facing recovery is `agentxp audit <exp_id> --diff`.
 
 ### Per-stage gate-firing shapes
 

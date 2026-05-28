@@ -131,7 +131,7 @@ When more than one axis fires on the same field, follow this order:
 
 When the hypothesis block in `state.yaml` is missing entirely (early-resume edge case, or a malformed v3 state file), do not invent a side to compare against. Emit one `brief_internal` finding: `"Cannot verify against hypothesis: state.yaml.hypothesis is null or missing."` with `severity: block` and `confidence: 1.0`. Let the orchestrator escalate to `gate.blocked(kind="malformed_yaml")` per §10.5.4. Do not silently skip the brief-vs-hypothesis axis.
 
-When `prior_turns_compressed.turns[]` is empty (no conversation yet, edge case from an `openxp resume` recovery), proceed with the structural checks only. The absence of conversational commitments does not by itself make a finding; the YAML artifacts are still the source of truth.
+When `prior_turns_compressed.turns[]` is empty (no conversation yet, edge case from an `agentxp resume` recovery), proceed with the structural checks only. The absence of conversational commitments does not by itself make a finding; the YAML artifacts are still the source of truth.
 
 ## 6. The confidence field and the 0.7 gate
 

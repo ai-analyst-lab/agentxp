@@ -111,7 +111,7 @@ Rough rollup: **v0.1 ~80% done, v0.5 ~80% done, v1.0 ~75% done** (counting the l
 
 7. **`walkthroughs/monitoring.md` still documents the fabricated Wave 2 API.** The file exports `run_monitor(data=..., experiment_yaml=...)`, verdicts `HEALTHY/WATCH/WARN/STOP`, `srm_trend(..., window_days=7)`, `guardrail_health(guardrails=[...])`, `sample_accumulation(target_n=..., elapsed_days=...)`. None of these match the real API. Wave 2 C1 blocker not fixed. The "Note: the API above is the planned contract" disclaimer at `monitoring.md:101` is still there. If the fix-up agent is rewriting this file, this finding is moot.
 
-8. **`pyproject.toml` not published to PyPI.** `pip install openxp` from the README quick-start does not work against any registry. `pip install -e .` from a clone works.
+8. **`pyproject.toml` not published to PyPI.** `pip install agentxp` from the README quick-start does not work against any registry. `pip install -e .` from a clone works.
 
 9. **Missing v0.1 scaffolding:** `CONTRIBUTING.md`, hero GIF, two-path quick-start in README (CSV vs SQL), `templates/metric.yaml`, Decision framework presets (Strict/Balanced/Exploratory), Teaching mode (first-time user detection).
 
@@ -167,7 +167,7 @@ Read `/Users/shanebutler/projects/openxp/README.md` against the shipped code.
 
 ### Inaccurate / outdated
 - **"55 tests covering..."** (line 127) — actually 367 tests. Off by 312. Probably carried over from W0 baseline README.
-- **"pip install openxp"** (line 27) implies PyPI publication. Not published. Line 32 does say `cd openxp && pip install -e .` which works, but the README cadence reads like `pip install openxp` is an option.
+- **"pip install agentxp"** (line 27) implies PyPI publication. Not published. Line 32 does say `cd openxp && pip install -e .` which works, but the README cadence reads like `pip install agentxp` is an option.
 - **Comparison table** claims CUPED, Sequential, Bayesian as "v1.0" (accurate as roadmap) but says "Every function" under "Code auditable" — which is true but glosses over the D.9 computation_trace being opt-in and off by default.
 - **"How It Compares" — "Pre-registration | experiment.yaml"** — v0.1 label implies schema is complete. The schema is missing `schema_version`, `randomization`, `ramp_plan`, `holdback`, `alert_threshold`, `analysis_population`, `suspicious_lift_threshold` from PRD §5.4. The template at `templates/experiment.yaml` is incomplete relative to the PRD.
 - **"Quick Start" `/experiment analyze sample-data/clean_ab.csv`** — will run successfully IF the orchestrator turns on tracing. See gap 3 above.
