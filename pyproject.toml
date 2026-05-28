@@ -37,6 +37,9 @@ dev = [
 snowflake = [
     "snowflake-connector-python>=3.0",
 ]
+bigquery = [
+    "google-cloud-bigquery>=3.0",
+]
 duckdb = [
     "duckdb>=0.10",
 ]
@@ -52,6 +55,9 @@ agentxp = "agentxp.cli.__main__:main"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+markers = [
+    "integration: live-warehouse tests requiring real credentials (skipped by default)",
+]
 
 [tool.setuptools.packages.find]
 include = ["agentxp*"]
