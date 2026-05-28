@@ -25,7 +25,7 @@ SUBCOMMANDS: dict[str, tuple[str, str] | str] = {
     "unlock":     "W5 (sys-w5-05)",                   # placeholder
     "resume":     "W5",                                # placeholder
     "connect":    "W_sql (sql-w_sql-19/23/24)",       # placeholder
-    "audit":      "W_hooks (audit-hooks-6)",          # placeholder
+    "audit":      ("openxp.cli.audit", "main"),       # §15 — wired
     "experiment": "W5 (sys-w5-02)",                   # placeholder
 }
 
