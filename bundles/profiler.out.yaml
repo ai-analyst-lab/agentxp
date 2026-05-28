@@ -1,0 +1,161 @@
+schema_version: 1
+source_ref: sample-data/clean_ab.csv
+profiled_at: '2026-05-28T17:34:34.000326Z'
+row_count: 10000
+column_count: 6
+schema_sha256: 93e451d897b17ad7b280fc5743650d6d68ca1ab23932244584c7d69c81ac11e2
+columns:
+- name: user_id
+  dtype: string
+  null_rate: 0.0
+  distinct_count: 10000
+  distinct_count_is_approx: false
+  min_value: u000000
+  max_value: u009999
+  q25: null
+  q50: null
+  q75: null
+  mean: null
+  stddev: null
+  min_length: 7
+  max_length: 7
+  sample_values:
+  - u008370
+  - u006870
+  - u000723
+  - u004121
+  - u002548
+  - u007413
+  - u009609
+  - u006682
+  - u004010
+  - u004977
+  mixed_format_detected: false
+  format_samples: []
+  flagged_for_review: false
+  flag_reason: null
+- name: variant
+  dtype: string
+  null_rate: 0.0
+  distinct_count: 2
+  distinct_count_is_approx: false
+  min_value: control
+  max_value: treatment
+  q25: null
+  q50: null
+  q75: null
+  mean: null
+  stddev: null
+  min_length: 7
+  max_length: 9
+  sample_values:
+  - control
+  - treatment
+  mixed_format_detected: false
+  format_samples: []
+  flagged_for_review: false
+  flag_reason: null
+- name: converted
+  dtype: integer
+  null_rate: 0.0
+  distinct_count: 2
+  distinct_count_is_approx: false
+  min_value: '0'
+  max_value: '1'
+  q25: 0.0
+  q50: 0.0
+  q75: 1.0
+  mean: 0.3615
+  stddev: 0.48045898272735876
+  min_length: null
+  max_length: null
+  sample_values:
+  - '1'
+  - '0'
+  mixed_format_detected: false
+  format_samples: []
+  flagged_for_review: false
+  flag_reason: null
+- name: revenue
+  dtype: float
+  null_rate: 0.0
+  distinct_count: 2944
+  distinct_count_is_approx: false
+  min_value: '0.0'
+  max_value: '713.42'
+  q25: 0.0
+  q50: 0.0
+  q75: 22.430128723294555
+  mean: 16.893135000000026
+  stddev: 35.43091475242772
+  min_length: null
+  max_length: null
+  sample_values:
+  - '58.06'
+  - '22.38'
+  - '27.12'
+  - '11.87'
+  - '73.88'
+  - '0.0'
+  mixed_format_detected: false
+  format_samples: []
+  flagged_for_review: false
+  flag_reason: null
+- name: platform
+  dtype: string
+  null_rate: 0.0
+  distinct_count: 3
+  distinct_count_is_approx: false
+  min_value: android
+  max_value: web
+  q25: null
+  q50: null
+  q75: null
+  mean: null
+  stddev: null
+  min_length: 3
+  max_length: 7
+  sample_values:
+  - android
+  - ios
+  - web
+  mixed_format_detected: false
+  format_samples: []
+  flagged_for_review: false
+  flag_reason: null
+- name: signup_days
+  dtype: integer
+  null_rate: 0.0
+  distinct_count: 818
+  distinct_count_is_approx: false
+  min_value: '0'
+  max_value: '1506'
+  q25: 53.0
+  q50: 123.0
+  q75: 247.0
+  mean: 177.6071
+  stddev: 175.3013462178445
+  min_length: null
+  max_length: null
+  sample_values:
+  - '538'
+  - '92'
+  - '28'
+  - '537'
+  - '248'
+  - '312'
+  - '53'
+  - '130'
+  - '99'
+  - '192'
+  mixed_format_detected: false
+  format_samples: []
+  flagged_for_review: false
+  flag_reason: null
+mixed_format_detected: false
+format_samples: []
+flagged_for_review: false
+flag_reason: null
+suggestions:
+- user_id looks like an entity primary key
+metadata: {}

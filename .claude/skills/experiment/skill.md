@@ -1,210 +1,192 @@
 ---
 name: experiment
-description: Multi-mode orchestrator for the full A/B experiment lifecycle — design, power, analyze, interpret, monitor, report. Routes to the 5 AgentXP agents and calls `openxp.stats` functions instead of improvising statistics. Invoke as `/experiment <mode> [args]`. Modes — design | power | analyze | interpret | monitor | report | full | status.
+description: Orchestrate the AgentXP v0.1 eleven-stage experiment journey from intent capture through verdict and readout. Invoke as `/experiment` (start fresh), `/experiment --data PATH` (begin at Stage 0 with a dataset), `/experiment --brief PATH` (skip Stages 0–4 and enter at Stage 5), `/experiment --from-stage STAGE` (re-enter at a named stage), or `/experiment --resume EXP_ID` (delegate to the resume skill). Walks `OrchestratorStore.advance()` through Stages 0 → 8 via the single `_commit_stage` chokepoint; never improvises statistics, never bypasses the commit, never invents closed-set values.
+argument-hint: "[--data PATH] [--brief PATH] [--from-stage STAGE] [--resume EXP_ID] [--just-do-it]"
 ---
 
-# Skill: `/experiment` — AgentXP Multi-Mode Orchestrator
+# Skill: `/experiment` — the eleven-stage AgentXP orchestrator
 
-## Purpose
+## 1. Role
 
-One skill, eight modes. The entire AgentXP product surface. This file is the **dispatcher** — it picks the mode, validates required inputs, enforces checkpoints, advances `experiment.yaml` state, and hands off to the correct agent + stats functions. Deep per-mode implementation detail lives in `MODES.md` alongside this file.
+You are the orchestrator skill for AgentXP v0.1. The product surface is one slash command — `/experiment` — and one journey: eleven stages from a user's "I want to test X" through the verdict-bearing readout. This file dispatches stages; per-stage detail lives in `STAGES.md` next to this file. The companion file is non-negotiable reading before any stage executes.
 
-**Non-negotiable rules (inherited from `CLAUDE.md`):**
-1. Never improvise statistics — every test must call a function from `openxp.stats.*`.
-2. Never assume column names — always run the Data Discovery Protocol.
-3. Never skip Type C checkpoints (power viability, SRM gate, guardrail violation, ship decision).
-4. Never mutate files outside the current experiment directory.
-5. Every state transition is written to `experiment.yaml` `status` field and `timeline` block.
-6. Always import stats functions from the top-level `openxp.stats` namespace — never from submodules (`from openxp.stats import welch_test`, not `from openxp.stats.ab_tests import welch_test`).
-7. Stats functions return a `computation_trace` dict by default (the D.9 audit trail). The `interpret` mode validates this field — do not disable trace via `openxp.stats.set_trace(False)` unless the user explicitly asks.
+Your contract is narrow. You read `state.yaml` to know where the experiment is, you assemble the next stage's bundle through `BundleStore.assemble()`, you dispatch the agent named in §5 of `OPENXP_V01_PLAN.md`, you set the gate the stage demands, you wait for the user to resolve it, you write the artifacts the stage emits, and you call `OrchestratorStore._commit_stage()` exactly once. You do this eleven times. Then the experiment is done.
 
-## When to Use
+You do not improvise the math (the analyzer and monitor agents own statistics via `openxp.stats.*`); you do not improvise verdicts (the interpreter dispatches `openxp.interpret.tree.walk_tree()` and emits one of the eight closed `Verdict` values); you do not improvise event names (`openxp/audit/events.py::EventName` is the closed thirteen-value vocabulary); you do not improvise gate kinds (`openxp/schemas/state.py::PendingDecisionKind` is the closed fourteen-value vocabulary, of which `confirm_hypothesis` is reserved-not-emitted in v0.1).
 
-Invoke as `/experiment <mode> [args]` or on any of these intents:
+## 2. What you have to work with
 
-| Intent | Mode |
-|--------|------|
-| "I want to run an experiment" / "design a test" | `design` |
-| "How many users do I need?" / "power calc" / "sample size" | `power` |
-| "Analyze this A/B test" / "did the experiment work?" | `analyze` |
-| "Should we ship?" / "what does this result mean?" | `interpret` |
-| "Is my running experiment healthy?" / "check SRM" | `monitor` |
-| "Write the readout" / "give me the stakeholder report" | `report` |
-| "Run the whole pipeline" / "end-to-end" | `full` |
-| "What state is this in?" / "show experiment status" | `status` |
+Five things, in order of precedence.
 
-If the mode is ambiguous, ask once: "Do you want to (a) design a new experiment, (b) analyze existing data, or (c) check the status of an in-flight experiment?"
+The first is `state.yaml` for the experiment under construction, sitting at `experiments/{exp_id}/state.yaml` and conforming to `StateYaml` (`openxp/schemas/state.py`, `schema_version: 3`). The file is the source of truth for `current_stage`, `last_committed_stage`, `stage_history`, `pending_decision`, `completed_stages`, and the references to project-level YAML the orchestrator has accumulated so far. You read it through `StateStore.read()`; you never write it directly — `_commit_stage` is the only writer.
 
-## Arguments
+The second is `STAGES.md` next to this file. Eleven sections, one per stage, each carrying the precondition, the agent, the bundle inputs, the gate kind, the artifact paths, the commit recipe, and the failure modes. When a stage fires, you load `STAGES.md`, locate the section matching `state.current_stage`, and execute its spec. The spec is the authority; this file is the loop.
 
-```
-/experiment <mode> [positional] [--flags]
+The third is the agent prompts at `openxp/agents/`. Thirteen files. Three of them sit under `openxp/agents/designer/` and resolve through dot-namespace (`designer.elicitor` → `openxp/agents/designer/elicitor.system.md`, `designer.drafter` → `openxp/agents/designer/drafter.system.md`, `designer.editor` → `openxp/agents/designer/editor.system.md`). The remaining ten sit at `openxp/agents/{name}.system.md`. You do not edit them; you dispatch them.
 
-Modes:       design | power | analyze | interpret | monitor | report | full | status
-Positional:  data file (for analyze/monitor/full) or experiment slug (for others)
-Flags:
-  --yaml <path>        Explicit path to experiment.yaml (default: ./experiment.yaml)
-  --audience <a>       report audience: executive | technical | cross-functional (default: cross-functional)
-  --just-do-it         Skip Type B checkpoints (config review, draft review). Type C still fire.
-  --sequential         Use always-valid confidence sequences (analyze mode, v0.5+)
-  --dry-run            Show plan without executing agents/code
-```
+The fourth is the orchestrator's Python surface in `openxp/orchestrator/store.py`. The entry points you use are `OrchestratorStore.advance(user_input)`, `OrchestratorStore.dispatch_agent(agent_name, bundle, out_schema)`, `BundleStore.assemble(agent_name, ctx_inputs, depends_on_project_yamls)`, `OrchestratorStore.set_pending(kind, options, prompt)`, `OrchestratorStore.resolve_decision(choice, rationale, reason_code)`, `OrchestratorStore.override(reason, reason_code)`, and `OrchestratorStore._commit_stage(stage, artifacts, dag_transition, subtype)`. Everything else is private to the store.
 
-## Mode Matrix (dispatch summary)
+The fifth is the OPENXP_V01_PLAN.md spec at `experimentation-platform/OPENXP_V01_PLAN.md` in the sibling repo. The plan owns the canonical names table (§1.8), the eleven-stage journey table (§3), the agent set (§5), the orchestrator API (§10), the failure-mode wiring (§10.5), the eight resume cases (§10.6), the Stage 3b r/e/o flow (§10.8.2), and the closed sets that this skill reads from Python (§1.8.1 PendingDecisionKind, §1.8.3 EventName, §1.8.4 Stage, §1.8.10 ConfidenceLabel, §1.8.17 Verdict).
 
-| Mode | Agent | Stats Calls | Type B Checkpoints | Type C Checkpoints | State Before → After |
-|------|-------|-------------|--------------------|--------------------|----------------------|
-| `design` | `agents/experiment-designer.md` | `openxp.stats.power.*` | Config review | Power viability (if NOT_VIABLE) | (none) → `DESIGNING` → `POWERED` |
-| `power` | (inline, no agent) | `openxp.stats.power.*` | — | Power viability | `DESIGNING` → `POWERED` |
-| `analyze` | `agents/experiment-analyzer.md` | `srm_check`, `srm_diagnose`, `welch_test`, `proportion_test`, `fishers_exact_test`, `ratio_metric_test`, `guardrail_test`, `cohens_d`, `cohens_h`, `relative_lift`, `detectable_effect`, `adjust_pvalues`, `winsorize`, `denominator_srm` | Draft review | **SRM gate**, **Guardrail violation**, **Min-sample guard** | `COLLECTING` → `ANALYZING` |
-| `interpret` | `agents/experiment-interpreter.md` | `detectable_effect`, `extension_estimate`, `relative_lift` | — | **Ship decision** | `ANALYZING` → `INTERPRETED` |
-| `monitor` | `agents/experiment-monitor.md` | `srm_check`, `srm_diagnose`, `guardrail_test`, `detectable_effect`, `denominator_srm` | — | **Guardrail RED**, **SRM RED** | `COLLECTING` → `COLLECTING` (or emergency halt) |
-| `report` | `agents/experiment-readout.md` | (none — reads `analysis_results.json`) | Draft review | — | `INTERPRETED` → `REPORTED` |
-| `full` | all 5 in sequence | all of the above | Config review, draft review | All Type C gates | (none) → `REPORTED` |
-| `status` | (inline, no agent) | (none — YAML read) | — | — | (read-only) |
+## 3. Your job in one sentence
 
-> For the full step-by-step contract of each mode (inputs, step ordering, artifact paths, error handling), read **`MODES.md`** in this directory. skill.md dispatches; MODES.md implements.
+Walk Stage 0 → Stage 8 through `OrchestratorStore.advance()`, dispatching the agent named in `STAGES.md` for each stage, gating where the spec gates, and committing through `_commit_stage()` exactly once per stage.
 
-## Dispatch Algorithm
+## 4. When to invoke
+
+The `/experiment` command triggers this skill. Five entry points, distinguished by argument shape and by what `experiments/` already contains.
+
+| User intent | Routing |
+|-------------|---------|
+| "I want to test X" with no prior experiment | `/experiment` enters at Stage 1 (`intent_captured`); Stage 0 fires lazily if a dataset is introduced mid-conversation |
+| "I have data at Y" | `/experiment --data PATH` enters at Stage 0 (`data_loaded`); profiler runs immediately |
+| "I have a brief at Z" | `/experiment --brief PATH` jumps the conversation phase and enters at Stage 5 (`monitor`); validate the brief against the v2 `ExperimentConfig` schema first |
+| "Re-enter at Stage N" | `/experiment --from-stage STAGE` reads the state, asserts the stage is reachable, and proceeds; refuses if the named stage is upstream of `last_committed_stage` (use `--resume` instead) |
+| "Resume exp_001" | `/experiment --resume EXP_ID` delegates to the `/resume` skill, which classifies the experiment into one of the eight cases in §10.6 and routes accordingly |
+
+When the trigger is ambiguous — for example, the user typed `/experiment` and `experiments/` already contains an unresolved `state.yaml` with a non-null `pending_decision` — surface the pending gate and offer `/resume` before bootstrapping anything new.
+
+## 5. Session bootstrap
+
+On the first turn of a new `/experiment` invocation, do three things before dispatching any agent.
+
+First, scan `experiments/` for existing `state.yaml` files. For each, read `state.yaml.pending_decision`. If any is non-null, surface the experiment ID, the stage, the kind of the pending decision (one of the fourteen `PendingDecisionKind` values), and the prompt that was saved at gate-open time. Ask the user whether to resume that experiment or start fresh. If they pick resume, delegate to `/resume` and exit.
+
+Second, if `--data PATH` was provided, validate that the path exists and is readable, then bootstrap a fresh experiment directory under `experiments/{new_exp_id}/` (the orchestrator's `OrchestratorStore.__init__` does the mkdir). Set the current stage to `data_loaded` and enter the Stage 0 spec.
+
+Third, if no flags were provided and no resumable experiment was found, ask the user one question: what they want to test. The answer is captured as the first turn in `conversation.jsonl` and seeds Stage 1 (`intent_captured`). The Stage 1 spec in `STAGES.md` covers what to do with the answer.
+
+## 6. The orchestration loop
+
+The loop is small. It runs once per stage; the per-stage spec in `STAGES.md` does the work inside each iteration.
 
 ```
-1. Parse mode and args.
-2. Locate experiment.yaml:
-   - If --yaml provided, use it.
-   - Else walk up from cwd looking for experiment.yaml.
-   - If design mode and none found, create experiments/<slug>/experiment.yaml from templates/experiment.yaml.
-   - If any other mode and none found, AND mode is analyze, trigger cold-start path (PRD §5.1): run analyze with defaults, emit upgrade nudge.
-3. Read current status field. Validate that the requested mode is legal for the current state (see Appendix B state machine).
-   - Invalid transition → print error + hint and exit.
-4. Run the mode's Data Discovery Protocol if data is required.
-5. Dispatch to the mode section in MODES.md. Each mode:
-   a. Invokes its agent via Read-and-execute pattern (read agents/<name>.md, substitute context, execute its instructions).
-   b. Calls openxp.stats functions directly — never writes Python that re-implements the math.
-   c. Writes artifacts to experiments/<slug>/ and working/.
-   d. Fires checkpoints in order (Type C first — never skip).
-6. On success, update experiment.yaml: status, timeline.<stage>, and any results.* fields produced by the stage.
-7. Return a one-screen summary: what ran, what it decided, what the next mode is.
+while state.current_stage != Stage.READOUT or pending_decision is not None:
+    stage_spec = STAGES.md[state.current_stage]
+
+    # Precondition check (e.g., Stage 0.5 fires only if semantic_models/ is empty for the source)
+    if not stage_spec.precondition_holds(state, project_root):
+        state.current_stage = stage_spec.next_stage_on_skip
+        continue
+
+    # Bundle assembly — the bundle is the source of truth for the dispatch.
+    bundle = BundleStore.assemble(
+        agent_name=stage_spec.agent,
+        ctx_inputs=stage_spec.ctx_inputs(state),
+        depends_on_project_yamls=stage_spec.project_dependencies(state),
+    )
+
+    # Dispatch.
+    result = OrchestratorStore.dispatch_agent(
+        agent_name=stage_spec.agent,
+        bundle=bundle,
+        out_schema=stage_spec.out_schema,
+    )
+
+    # Write any artifacts the agent produced.
+    artifacts = stage_spec.collect_artifacts(result)
+
+    # Gate, if the stage gates.
+    if stage_spec.gate_kind is not None:
+        OrchestratorStore.set_pending(
+            kind=stage_spec.gate_kind,
+            options=stage_spec.gate_options,
+            prompt=stage_spec.gate_prompt(result),
+        )
+        choice, rationale, reason_code = wait_for_user_resolution()
+        OrchestratorStore.resolve_decision(choice, rationale, reason_code)
+
+    # Commit. One stage.committed event per stage.
+    OrchestratorStore._commit_stage(
+        stage=state.current_stage,
+        artifacts=artifacts,
+        dag_transition=stage_spec.dag_transition,
+        subtype=stage_spec.commit_subtype,
+    )
+
+    # Re-read state; the next stage is whatever the spec routes to.
+    state = StateStore.read()
 ```
 
-## Cold-Start Path (`analyze` without `experiment.yaml`)
+Two properties of this loop are non-negotiable. The commit happens exactly once per stage, through `_commit_stage`, which is the single chokepoint that holds `.state.lock`, defers SIGINT, pre-flights disk space, validates the audit chain, and emits `stage.committed`. The gate, when one exists, opens before the commit and resolves before the commit — gates are user-facing decision points the stage is structured around, not afterthoughts.
 
-Per PRD §5.1, `analyze` is the lowest-friction entry point. If no YAML exists:
-1. Run Data Discovery Protocol on the data file.
-2. Ask only the minimum: "Which column is the treatment indicator?" + "Which is the primary metric?" (only if ambiguous).
-3. Apply defaults: `alpha=0.05`, `alternative='two-sided'`, no guardrails, no practical significance threshold, no MDE target.
-4. Run the full `analyze` pipeline (SRM gate included — it is **not** skippable in cold-start mode).
-5. Run `interpret` with generic decision rules (SHIP on significant positive, ABORT on significant negative, LEARN on null — no INVESTIGATE branch because no guardrails).
-6. Report appends upgrade nudge: *"This analysis used defaults. For pre-registered decision rules, guardrails, and power analysis, run `/experiment design` to create an experiment.yaml."*
+## 7. Error routing
 
-## Checkpoint Enforcement
+Five runtime conditions divert the loop. Each routes to a recovery path documented in §10.5 of the plan; this skill surfaces them but does not improvise the recovery.
 
-| Checkpoint | Type | Fires In | Skip Rule |
-|------------|------|----------|-----------|
-| Experiment config review | B | `design` step 6 | Skippable with `--just-do-it` |
-| Power viability | C | `design`, `power` when `viable == NOT_VIABLE` | **Never skip.** Must surface options (larger MDE, more traffic, different metric, longer timeline, quasi-experimental alternative) and require user choice. |
-| Min-sample guard | C | `analyze` pre-flight (PRD §5.2, D.15) | **Never skip.** If `n < 50%` of planned sample → hard stop. |
-| SRM gate | C | `analyze` step 1, `monitor` check 1 | **Never skip.** If `srm_check` returns `BLOCK` → halt, run `srm_diagnose`, mark INVALID. |
-| Guardrail violation | C | `analyze` step 5, `monitor` check 2 | **Never skip.** RED guardrail → surface, require user acknowledgment, offer emergency halt. |
-| Analyzer draft review | B | `analyze` step 9 | Skippable with `--just-do-it` |
-| Ship decision | C | `interpret` end | **Never skip.** Never auto-ship; always present recommendation + rationale + conditions and wait for human confirmation. |
-| Readout draft review | B | `report` end | Skippable with `--just-do-it` |
+`FailedAfterRetriesError` from `dispatch_agent` (LLM transient failure exhausted the `RetryPolicy` budget per §10.5.1) opens a pending decision with the r/a/s prompt. Three single-keystroke choices: `r` re-dispatch with a fresh budget, `a` abort the stage and roll back, `s` save state and exit so the user can resume later. The gate kind here is the existing stage-confirmation kind for the stage (e.g., `confirm_brief` if the failure happened at Stage 3); the r/a/s choice rides on the resolution.
 
-**Type C behavior:** When a Type C fires, the skill stops agent execution, prints a clearly-labeled `[HARD STOP]` block (verdict, evidence, options), and waits for the user to choose. `--just-do-it` does **not** bypass these. If the user tries to force past one, respond: "This is a Type C safety gate and cannot be skipped. Here are the valid paths forward: ..."
+`AuthExpiredError` from `dispatch_agent` or `dispatch_sql` (warehouse credentials expired per §10.5.5) fires `gate.blocked` with `reason="auth_expired"` and surfaces the §18 re-auth dialog. The user runs `openxp connect <profile>` in a separate terminal, then runs `openxp resume <exp_id>`; the resume case is Case 7 (§10.6).
 
-## Lifecycle State Transitions (Appendix B reference)
+Consistency-judge failure at Stage 3 (the judge fires at confidence ≥ 0.7, per §10.8.2) routes to the Stage 3b substate. The stage spec is in `STAGES.md`; the resolution surface is the three-keystroke `Stage3bChoice` (`Literal["r", "e", "o"]` per §1.8.7) gate, kind `brief_contradiction`.
 
-Every mode updates the `experiment.yaml` `status` field. Valid transitions:
+SIGINT mid-`_commit_stage` is handled inside the chokepoint by `_defer_sigint` (§10.5.2). The signal lands at block exit; the commit either completes or is rolled back atomically. The user-facing surface is the `KeyboardInterrupt` that propagates after the commit lands; the next `openxp resume` reads `state.yaml` and re-enters cleanly. No work for this skill beyond honoring the propagation.
 
-```
-DESIGNING --power calc--> POWERED --start--> COLLECTING --analyze--> ANALYZING
-ANALYZING --interpret--> INTERPRETED --readout--> REPORTED --ship--> SHIPPED --archive--> COMPLETED
+`gate.blocked` with `reason="chain_validation_failed"` (§10.5.8) indicates a `validate_chain` violation during commit; `_commit_stage` rolls `state.yaml` back to its pre-attempt snapshot and raises `CommitRollback`. Surface the violation list to the user via `openxp audit <exp_id> --diff`; do not attempt automatic recovery.
 
-Backward (allowed):
-POWERED    --redesign-->    DESIGNING    (viable == NOT_VIABLE)
-ANALYZING  --re-collect-->  COLLECTING   (SRM with fixable root cause, salt change, data discard)
-INTERPRETED --extend-->     COLLECTING   (underpowered LEARN, extension_estimate computed)
+## 8. Per-stage detail
 
-Terminal:
-ANALYZING --srm unfixable--> INVALID
-(any active) --user kill--> ABANDONED
-```
+Per-stage detail lives in `STAGES.md`. That file has eleven sections — one each for Stage 0 (`data_loaded`), Stage 0.5 (`semantic_models_drafted`), Stage 0.75 (`metrics_bootstrapped`), Stage 1 (`intent_captured`), Stage 2 (`hypothesis_drafted`), Stage 3 (`brief_drafted`) plus the Stage 3b substate (`brief_contradicted`), Stage 4 (`data_plan_confirmed`), Stage 5 (`monitor`), Stage 6 (`analyze`), Stage 7 (`interpret`), and Stage 8 (`readout`). Read the matching section before dispatching the stage's agent. The section is the spec; this file is the loop that runs it.
 
-If the user invokes a mode that would require an invalid transition, emit:
-```
-Error: Cannot transition from <CURRENT> to <REQUIRED>.
-Valid next modes from <CURRENT>: <list>.
-Hint: Run /experiment <suggestion> first.
-```
+## 9. Closed sets
 
-## Agent Dispatch Convention
+The orchestration loop never invents values from closed sets. Each closed set has a single source of truth in Python; the skill reads from that source.
 
-When a mode invokes an agent, follow this contract (inherited from the repo's agent pattern):
+`Stage` is the twelve-value enum (eleven main + one substate) at `openxp.schemas.state::Stage`. Values: `data_loaded`, `semantic_models_drafted`, `metrics_bootstrapped`, `intent_captured`, `hypothesis_drafted`, `brief_drafted`, `brief_contradicted`, `data_plan_confirmed`, `monitor`, `analyze`, `interpret`, `readout`.
 
-1. Read `agents/<agent>.md` verbatim — it is the system prompt for that sub-task.
-2. Substitute inputs explicitly: experiment YAML path, data path, audience, upstream artifact paths.
-3. Execute the agent's instructions turn-by-turn. The agent **is not allowed** to call stats functions by re-implementing them — it must invoke `openxp.stats.*` imports.
-4. Agent writes intermediate output to `experiments/<slug>/working/` and final artifacts to `experiments/<slug>/` (or `experiments/<slug>/reports/` for readouts).
-5. After the agent returns, skill.md validates the output (presence of required files, valid computation traces per D.9) before advancing state.
+`PendingDecisionKind` is the fourteen-value enum at `openxp.schemas.state::PendingDecisionKind`. Nine stage-confirmation kinds (`confirm_semantic_model`, `confirm_metric`, `confirm_hypothesis` reserved-not-emitted, `confirm_brief`, `confirm_data_plan`, `confirm_cohort`, `confirm_assignment`, `confirm_query`, `confirm_readout`), three failure-resolution kinds (`brief_contradiction`, `srm_override`, `cross_adapter_resolution`), and two data-quality kinds (`mixed_timestamp_formats`, `referenced_artifact_changed`).
 
-## Stats Function Quick Reference
+`GateKind` is the documented sixteen-value superset at `openxp.schemas.state::GateKind`, equal to the fourteen `PendingDecisionKind` values plus `sql_review` and `edit_override` for the two within-turn UX gates that never set `pending_decision`.
 
-(All functions are re-exported at the top-level `openxp.stats` namespace. Import every function from there — never from a submodule. When tracing is enabled (default), every function returns a dict with `interpretation` and `computation_trace` fields.)
+`EventName` is the thirteen-value enum at `openxp.audit.events::EventName`. Eleven emitted in v0.1 (`stage.entered`, `stage.committed`, `gate.opened`, `gate.resolved`, `gate.blocked`, `agent.dispatched`, `agent.completed`, `query.proposed`, `query.validated`, `query.executed`, `query.failed`) and two reserved-not-emitted (`hook.invoked`, `hook.failed`, both deferred to v0.2 per §22.5).
 
-| Category | Import | Functions |
-|----------|--------|-----------|
-| Data prep | `from openxp.stats import ...` | `prepare_experiment_data(df, treatment_col, metric_cols, segment_cols, winsorize_spec)`, `winsorize(series, lower, upper)` |
-| A/B tests | `from openxp.stats import ...` | `welch_test(control, treatment, alpha)` (two-sided only), `proportion_test(c_success, c_n, t_success, t_n, alpha)`, `fishers_exact_test`, `ratio_metric_test(num_c, den_c, num_t, den_t, alpha)` |
-| Power | `from openxp.stats import ...` | `power_proportion(baseline_rate, mde_relative, alpha, power)`, `power_mean(baseline_mean, baseline_std, mde_relative, alpha, power)`, `power_ratio(baseline_num_mean, baseline_den_mean, baseline_num_std, baseline_den_std, correlation_num_den, mde_relative, alpha, power)`, `detectable_effect(n_per_group, baseline_rate=, baseline_std=, alpha, power)`, `duration_estimate(n_required, daily_traffic, allocation)`, `power_sensitivity_table(baseline_rate, mde_values, daily_traffic_values, alpha, power)` |
-| SRM | `from openxp.stats import ...` | `srm_check(observed_counts, expected_ratios, threshold)` — library default `threshold=0.01`; orchestrator always passes `threshold=0.0005`. `srm_diagnose(assignments_df, group_col, segments)` |
-| Guardrails | `from openxp.stats import ...` | `guardrail_test(control, treatment, metric_type, nim_relative, alpha, invert)` — implicit one-sided non-inferiority, no `alternative=` kwarg. `denominator_srm(num_c, den_c, num_t, den_t, expected_ratio, threshold)` — requires all four counts |
-| Effect size | `from openxp.stats import ...` | `cohens_d(control, treatment)`, `cohens_h(p_control, p_treatment)` — point estimate only, no CI. `relative_lift(control_mean, treatment_mean)` |
-| Corrections | `from openxp.stats import ...` | `adjust_pvalues(pvalues, method="holm", alpha)` |
-| Extension | `from openxp.stats import ...` | `extension_estimate(current_n, current_mde_observed, required_power, baseline_variance, daily_traffic, alpha)` |
-| CUPED | `from openxp.stats import ...` | `cuped_adjust(y_pre, y_post, treatment=None)`, `cuped_welch_test(control_pre, control_post, treatment_pre, treatment_post, alpha)`, `variance_reduction(y_pre, y_post)` |
-| Sequential | `from openxp.stats import ...` | `msprt_test`, `always_valid_ci`, `group_sequential_boundaries`, `sequential_proportion_test` |
-| Bayesian | `from openxp.stats import ...` | `beta_binomial_test`, `normal_normal_test`, `expected_loss`, `probability_to_beat` |
-| Tracing | `from openxp.stats import ...` | `set_trace(enabled)`, `is_trace_enabled()` — controls D.9 `computation_trace` emission (default: on) |
+`Verdict` is the eight-value Literal at `openxp.interpret.tree::Verdict`. The interpreter agent dispatches `walk_tree(TreeInput)` and propagates whichever of `INVALID-SRM`, `NO-SHIP-GUARDRAIL`, `INCONCLUSIVE`, `NO-LIFT`, `DIRECTIONAL-ONLY`, `LIFT-WITH-CAVEAT`, `SHIP`, `LEARN` the tree returns. The skill never overrides the tree's output.
 
-Agents must import from the top-level `openxp.stats` namespace only. If a function is missing, stop and report — **never improvise**.
+`ConfidenceLabel` is the seven-value Literal at `openxp.interpret.confidence::ConfidenceLabel`. The readout agent reads it from the interpreter's output; the skill propagates it unchanged.
 
-## Data Discovery Protocol (delegated)
+`Stage3bChoice` is the three-value Literal at `openxp.schemas.state::Stage3bChoice` (`r`, `e`, `o`). The Stage 3b spec covers the resolution flow.
 
-Used by `analyze`, `monitor`, and `full` whenever data is provided. Full protocol in `CLAUDE.md` §Data Discovery Protocol. Summary:
+`SrmOverrideReasonCode` is the three-value enum at `openxp.schemas.state::SrmOverrideReasonCode` (`known_imbalance`, `manual_continuation`, `investigation_complete`). Used as the `reason_code` on `gate.resolved` when the user overrides an SRM yellow halt at Stage 5.
 
-1. Read first 5 rows + dtypes + shape.
-2. Auto-detect treatment column from: `variant`, `group`, `treatment`, `arm`, `experiment_group`, `bucket`.
-3. Numeric columns → metric candidates. Categorical (2–20 uniques) → segment candidates. Datetime → timestamp.
-4. If ambiguous, ask the user. Never assume.
+`NoShipReasonCode` is the four-value enum at `openxp.schemas.readout::NoShipReasonCode` (`guardrail_violation`, `directional_only`, `insufficient_evidence`, `contradictory_segments`). Used at Stage 8 when the user signs off on a NO-SHIP outcome at the readout confirmation.
 
-## Dry Run
+## 10. What this skill does NOT do
 
-With `--dry-run`, print the planned execution (mode → agent → stats calls → artifacts → checkpoints) without invoking agents or writing files. Useful for `full` mode to preview the entire pipeline.
+It does not improvise statistics. Every test runs through `openxp.stats.*` functions, dispatched by the analyzer or monitor agent. If a stats function is missing, surface the gap to the user; do not invent the math.
 
-## Output Artifacts (per mode, under `experiments/<slug>/`)
+It does not read agents' bundles other than to surface them to the user. The bundle isolation axiom (§5 of the plan) says agents read their own `bundles/{agent}.ctx.yaml` and write their own `bundles/{agent}.out.yaml`; the skill assembles ctx-bundles via `BundleStore.assemble()` and passes the assembled view to `dispatch_agent`. The skill does not introspect other agents' outputs to make decisions on their behalf.
 
-| Mode | Writes |
-|------|--------|
-| `design` | `experiment.yaml` (status: POWERED), `design-brief.md`, `working/designer-conversation.md` |
-| `power` | updates `experiment.yaml` (power block + status), `power-report.md`, `working/sensitivity-table.csv` |
-| `analyze` | `analysis_results.json`, `reports/analysis.md`, updates `experiment.yaml` results block, `working/analyzer-trace.md` |
-| `interpret` | `interpretation.md`, updates `experiment.yaml` (status: INTERPRETED, results.classification), `working/interpretation-trace.md` |
-| `monitor` | `monitoring/<date>.md` (traffic-light dashboard), appends to `monitoring/history.yaml` |
-| `report` | `reports/readout-<audience>.md`, updates `experiment.yaml` (status: REPORTED) |
-| `full` | all of the above in sequence |
-| `status` | (none — stdout only) |
+It does not bypass `_commit_stage`. There is no path through the loop that writes `state.yaml` directly, that emits `stage.committed` directly, that mutates `stage_history`, or that clears `pending_decision` outside `resolve_decision`/`override`. The chokepoint is the chokepoint.
 
-## Failure and Recovery
+It does not invent values from closed sets. `Verdict`, `ConfidenceLabel`, `PendingDecisionKind`, `EventName`, `GateKind`, `Stage`, `Stage3bChoice`, `SrmOverrideReasonCode`, `NoShipReasonCode` all have single sources of truth in Python. The skill reads them; it does not extend them.
 
-- **Agent error:** Preserve working/ files, emit clear error with the failed step, do not advance state.
-- **Stats function error:** Log the `computation_trace`, halt the agent, return the specific function + inputs for debugging.
-- **YAML corruption:** Refuse to run; instruct user to restore from git or re-run `/experiment design`.
-- **SRM BLOCK:** Hand-off to the SRM recovery flow (Appendix B note on fixable vs unfixable root cause) — ask the user "Do you know the root cause?" to choose COLLECTING vs INVALID path.
+It does not edit project-level YAML directly. `semantic_models/*.yaml`, `fact_sources/*.yaml`, `metrics/*.yaml`, and `assignments/*.yaml` are written by `semantic_modeler` and `metric_drafter` under `project_write_lock`; the orchestrator reads them under `project_read_lock` (§10.9). The skill is on the read side.
 
-## See Also
+It does not run user-attachable hooks. The external hook system is deferred to v0.2 (§22.5). `hook.invoked` and `hook.failed` exist in the `EventName` enum but never fire in v0.1.
 
-- **`MODES.md`** (this directory) — deep spec for each of the 8 modes.
-- **`CLAUDE.md`** (repo root) — identity, agent index, stats reference, checkpoint definitions.
-- **`agents/experiment-*.md`** — the 5 agent prompts this skill dispatches to.
-- **`templates/experiment.yaml`** — pre-registration schema.
-- **PRD Appendix A** — Result Interpretation Tree (for `interpret`).
-- **PRD Appendix B** — experiment.yaml state machine (for `status` and state transitions).
+It does not produce a readout that does not pass the voice audit. Stage 8's spec routes the rendered markdown through `openxp/render/voice_audit.py` (single-pass per D5) before commit; a banned-phrase hit halts the commit and re-dispatches the readout agent.
+
+## 11. Banned vocabulary
+
+These tokens do not appear in any user-facing prose, agent prompt, dialog, or commit message this skill produces. The list is exhaustive; treat each entry as a syntax error.
+
+- `co-pilot`, `colleague`
+- `powerful`, `delightful`, `robust`, `seamless`, `cutting-edge`
+- `leverage`, `utilize`
+- `great question`, `excellent observation`, `we're excited`
+- `successfully` (as in "I've successfully committed Stage 3")
+- `Let me walk you through`, `Before we begin, let me explain`
+
+Banned patterns: opening turns with throat-clearing, punting the default ("which option would you like?"), confirming every closed-set value individually, manufactured emotional beats, salesy framing of the agent's capabilities. Plain statements, subordinate clauses doing the work.
+
+## 12. Cross-references
+
+- `STAGES.md` (this directory) — per-stage spec for all eleven stages.
+- `openxp/schemas/state.py` — `Stage`, `PendingDecisionKind`, `GateKind`, `Stage3bChoice`, `SrmOverrideReasonCode`, `StateYaml`, `PendingDecision`.
+- `openxp/audit/events.py` — `EventName` (thirteen-value closed enum), payload pydantic for each event.
+- `openxp/interpret/tree.py` — `Verdict` (eight-value closed Literal), `walk_tree()`, `TreeInput`, `TreeResult`.
+- `openxp/interpret/confidence.py` — `ConfidenceLabel` (seven-value closed Literal).
+- `openxp/orchestrator/store.py` — `OrchestratorStore`, `StateStore`, `_commit_stage`, `set_pending`, `resolve_decision`, `override`, `dispatch_agent`.
+- `openxp/orchestrator/bundle.py` — `BundleStore`, `AgentBundle`.
+- `openxp/agents/*.system.md` — thirteen agent prompts (ten at the top level, three under `designer/`).
+- `experimentation-platform/OPENXP_V01_PLAN.md` — the locked plan; §3 (journey), §5 (agents), §10 (orchestrator API), §10.5 (failure modes), §10.6 (eight resume cases), §10.8.2 (Stage 3b r/e/o), §22 (interpreter tree), §22.5 (hooks deferred), §23 (confidence framing).
