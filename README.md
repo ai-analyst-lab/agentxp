@@ -4,7 +4,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Claude Code Required](https://img.shields.io/badge/requires-Claude%20Code-blueviolet.svg)](https://claude.ai/code)
 
-AgentXP is an open-source system for the design and analysis of controlled experiments, intended for use inside Claude Code. The user describes a hypothesis in plain English; a pipeline of LLM agents walks from data profiling and a pre-registered brief through monitoring, statistical analysis, and a stakeholder-ready readout. Deterministic Python functions handle the statistical work; agentic stages handle the judgment-dependent steps — drafting the brief, naming the events the analysis requires, interpreting the result against the pre-registered decision rule. Every decision the system makes is committed to disk and reproducible from the audit chain.
+AgentXP is an open-source system for the design and analysis of controlled experiments, opened inside Claude Code and driven through plain-English conversation, with a pipeline of LLM agents carrying the experiment from data profiling through a pre-registered brief, sample-ratio monitoring, statistical analysis, and a final readout. The statistical work itself is handled by deterministic Python functions; the agents take responsibility only for the steps that require judgment — drafting the brief, naming the events the analysis depends on, and interpreting the result against the decision rule that was fixed at brief time. Every choice the system makes is written to an audit log that any reviewer can replay.
 
 Apache 2.0. Runs locally. Reads from DuckDB, Snowflake, or BigQuery.
 
@@ -12,9 +12,9 @@ Apache 2.0. Runs locally. Reads from DuckDB, Snowflake, or BigQuery.
 
 ## Why this exists
 
-Running an A/B test correctly is mostly a discipline problem. The math is well understood. The hard parts are the steps where humans get sloppy: writing down the hypothesis and the decision rule before looking at the results, verifying the assignment randomized correctly before interpreting the lift, applying the decision rule cold instead of finding a story that fits the data, flagging guardrail violations alongside the primary metric, and keeping a record of every choice the analysis made so a reviewer can replay it.
+Running an A/B test correctly is mostly a discipline problem rather than a mathematical one. The math is well understood; the difficulty lies in the steps where the discipline tends to break — writing down the hypothesis and the decision rule before any data is seen, verifying that the assignment actually randomized before the lift is interpreted, applying the decision rule to the analysis tables alone instead of constructing a narrative that fits the result, flagging guardrail violations in the same readout as the primary metric, and keeping a record of every choice the analysis made so that a reviewer can later replay it.
 
-AgentXP enforces these steps as a workflow. The user supplies intent and judgment; the system handles the discipline.
+AgentXP enforces these steps as a workflow. The user supplies the intent and the judgment; the system handles the discipline.
 
 ---
 
@@ -37,7 +37,7 @@ I want to test whether the new checkout button improves completion
 rate. My data is at ~/data/checkout_test.parquet.
 ```
 
-Claude walks the 11 stages with the user — profiling the data, drafting the brief, running the analysis, rendering the readout. At each stage the system commits a default with a one-clause justification; the user overrides if it picked wrong.
+Claude walks the eleven stages with the user — profiling the data, drafting the brief, running the analysis, rendering the readout. At each stage the system proposes a default with a one-clause justification, which the user accepts or overrides before the stage commits.
 
 For a fuller walkthrough including a sample-ratio-mismatch halt, see [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
@@ -77,9 +77,9 @@ If a stage pauses (sample-ratio-mismatch halt, gate opened, ambiguous brief), th
 
 ## Sub-agent isolation
 
-Each agent runs with only the context it needs. The agent that monitors for sample-ratio mismatch does not see the hypothesis prose, so it cannot motivated-reason past a contamination signal. The agent that interprets the analysis reads the results tables but not the original framing — it applies the decision rule that was locked at brief time, cold. The agent that renders the readout never re-litigates the verdict.
+Each agent runs with only the context it requires. The agent that monitors for sample-ratio mismatch has no access to the hypothesis prose and therefore cannot construct an explanation that rescues a contaminated result, because no preferred result is present in its context to be rescued. The agent that interprets the analysis sees the result tables but not the original framing, so the verdict is bound to the data and to the decision rule that was specified at brief time rather than to whatever the analyst hoped to find. The agent that renders the readout has no power to revisit the verdict at all.
 
-This is what makes the audit trail credible. Every bundle hash, every query, every gate is on disk. Two reviewers running the same audit log produce the same answer.
+The audit trail derives its credibility from this isolation: every bundle hash, every query, every gate is committed to disk, so two reviewers running the same audit log will reach the same answer.
 
 The audit vocabulary is a closed set of thirteen events: `stage.entered`, `stage.committed`, `gate.opened`, `gate.resolved`, `gate.blocked`, `agent.dispatched`, `agent.completed`, `query.proposed`, `query.validated`, `query.executed`, `query.failed`, and two reserved for the v0.2 hook system. An internal validator walks the chain on every commit and rejects orphans or broken references.
 
