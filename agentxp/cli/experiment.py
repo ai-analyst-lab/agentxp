@@ -22,7 +22,7 @@ __all__ = ["main"]
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="agentxp /experiment",
+        prog="agentxp experiment",
         description=(
             "Start a new experiment. In v0.1 this prints guidance for opening "
             "the project in Claude Code, which drives the 11-stage journey."
