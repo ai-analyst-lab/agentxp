@@ -87,3 +87,22 @@ def test_argparse_help_forwarded_to_subcommand():
     with patch("agentxp.cli.profile.main", side_effect=raise_help):
         rc = dispatcher.main(["profile", "--help"])
     assert rc == EXIT_OK
+
+
+def test_argparse_usage_error_normalized_to_user_error():
+    # argparse exits SystemExit(2) on a usage error. Since EXIT_WARNING is also
+    # 2, the dispatcher normalizes the raised 2 to EXIT_USER_ERROR so callers
+    # can tell "bad flags" from "completed with warnings".
+    def raise_usage(argv):
+        raise SystemExit(2)
+    with patch("agentxp.cli.profile.main", side_effect=raise_usage):
+        rc = dispatcher.main(["profile", "--bogus-flag"])
+    assert rc == EXIT_USER_ERROR
+
+
+def test_returned_warning_code_passes_through():
+    # A subcommand that *returns* 2 (EXIT_WARNING) is a real warning, not an
+    # argparse usage error, and must pass through unchanged.
+    with patch("agentxp.cli.profile.main", Mock(return_value=2)):
+        rc = dispatcher.main(["profile", "/tmp/x.parquet"])
+    assert rc == 2

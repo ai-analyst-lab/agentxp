@@ -12,6 +12,8 @@ from tests.sql._adapter_contract import (
     ALL_DIALECTS,
     DIALECTS,
     assert_conforms_to_base_adapter,
+    assert_protocol_signature_parity,
+    assert_result_models_canonical,
     make_adapter,
 )
 
@@ -30,3 +32,15 @@ def test_registry_resolves_dialect_to_class(dialect):
 
 def test_registry_covers_exactly_the_four_dialects():
     assert set(ADAPTER_REGISTRY) == set(DIALECTS)
+
+
+def test_all_adapters_share_identical_protocol_signatures():
+    # Protocol presence != interchangeability; this catches parameter drift
+    # (e.g. one adapter's execute(..., limit=) vs another's max_rows=).
+    assert_protocol_signature_parity()
+
+
+def test_adapter_result_models_are_canonical():
+    # Pins the result/preview field sets so a new adapter can't return a
+    # near-miss shape that callers would have to special-case.
+    assert_result_models_canonical()

@@ -125,6 +125,38 @@ def test_live_probe_unknown_dialect(patch_registry):
     assert "no adapter" in msg
 
 
+def test_live_probe_import_error_surfaces_install_hint_probe_path(patch_registry):
+    # The optional driver is missing: the adapter raises ImportError carrying a
+    # curated, credential-free install hint. live_probe must surface that hint
+    # (so the user knows to `pip install agentxp[...]`), not collapse it to a
+    # bare "probe failed: ImportError".
+    _FakeAdapter.raise_on_execute = ImportError(
+        "Snowflake is an optional dependency. Install it with:\n"
+        "    pip install 'agentxp[snowflake]'"
+    )
+    ok, msg = connect_common.live_probe("snowflake", {"account": "a"})
+    assert ok is False
+    assert "pip install" in msg
+    assert "agentxp[snowflake]" in msg
+
+
+def test_live_probe_import_error_surfaces_install_hint_construct_path(monkeypatch):
+    class _ImportFailingAdapter:
+        def __init__(self, **kwargs: Any) -> None:
+            raise ImportError(
+                "BigQuery is an optional dependency. Install it with:\n"
+                "    pip install 'agentxp[bigquery]'"
+            )
+
+    monkeypatch.setattr(
+        connect_common, "ADAPTER_REGISTRY", {"bigquery": _ImportFailingAdapter}
+    )
+    ok, msg = connect_common.live_probe("bigquery", {"project": "p"})
+    assert ok is False
+    assert "pip install" in msg
+    assert "agentxp[bigquery]" in msg
+
+
 # ---------------------------------------------------------------------------
 # write_profile — chmod 600 + redacted confirmation
 # ---------------------------------------------------------------------------

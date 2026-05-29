@@ -33,7 +33,10 @@ from agentxp.sql.adapter import (
     PreviewResult,
     QueryTimeoutError,
 )
-from agentxp.sql.adapters.snowflake_adapter import SnowflakeAdapter
+from agentxp.sql.adapters.snowflake_adapter import (
+    SnowflakeAdapter,
+    _extract_bytes_scanned,
+)
 from tests.sql._adapter_contract import (
     assert_conforms_to_base_adapter,
     make_adapter,
@@ -267,6 +270,51 @@ def test_execute_returns_adapter_result_shape(fake_connector):
     assert result.rows == [{"x": 1, "name": "alice"}]
     assert result.bytes_scanned == 4096
     assert result.elapsed_seconds >= 0.0
+    adapter.close()
+
+
+class _StatsCursor:
+    """Minimal cursor stand-in exposing only the attribute under test."""
+
+    def __init__(self, stats):
+        if stats is not _MISSING:
+            self._stats = stats
+
+
+_MISSING = object()
+
+
+@pytest.mark.parametrize(
+    "stats, expected",
+    [
+        ({"bytesScanned": 4096}, 4096),       # camelCase (connector default)
+        ({"BYTES_SCANNED": 512}, 512),        # SCREAMING_SNAKE spelling
+        ({"bytes_scanned": 7}, 7),            # snake_case spelling
+        ({"bytesScanned": "4096"}, None),     # non-int value -> honest None
+        ({"other": 1}, None),                 # key absent -> None
+        ({}, None),                           # empty stats -> None
+        (None, None),                         # _stats present but not a dict
+        (_MISSING, None),                     # no _stats attribute at all
+    ],
+)
+def test_extract_bytes_scanned_branches(stats, expected):
+    # The extraction must surface an int when the connector exposes one under
+    # any known key, and fall back to the honest-unknown None otherwise —
+    # rather than guessing or raising. This tests the logic directly instead of
+    # only the single happy path the mock wires into execute().
+    assert _extract_bytes_scanned(_StatsCursor(stats)) == expected
+
+
+def test_bytes_scanned_is_none_when_connector_omits_stats(fake_connector):
+    # Behavioral: when the driver doesn't surface scan stats, the adapter
+    # reports bytes_scanned=None on the result (honest-unknown contract),
+    # not 0 or a fabricated value.
+    adapter = SnowflakeAdapter(account="a", user="u", password="p")
+    adapter.execute("SELECT 1 AS x, 'alice' AS name")
+    # Strip the stat the fake injects, then re-read via the extractor path.
+    cur = adapter._conn._cursors[-1]
+    del cur._stats
+    assert _extract_bytes_scanned(cur) is None
     adapter.close()
 
 

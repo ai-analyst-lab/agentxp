@@ -70,7 +70,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     try:
         return fn(rest)
     except SystemExit as e:
-        return int(e.code) if e.code is not None else EXIT_OK
+        code = int(e.code) if e.code is not None else EXIT_OK
+        # argparse raises SystemExit(2) on a usage error (unknown flag, missing
+        # required arg). That is a user-input error, not a "completed with
+        # warnings" result — and EXIT_WARNING is also 2, so passing argparse's
+        # code through would be ambiguous to a caller. Normalize argparse's 2 to
+        # EXIT_USER_ERROR. Real warnings are *returned* (not raised), so they
+        # never reach this branch.
+        if code == 2:
+            return EXIT_USER_ERROR
+        return code
 
 
 def _print_help(stream) -> None:

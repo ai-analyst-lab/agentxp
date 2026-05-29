@@ -217,6 +217,11 @@ def live_probe(dialect: str, conn_params: dict[str, Any]) -> tuple[bool, str]:
     except AuthExpiredError as e:
         # Already redacted by the adapter; keep just the friendly framing.
         return False, f"authentication failed: {_friendly(e)}"
+    except ImportError as e:
+        # Optional driver missing. The adapter raises a curated, credential-free
+        # install hint as the message — surface it so the user knows what to do,
+        # rather than collapsing it to a bare "ImportError".
+        return False, str(e)
     except Exception as e:
         return False, f"could not construct {dialect} adapter: {type(e).__name__}"
 
@@ -228,6 +233,9 @@ def live_probe(dialect: str, conn_params: dict[str, Any]) -> tuple[bool, str]:
         return False, "probe ran but SELECT 1 returned no rows"
     except AuthExpiredError as e:
         return False, f"authentication failed: {_friendly(e)}"
+    except ImportError as e:
+        # Optional driver missing (curated, credential-free install hint).
+        return False, str(e)
     except Exception as e:
         # NEVER surface the raw exception text — it can echo the connection
         # string or SQL with creds. Report only the exception class name.
