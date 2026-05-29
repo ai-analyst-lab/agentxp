@@ -67,9 +67,14 @@ class _FakeCursor:
     def __init__(self, conn: "_FakeConnection"):
         self._conn = conn
         self.description = [("x",), ("name",)]
-        self._rows = [(1, "alice")]
+        # Default single row keeps the result-shape tests exact; a connection
+        # may seed more rows so a truncation test can prove max_rows is honored.
+        self._rows = (
+            list(conn._seed_rows) if conn._seed_rows is not None else [(1, "alice")]
+        )
         self.closed = False
         self.executed: list[str] = []
+        self.fetchmany_calls: list[int] = []
 
     def execute(self, sql: str) -> None:
         self.executed.append(sql)
@@ -89,6 +94,7 @@ class _FakeCursor:
             self._rows = [("== Physical Plan ==",)]
 
     def fetchmany(self, n: int):
+        self.fetchmany_calls.append(n)
         return self._rows[:n]
 
     def fetchall(self):
@@ -103,6 +109,7 @@ class _FakeConnection:
         self.connect_kwargs = kwargs
         self.closed = False
         self._execute_behavior = "ok"
+        self._seed_rows: list[tuple[Any, ...]] | None = None
         self._cursors: list[_FakeCursor] = []
 
     def cursor(self) -> _FakeCursor:
@@ -122,6 +129,8 @@ class _FakeSqlModule(types.ModuleType):
         self.last_connect_kwargs: dict[str, Any] | None = None
         self.connect_behavior = "ok"  # ok|auth|boom (at connect time)
         self.execute_behavior = "ok"  # propagated onto each connection
+        # Optional rows to seed each cursor with (None -> the default 1 row).
+        self.seed_rows: list[tuple[Any, ...]] | None = None
         # Optional custom message for the "boom" generic exception, used by the
         # BLOCKER-1 tests to plant a secret INSIDE the raw driver exception.
         self.boom_message = "could not establish connection"
@@ -134,6 +143,7 @@ class _FakeSqlModule(types.ModuleType):
             raise OperationalError(self.boom_message)
         conn = _FakeConnection(**kwargs)
         conn._execute_behavior = self.execute_behavior
+        conn._seed_rows = self.seed_rows
         conn._boom_message = self.boom_message
         return conn
 
@@ -303,11 +313,17 @@ def test_socket_timeout_set_from_timeout_s(fake_databricks):
 
 
 def test_max_rows_truncation(fake_databricks):
+    # Seed MORE rows than the cap so the cap is actually exercised: with a
+    # 1-row fake, max_rows=1 would pass even if max_rows were ignored entirely.
+    fake_databricks.seed_rows = [(i, f"name{i}") for i in range(10)]
     adapter = DatabricksAdapter(
         server_hostname=_HOST, http_path=_PATH, access_token="dapi_x"
     )
-    result = adapter.execute("SELECT * FROM t", max_rows=1)
-    assert result.row_count == 1
+    result = adapter.execute("SELECT * FROM t", max_rows=3)
+    assert result.row_count == 3
+    # And prove the adapter forwarded the cap to the driver's fetchmany.
+    cur = adapter._conn._cursors[-1]
+    assert cur.fetchmany_calls[-1] == 3
     adapter.close()
 
 

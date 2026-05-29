@@ -61,12 +61,17 @@ class _FakeCursor:
     def __init__(self, conn: "_FakeConnection"):
         self._conn = conn
         self.description = [("x",), ("name",)]
-        self._rows = [(1, "alice")]
+        # Default single row keeps the result-shape tests exact; a connection
+        # may seed more rows so a truncation test can prove max_rows is honored.
+        self._rows = (
+            list(conn._seed_rows) if conn._seed_rows is not None else [(1, "alice")]
+        )
         # Connector-surfaced per-query scan stat (see _extract_bytes_scanned).
         self._stats = {"bytesScanned": 4096}
         self.sfqid = "01ab-cdef"
         self.closed = False
         self.executed: list[tuple[str, Any]] = []
+        self.fetchmany_calls: list[int] = []
 
     def execute(self, sql: str, timeout: Any = None) -> None:
         self.executed.append((sql, timeout))
@@ -85,6 +90,7 @@ class _FakeCursor:
             self._rows = [("GlobalStats: rows=1",)]
 
     def fetchmany(self, n: int):
+        self.fetchmany_calls.append(n)
         return self._rows[:n]
 
     def fetchall(self):
@@ -99,6 +105,7 @@ class _FakeConnection:
         self.connect_kwargs = kwargs
         self.closed = False
         self._execute_behavior = "ok"
+        self._seed_rows: list[tuple[Any, ...]] | None = None
         self._cursors: list[_FakeCursor] = []
 
     def cursor(self) -> _FakeCursor:
@@ -119,6 +126,8 @@ class _FakeConnector(types.ModuleType):
         self.last_connect_kwargs: dict[str, Any] | None = None
         self.connect_behavior = "ok"  # or "auth"
         self.execute_behavior = "ok"  # propagated onto each connection
+        # Optional rows to seed each cursor with (None -> the default 1 row).
+        self.seed_rows: list[tuple[Any, ...]] | None = None
         # Optional custom message for the "boom" generic exception, used by the
         # BLOCKER-1 tests to plant a secret INSIDE the raw driver exception.
         self.boom_message = "syntax error somewhere"
@@ -136,6 +145,7 @@ class _FakeConnector(types.ModuleType):
             )
         conn = _FakeConnection(**kwargs)
         conn._execute_behavior = self.execute_behavior
+        conn._seed_rows = self.seed_rows
         conn._boom_message = self.boom_message
         return conn
 
@@ -335,11 +345,16 @@ def test_client_timeout_passed_to_cursor_execute(fake_connector):
 
 
 def test_max_rows_truncation(fake_connector):
+    # Seed MORE rows than the cap so the cap is actually exercised: with a
+    # 1-row fake, max_rows=1 would pass even if max_rows were ignored entirely.
+    fake_connector.seed_rows = [(i, f"name{i}") for i in range(10)]
     adapter = SnowflakeAdapter(account="a", user="u", password="p")
-    # Patch the fetchmany source to verify max_rows is honored.
-    adapter._connect()
-    result = adapter.execute("SELECT * FROM t", max_rows=1)
-    assert result.row_count == 1
+    result = adapter.execute("SELECT * FROM t", max_rows=3)
+    assert result.row_count == 3
+    # And prove the adapter forwarded the cap to the driver's fetchmany — not
+    # that it fetched everything and the fake happened to be short.
+    cur = adapter._conn._cursors[-1]
+    assert cur.fetchmany_calls[-1] == 3
     adapter.close()
 
 
