@@ -303,12 +303,22 @@ def test_bigquery_collect_sa_inline_secret_never_in_stdout(
 
 
 def test_bigquery_collect_sa_inline_invalid_json(monkeypatch):
+    # The pasted text is a service-account key; a parser error message can echo
+    # a fragment of it. Plant a secret in a malformed paste and assert neither
+    # the value nor the raw parser exception survives into the message.
+    planted = '{"private_key":"-----BEGIN PRIVATE KEY-----PLANTED9999"'  # unterminated
     monkeypatch.setattr(connect_bigquery, "prompt_text", lambda *a, **k: "my-proj")
     monkeypatch.setattr(connect_bigquery, "prompt_choice", lambda *a, **k: "sa")
     monkeypatch.setattr(connect_bigquery, "prompt_yes_no", lambda *a, **k: True)
-    monkeypatch.setattr(connect_bigquery, "prompt_secret", lambda *a, **k: "not json")
-    with pytest.raises(ValueError):
+    monkeypatch.setattr(connect_bigquery, "prompt_secret", lambda *a, **k: planted)
+    with pytest.raises(ValueError) as excinfo:
         connect_bigquery.collect("prod")
+    msg = str(excinfo.value)
+    assert "PLANTED9999" not in msg
+    assert "PRIVATE KEY" not in msg
+    # `from None` must suppress the chained parser exception from display.
+    assert excinfo.value.__cause__ is None
+    assert excinfo.value.__suppress_context__ is True
 
 
 def test_bigquery_main_invalid_json_user_error(

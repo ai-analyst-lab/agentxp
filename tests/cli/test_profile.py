@@ -6,7 +6,10 @@ from pathlib import Path
 import duckdb
 import pytest
 
+from unittest.mock import patch
+
 from agentxp.cli.exit_codes import (
+    EXIT_FATAL,
     EXIT_OK,
     EXIT_USER_ERROR,
     EXIT_WARNING,
@@ -109,6 +112,33 @@ def test_main_returns_exit_user_error_for_unsupported_adapter(
     assert rc == EXIT_USER_ERROR
     # The driver's message mentions the adapter; surface verbatim.
     assert "snowflake" in captured.err.lower() or "adapter" in captured.err.lower()
+
+
+def test_unexpected_error_scrubs_credentials_from_stderr(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A driver/loader exception can carry a connection string. The CLI's
+    # catch-all must route it through the redactor, so the password never
+    # reaches the terminal — not in the one-line message, not in --verbose.
+    monkeypatch.chdir(tmp_path)
+    parquet_path = _write_clean_parquet(tmp_path / "clean.parquet")
+    secret = "hunter2_LEAK_42"
+    boom = RuntimeError(
+        f"snowflake connect failed: account=acme password={secret} timeout"
+    )
+
+    with patch("agentxp.profiler.driver.profile_dataset", side_effect=boom):
+        rc = main([str(parquet_path), "--verbose"])
+
+    captured = capsys.readouterr()
+    assert rc == EXIT_FATAL
+    assert secret not in captured.err
+    assert secret not in captured.out
+    # The scrubbed placeholder proves it went through the redactor (not just
+    # that the secret happened to be absent).
+    assert "[REDACTED]" in captured.err
 
 
 def test_deep_flag_without_ydata_installed(

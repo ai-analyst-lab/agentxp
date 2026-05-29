@@ -108,8 +108,14 @@ def collect(name: str) -> tuple[dict[str, Any], dict[str, Any]]:
     raw = prompt_secret("service-account JSON")
     try:
         sa_info = json.loads(raw)
-    except (json.JSONDecodeError, ValueError) as e:
-        raise ValueError(f"service-account JSON is not valid JSON: {e}") from None
+    except (json.JSONDecodeError, ValueError):
+        # Do NOT echo the parser exception: the input is a service-account key,
+        # and the message can carry a fragment of the pasted secret. `from None`
+        # also drops the chained cause for the same reason.
+        raise ValueError(
+            "service-account JSON is not valid JSON (check for a missing "
+            "brace, quote, or comma; the paste must be a single line)"
+        ) from None
     if not isinstance(sa_info, dict):
         raise ValueError("service-account JSON must be a JSON object")
 

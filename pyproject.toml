@@ -44,6 +44,10 @@ bigquery = [
 ]
 databricks = [
     "databricks-sql-connector>=3.0",
+    # OAuth M2M / service-principal auth imports databricks.sdk.core, which
+    # ships in the separate databricks-sdk package (see databricks_adapter
+    # ._import_databricks_sdk_core).
+    "databricks-sdk>=0.20",
 ]
 duckdb = [
     "duckdb>=0.10",

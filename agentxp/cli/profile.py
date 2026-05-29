@@ -17,6 +17,7 @@ from typing import Optional
 
 from pydantic import ValidationError
 
+from agentxp.audit.redactor import redact, redact_message
 from agentxp.cli.exit_codes import (
     EXIT_FATAL,
     EXIT_OK,
@@ -25,6 +26,22 @@ from agentxp.cli.exit_codes import (
 )
 
 __all__ = ["main"]
+
+
+def _print_unexpected_error(exc: BaseException, verbose: bool) -> None:
+    """Print an unexpected-error line to stderr with credentials scrubbed.
+
+    A driver/loader exception can carry a connection string or token in its
+    message (and in the formatted traceback). Routing both through the audit
+    redactor keeps that out of the terminal. One seam so no call site can
+    forget to scrub.
+    """
+    print(
+        f"unexpected error: {type(exc).__name__}: {redact_message(exc)}",
+        file=sys.stderr,
+    )
+    if verbose:
+        print(redact(traceback.format_exc()), file=sys.stderr)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -236,26 +253,16 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(str(e), file=sys.stderr)
         return EXIT_USER_ERROR
     except ValidationError as e:
-        print(f"profile_dataset failed: {e}", file=sys.stderr)
+        print(f"profile_dataset failed: {redact_message(e)}", file=sys.stderr)
         return EXIT_FATAL
     except Exception as e:
-        print(
-            f"unexpected error: {type(e).__name__}: {e}",
-            file=sys.stderr,
-        )
-        if args.verbose:
-            traceback.print_exc(file=sys.stderr)
+        _print_unexpected_error(e, args.verbose)
         return EXIT_FATAL
 
     try:
         write_profile_bundle(report, args.bundle)
     except Exception as e:
-        print(
-            f"unexpected error: {type(e).__name__}: {e}",
-            file=sys.stderr,
-        )
-        if args.verbose:
-            traceback.print_exc(file=sys.stderr)
+        _print_unexpected_error(e, args.verbose)
         return EXIT_FATAL
 
     if not args.quiet:
@@ -287,12 +294,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             )
             return EXIT_USER_ERROR
         except Exception as e:
-            print(
-                f"unexpected error: {type(e).__name__}: {e}",
-                file=sys.stderr,
-            )
-            if args.verbose:
-                traceback.print_exc(file=sys.stderr)
+            _print_unexpected_error(e, args.verbose)
             return EXIT_FATAL
 
         if not args.quiet:
