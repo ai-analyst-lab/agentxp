@@ -283,6 +283,132 @@ Residual (tracked, not blockers):
   `DeprecationWarning` — `load_experiment(where=...)` uses a deprecated param;
   migrate the internal call to `filters=`. Cosmetic; not graded.
 
+## Pass-2 — independent blind re-run of the loop (2026-05-28)
+
+Five fresh review agents graded the post-fix codebase against the rubric, **not
+given this document** (no anchoring on prior findings or my re-grade). They
+independently confirmed every pass-1 fix held — AND corrected my own optimistic
+post-fix re-grade on three dimensions. This is the loop catching the orchestrator.
+
+| Dim | Pass-1 as-found | My re-grade | Pass-2 blind | What blind review caught that I missed |
+|-----|-----------------|-------------|--------------|----------------------------------------|
+| D1 | Adequate | Strong | **Adequate** | mSPRT over-conservative, Pocock shape, Bayesian prior, mislabeled CI — I only re-checked basic Welch |
+| D2 | Adequate | Adequate | **Adequate** | `agentxp migrate` recommended but unregistered (stranding); circular import |
+| D3 | Weak | Strong | **Weak** | reproduced password leak via `snowflake_loader` *exception* path — SB-1 only fixed the *log* path |
+| D4 | Weak | Adequate | **Strong** | (better than I credited) |
+| D5 | Adequate | Adequate | **Adequate** | no cross-adapter error-mapping *parity* test; 2 near-tautological truncation tests |
+| D6 | Failing | Strong | **Adequate** | `/unlock` doc example missing required arg; warehouse-status framing self-contradicts |
+
+**Lesson:** my re-grade graded "did I fix the named findings," not "is the
+dimension clean." Grading against the closed tickets is Goodhart; the blind
+re-run against the rubric is the real ratchet. D3/D6/D1 were not actually Strong.
+
+### New findings, verified by me before recording
+
+**P2-SB-1 (D3, NEW ship-blocker) — `snowflake_loader` leaks creds via the
+exception path.** `agentxp/data/snowflake_loader.py:162` (`connect(**params)`)
+and `:208` (`cursor.execute`) run with no credential-scrubbing except handler —
+only `finally: cursor.close()`. A driver `OperationalError`/`DatabaseError` can
+echo `account`/`user`/`password` and propagates uncaught. This **contradicts the
+file's own line-18 docstring** ("Credentials are NEVER ... included in exception
+messages") and **violates the standing engagement constraint** (no secret in
+exception messages). SB-1 fixed only the `logger.debug` dict in this same file
+(`:158-161` uses `_safe_params_for_log`) — it never wrapped connect/execute. The
+sibling `SnowflakeAdapter._connect` scrubs correctly; the loader is the
+unprotected twin. *Verified: connect/execute paths read, no scrubbing except;
+docstring promise read.*
+- **Fix:** wrap connect/query/_check_row_count/_query_parameterized to re-raise
+  with `type(e).__name__` (mirror `SnowflakeAdapter`), or route the loader
+  through `SnowflakeAdapter` so there is one connect path. **How we'd know:** a
+  test that raises a creds-bearing driver error and asserts no secret in the
+  re-raised `str(e)` / caplog (mirror the BLOCKER-1 adapter leak tests).
+
+**P2-1 (D2) — unreachable `migrate` recovery command.** `migrate` is NOT in
+`SUBCOMMANDS` (`cli/__main__.py:22-30`), yet `cli/resume.py:124` and
+`schemas/_versioning.py:198` tell users to "Run `agentxp migrate state <exp_id>`"
+— which exits 1 `unknown subcommand`. The recovery path the kept v0.5+ versioning
+subsystem promises is a dead end *today*. `cli/migrate_metrics.py` is a real,
+tested 127-line tool that is also unreachable. *Verified by grep.* Ties to the
+A-1 keep decision: the reserved code is not inert — it emits guidance to a
+missing command. **Fix options:** (a) register a `migrate` router
+(state→`migrate_state.main`, metrics→`migrate_metrics.main`); or (b) soften the
+two messages so they don't name an unrunnable command until v0.5.
+
+**P2-2 (D1, all conservative — no false positives):**
+- mSPRT severely over-conservative (`stats/sequential.py:99-105`): simulated
+  Type I = 0.0, always-valid CI ~2.7× fixed-horizon width at N=5000 → wasted
+  traffic, false "no effect". Fix to canonical Howard GAVI radius.
+- Pocock boundaries increasing, not constant (`sequential.py:343-345`): FWER
+  still controlled (0.034) so safe, but contradicts the labeled method.
+- Bayesian `normal_normal` NIG prior isn't the documented Student-t(n-1)
+  (`bayesian.py:367-368`): CIs ~4-5% too tight at small n; docstring overclaims.
+- CI comment says "Agresti-Caffo" but code is plain Wald (`ab_tests.py:195`).
+
+**P2-3 (D5, creds-free — corrects my deferral):** the cross-adapter
+error-mapping parity gap I deferred as "needs live creds" is testable WITH FAKES
+— inject a fake raising each driver's auth/timeout error and assert all four map
+to the same AgentXP exception type. Plus 2 near-tautological truncation tests
+(`test_snowflake_adapter.py:337`, `test_databricks_adapter.py:305`): the fake
+holds 1 row so `max_rows=1` proves nothing.
+
+**P2-4 (D6):** `/unlock` README example (`README.md:113`) omits the required
+`<exp_id>`; README says "DuckDB only, warehouses in v0.1.1" yet
+`agentxp connect snowflake` is live while `profile --adapter snowflake` says
+"ships in W_sql" — reconcile the framing; install-hint string drift across 3
+sites.
+
+**P2-5 (D3, latent/minor):** `profile.py:243/254/291` raw `{e}` +
+`traceback.print_exc()` — dormant (warehouse profiling is NotImplemented) but a
+live leak the moment it ships; `connect_bigquery.py:112` echoes a JSON fragment;
+`databricks` extra omits `databricks-sdk` so the M2M OAuth path ImportErrors.
+
+### What pass-2 independently confirmed is strong
+Single canonical `_SENSITIVE_KEYS` (grep-verified no drift); the four adapters'
+redact-then-`type().__name__` exception discipline; the BLOCKER-1 credential-leak
+test suite (plants a secret in the driver exception, asserts it's scrubbed); the
+signature + result-model parity harness; Python-computed integration goldens;
+the zero-variance/n<2 stats guards; the exit-code design + argparse-2
+normalization; the QUICKSTART `$`/`>` convention. All core stats methods
+(Welch/proportions/ratio/Fisher/SRM/corrections/power/Bayesian/guardrail)
+re-verified against scipy/statsmodels ground truth.
+
+### Pass-2 resolution log (2026-05-28) — all findings fixed
+
+Every pass-2 finding above is now fixed. Grouped commits; full suite green
+(1312 passed, 63 credential-gated skips) on `.venv` Python 3.13.
+
+- **P2-SB-1 (D3) — RESOLVED.** `snowflake_loader.py` connect/query/row-count/
+  parameterized paths now route through a `_reraise_clean` helper that re-raises
+  with `type(e).__name__` only, mirroring `SnowflakeAdapter`. New tests plant a
+  creds-bearing driver error and assert no secret in `str(e)`/caplog.
+- **P2-1 (D2) — RESOLVED.** Registered a `migrate` router (`cli/migrate.py`,
+  wired into `__main__.py` SUBCOMMANDS) dispatching `state`→`migrate_state` and
+  `metrics`→`migrate_metrics`, so the guidance strings now resolve. Dispatcher
+  tests added.
+- **P2-2 (D1) — RESOLVED.** mSPRT radius corrected to the canonical Howard
+  normal-mixture form `radius² = 2·σ²·denom/(n_eff²·τ²)·log(√(denom/σ²)/α)` with
+  the matching e-value exponent (`n_eff²`); docstring rewritten with the full
+  derivation. Verified: Type-I under peeking 0.013 (≤α), power@0.3 = 1.0,
+  radius/e-value decisions agree on 3000 sims. Pocock/OBF docstring now honestly
+  describes the independent-increment spending approximation (Pocock drifts mildly
+  upward, not exactly constant). Bayesian NIG prior comment corrected — it is a
+  *proper* InverseGamma(0.5,0.5) weakly-informative prior, NOT Jeffreys.
+  `ab_tests.py` CI comment corrected from "Agresti-Caffo" to unpooled Wald, with
+  the AC trade-off documented.
+- **P2-3 (D5) — RESOLVED.** Added `tests/sql/test_adapter_error_parity.py`:
+  creds-free fakes inject each driver's auth/timeout error and assert all
+  adapters map to the same `AuthExpiredError`/`QueryTimeoutError`, plus a planted
+  secret never leaks. De-tautologized the two truncation tests (seed 10 rows,
+  `max_rows=3`, assert `fetchmany` got 3).
+- **P2-4 (D6) — RESOLVED.** README `/unlock` example now includes `<exp_id>`;
+  warehouse-status framing reconciled (profiles can be registered; reading from a
+  warehouse ships in v0.1.1); install-hint string normalized to the quoted
+  `pip install 'agentxp[...]'` form across loader + docs.
+- **P2-5 (D3) — RESOLVED.** `profile.py` routes all unexpected-error output
+  through one `_print_unexpected_error` seam (redactor-scrubbed message + verbose
+  traceback); `connect_bigquery.py` invalid-JSON path raises a generic message
+  `from None` (no secret fragment); `databricks` extra now ships `databricks-sdk`.
+
 ## Verdict on the review process itself
 The trial produced what it was meant to: a security ship-blocker the prior
 remediation report had wrongly claimed fixed (SB-1), two real statistical
