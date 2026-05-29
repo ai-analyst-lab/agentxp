@@ -7,7 +7,7 @@
 
 meta:
   project: agentxp
-  repo: /Users/shanebutler/projects/openxp
+  repo: /Users/shanebutler/projects/agentxp
   remote: github.com/ai-analyst-lab/agentxp
   version_target: v0.1.1
   updated: 2026-05-28

@@ -154,7 +154,7 @@ Rough rollup: **v0.1 ~80% done, v0.5 ~80% done, v1.0 ~75% done** (counting the l
 
 ## 8. README accuracy check
 
-Read `/Users/shanebutler/projects/openxp/README.md` against the shipped code.
+Read `/Users/shanebutler/projects/agentxp/README.md` against the shipped code.
 
 ### Accurate
 - "Statsig gives you a dashboard..." tagline — matches CLAUDE.md
