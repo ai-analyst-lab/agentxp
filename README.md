@@ -54,7 +54,7 @@ When `/experiment` is invoked, the system orchestrates 13 agents across 11 stage
 | 0.75 | `metric_drafter` | Bootstrap a starter metric catalog from outcomes and measures |
 | 1-3 | `designer.elicitor`, `designer.drafter`, `designer.editor`, `consistency_judge` | Capture intent, draft the hypothesis, draft the pre-registered brief |
 | 4 | `designer.drafter` | Bind the brief to a data plan: which metrics, which cohorts |
-| 5 | `sql_query_writer`, `monitor` | Build cohort SQL; check for sample-ratio mismatch before any results render |
+| 5 | `sql_query_writer`, `sql_corrector`, `monitor` | Build cohort SQL (repairing on dialect/validation failure); check for sample-ratio mismatch before any results render |
 | 6 | `analyzer` | Compute primary metric, guardrails, and pre-registered segments |
 | 7 | `interpreter` | Apply the 8-step decision tree against the pre-registered decision rule |
 | 8 | `readout` | Render the verdict, diagnostics panel, and JSON sidecar |
@@ -106,11 +106,11 @@ The audit vocabulary is a closed set of thirteen events: `stage.entered`, `stage
 |---------|---------|---------|
 | `/experiment` | Run a full experiment end to end | `/experiment plan=full` |
 | `/profile` | Profile a dataset (Stage 0) | `/profile ~/data/checkout.parquet` |
-| `/connect-data` | Connect a warehouse | `/connect-data snowflake` |
+| `/connect-data` | Register a warehouse credential profile | `/connect-data snowflake` |
 | `/resume` | Resume an interrupted experiment | `/resume exp_001` |
 | `/audit` | Replay the decision chain | `/audit exp_001` |
 | `/list` | Show all experiments in this project | `/list` |
-| `/unlock` | Force-unlock a stale project lock | `/unlock` |
+| `/unlock` | Force-unlock a stale experiment lock | `/unlock exp_001` |
 
 Plain-English questions also work. "Why did exp_007 halt at Stage 5?" produces the same result as `/audit exp_007`.
 
@@ -123,7 +123,7 @@ v0.1 ships deliberately narrow.
 - **v0.1 is in active development.** The data-profiling stage and the audit substrate are complete; the brief-drafting, analysis, interpretation, and readout stages land through the W1-W7 build waves. See `BUILD_STATUS.yaml` for current state.
 - Single-user. No team collaboration, no shared project locks.
 - Randomized A/B tests only. Causal inference and quasi-experimental designs are a separate project.
-- v0.1 ships one warehouse adapter (DuckDB). The three analytical warehouses — Snowflake, BigQuery, and Databricks — land in v0.1.1, within two weeks of v0.1. The operational stores (Postgres, MySQL, Redshift) follow in v0.1.2.
+- v0.1 profiles and analyzes DuckDB-readable sources only. Credential profiles for the three analytical warehouses — Snowflake, BigQuery, and Databricks — can already be registered (`/connect-data <dialect>`), but profiling and reading *from* a warehouse (`profile --adapter snowflake`) is not yet wired — it returns a "ships in v0.1.1" message. Warehouse-backed reads land in v0.1.1, within two weeks of v0.1. The operational stores (Postgres, MySQL, Redshift) follow in v0.1.2.
 - No external hook system. The internal `validate_chain` runs on every stage commit. Hooks land in v0.2.
 - No OpenTelemetry export. The append-only log is the audit substrate. OTel lands in v0.5.
 
