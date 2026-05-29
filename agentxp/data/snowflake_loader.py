@@ -31,7 +31,7 @@ import logging
 import os
 import re
 import warnings
-from typing import Any
+from typing import Any, NoReturn
 
 import pandas as pd
 
@@ -146,7 +146,7 @@ class SnowflakeLoader:
         except ImportError as exc:  # pragma: no cover - exercised via patching
             raise ImportError(
                 "snowflake-connector-python is not installed. Install the "
-                "optional extra with:  pip install agentxp[snowflake]"
+                "optional extra with:  pip install 'agentxp[snowflake]'"
             ) from exc
 
         if not self._connection_params:
@@ -159,13 +159,33 @@ class SnowflakeLoader:
             "Opening Snowflake connection (params=%s)",
             self._safe_params_for_log(self._connection_params),
         )
-        self._conn = snowflake.connector.connect(**self._connection_params)
+        try:
+            self._conn = snowflake.connector.connect(**self._connection_params)
+        except Exception as exc:
+            self._reraise_clean(exc, "connect")
         return self._conn
 
     def _ensure_conn(self):
         if self._conn is None:
             self._connect()
         return self._conn
+
+    def _reraise_clean(self, exc: Exception, action: str) -> NoReturn:
+        """Re-raise a driver exception with no credential in *our* message.
+
+        The Snowflake connector's ``OperationalError`` / ``DatabaseError`` text
+        routinely echoes connection params (``account`` / ``user`` / and, on
+        some auth surfaces, ``password``). Surfacing it raw would break the
+        line-18 promise that credentials are never in exception messages. We
+        emit only the redacted connection dict and the original class name;
+        the driver exception is chained via ``from exc`` so a debugger can
+        still inspect the cause, but no secret appears in the message we raise.
+        """
+        safe = _redact_creds_for_log(self._connection_params)
+        raise RuntimeError(
+            f"Snowflake {action} failed ({type(exc).__name__}); "
+            f"connection={safe!r}"
+        ) from exc
 
     # ------------------------------------------------------------------
     # Query API
@@ -212,6 +232,8 @@ class SnowflakeLoader:
                 if cursor.description
                 else []
             )
+        except Exception as exc:
+            self._reraise_clean(exc, "query")
         finally:
             cursor.close()
 
@@ -237,6 +259,8 @@ class SnowflakeLoader:
         try:
             cursor.execute(count_sql)
             row = cursor.fetchone()
+        except Exception as exc:
+            self._reraise_clean(exc, "row-count check")
         finally:
             cursor.close()
 
@@ -369,6 +393,8 @@ class SnowflakeLoader:
                 if cursor.description
                 else []
             )
+        except Exception as exc:
+            self._reraise_clean(exc, "parameterized query")
         finally:
             cursor.close()
 

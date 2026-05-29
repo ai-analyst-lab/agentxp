@@ -140,6 +140,52 @@ class TestCredentialSafety:
             assert "super-secret-123" not in record.getMessage()
         loader.close()
 
+    def test_password_not_in_exception_on_connect_failure(self, monkeypatch):
+        # The Snowflake driver's connection errors routinely echo the conn
+        # string (account/user/password). The loader must scrub it from the
+        # exception it raises (line-18 docstring promise) while preserving the
+        # original via the __cause__ chain for debugging.
+        fake_connector = mock.MagicMock()
+        leaky = Exception(
+            "250001: could not connect: account=acme user=svc "
+            "password=super-secret-123"
+        )
+        fake_connector.connect.side_effect = leaky
+        fake_module = mock.MagicMock()
+        fake_module.connector = fake_connector
+        monkeypatch.setitem(sys.modules, "snowflake", fake_module)
+        monkeypatch.setitem(sys.modules, "snowflake.connector", fake_connector)
+
+        loader = SnowflakeLoader(
+            {"account": "acme", "user": "svc", "password": "super-secret-123"}
+        )
+        with pytest.raises(RuntimeError) as ei:
+            loader._connect()
+
+        assert "super-secret-123" not in str(ei.value)
+        assert "[REDACTED]" in str(ei.value)
+        # The driver exception is still chained for a debugger.
+        assert ei.value.__cause__ is leaky
+
+    def test_password_not_in_exception_on_query_failure(self, monkeypatch):
+        cursor = _make_fake_cursor([], [])
+        # guardrail count returns small so we proceed to the real execute
+        cursor.fetchone.return_value = (1,)
+        cursor.execute.side_effect = Exception(
+            "001003: SQL error; conn account=acme password=super-secret-123"
+        )
+        conn = _make_fake_conn(cursor)
+        _install_fake_snowflake(monkeypatch, conn)
+
+        loader = SnowflakeLoader(
+            {"account": "acme", "user": "svc", "password": "super-secret-123"}
+        )
+        with pytest.raises(RuntimeError) as ei:
+            loader.query("SELECT 1", force=True)
+
+        assert "super-secret-123" not in str(ei.value)
+        loader.close()
+
 
 # ---------------------------------------------------------------------------
 # Query flow
