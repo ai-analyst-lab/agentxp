@@ -50,6 +50,26 @@ def test_unknown_subcommand_returns_user_error(capsys):
     assert "unknown subcommand 'foo'" in captured.err
 
 
+def test_migrate_state_recovery_command_resolves(capsys):
+    # The schema-version load-refusal contract (schemas/_versioning.py) and
+    # cli/resume.py tell users to "Run `agentxp migrate state <exp_id>`". That
+    # guidance is only honest if the command actually resolves — regression
+    # guard against `migrate` falling out of SUBCOMMANDS again.
+    rc = dispatcher.main(["migrate", "state", "exp_001"])
+    captured = capsys.readouterr()
+    assert rc == EXIT_OK
+    assert "No migrations needed for experiment exp_001" in captured.out
+
+
+def test_migrate_metrics_is_reachable(capsys, tmp_path):
+    # migrate_metrics is a real tool; ensure the router reaches it (empty dir
+    # is a clean no-op, exit 0).
+    rc = dispatcher.main(["migrate", "metrics", "--dir", str(tmp_path)])
+    captured = capsys.readouterr()
+    assert rc == EXIT_OK
+    assert "Nothing to migrate" in captured.out
+
+
 def test_placeholder_subcommand_returns_user_error(capsys):
     # `connect` is now wired (W2.A), so inject a synthetic placeholder row to
     # exercise the "not yet implemented" dispatch path.
