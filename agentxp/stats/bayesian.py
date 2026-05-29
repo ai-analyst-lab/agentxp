@@ -360,10 +360,15 @@ def normal_normal_test(
     rng = np.random.default_rng(seed)
 
     # Normal-Inverse-Gamma (NIG) conjugate prior hyperparameters.
-    # Weak Jeffreys-ish scale prior: alpha_0 = nu_0/2 = 0.5, beta_0 = 0.5.
-    # The precision of the prior on mu is encoded in prior_sd: prec_pri = 1/prior_sd^2.
-    # With weak prior_sd (>> data scale) this reduces to the textbook Student-t
-    # posterior on mu.
+    # Variance prior: sigma^2 ~ InverseGamma(alpha_0=0.5, beta_0=0.5) — a
+    # *proper*, weakly-informative prior (equivalently nu_0 = 1 prior degree
+    # of freedom). This is NOT the Jeffreys prior: Jeffreys for a scale is the
+    # improper limit alpha_0, beta_0 -> 0, and the flat-variance reference
+    # prior that yields an exact Student-t(n-1) posterior is alpha_0 = -1/2,
+    # beta_0 = 0. We deliberately use a proper prior so the posterior is well
+    # defined for tiny n; with n large the data dominate and the marginal
+    # posterior on mu is close to the textbook Student-t(n-1).
+    # The prior precision on mu is encoded in prior_sd: prec_pri = 1/prior_sd^2.
     alpha_0 = 0.5
     beta_0 = 0.5
     prec_pri = 1.0 / (prior_sd ** 2)
@@ -381,9 +386,11 @@ def normal_normal_test(
             sigma^2 | x  ~ InverseGamma(alpha_post, beta_post)
             mu | sigma^2, x ~ N(posterior_mean_mu, sigma^2/(prec_pri + n))
 
-        Under a weak prior (prec_pri -> 0) this collapses to the standard
-        Student-t(n-1) posterior on mu (xbar, s^2/n), matching the textbook
-        unknown-variance case.
+        Under a weak mean prior (prec_pri -> 0) the marginal posterior on mu
+        is Student-t with 2*alpha_post = n + 1 df, centered at xbar; for large
+        n this is close to the textbook Student-t(n-1) posterior (xbar, s^2/n)
+        for the unknown-variance case. (The small df/scale offset comes from
+        the proper InverseGamma(0.5, 0.5) variance prior; see above.)
         """
         n = x.size
         xbar = float(x.mean())

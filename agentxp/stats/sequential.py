@@ -75,43 +75,52 @@ def _default_tau(sigma):
 
 
 def _msprt_core(diff, se, n_eff, sigma2, tau, alpha):
-    """Always-valid CI radius and log-mixture-likelihood for a Gaussian mSPRT.
+    """Always-valid CI radius and mixture e-value for a Gaussian mSPRT.
 
-    Under the Gaussian-mixing mSPRT (Howard et al. 2021, eq. for normal
-    rewards), the radius of the always-valid (1-alpha) CI at sample count
-    n is:
+    Derivation (Robbins 1970; Howard et al. 2021, normal-mixture sequence).
+    The effect estimate is treated as a sufficient statistic
+    ``diff ~ N(theta, v)`` with ``v = sigma^2 / n_eff`` (the difference-in-
+    means sampling variance). Mixing over the effect with a Gaussian prior
+    ``theta ~ N(0, tau^2)`` gives the marginal ``diff ~ N(0, v + tau^2)``
+    under H0, so the mixture likelihood ratio (the e-value) for testing
+    ``theta = theta_0`` is:
 
-        r(n) = sqrt( (sigma^2/n + tau^2) / n  *  ...  )
+        R(theta_0) = sqrt(v / (v + tau^2))
+                     * exp( (diff - theta_0)^2 * tau^2 / (2 v (v + tau^2)) )
 
-    The clean form used here is derived by integrating the likelihood
-    ratio over the Gaussian prior N(0, tau^2) on the effect:
+    This R is a nonnegative martingale with E[R] = 1 under H0, so by Ville's
+    inequality rejecting when R >= 1/alpha controls type-I error at alpha
+    under arbitrary optional stopping. Inverting ``R(theta_0) < 1/alpha``
+    gives the always-valid CI half-width:
 
-        radius = sqrt( 2 * (sigma^2/n_eff + sigma^2 * tau^2 / (sigma^2 + n_eff*tau^2))
-                       * log( (1/alpha) * sqrt( (sigma^2 + n_eff*tau^2) / sigma^2 ) ) )
+        radius^2 = 2 * v(v + tau^2) / tau^2 * log( sqrt((v + tau^2)/v) / alpha )
 
-    with n_eff = harmonic-style effective sample size for two groups.
-    This is the standard Robbins/Howard mixture bound specialized to a
-    difference of means with known/plug-in variance.
+    Substituting ``v = sigma^2/n_eff`` and ``denom = sigma^2 + n_eff*tau^2``
+    (so ``v + tau^2 = denom/n_eff`` and ``(v+tau^2)/v = denom/sigma^2``):
+
+        radius^2 = 2 * sigma^2 * denom / (n_eff^2 * tau^2)
+                   * log( sqrt(denom/sigma^2) / alpha )
+
+    The e-value's exponent likewise carries ``n_eff^2`` once ``v`` is
+    expanded. ``n_eff = n_c*n_t/(n_c+n_t)`` is the effective per-group size
+    for the pooled-variance two-sample formulation.
     """
-    # Why: the mixture marginal likelihood has closed form for Gaussian
-    # rewards with a Gaussian prior on the mean; the radius below comes
-    # from inverting that likelihood ratio at level alpha.
     s2 = sigma2
     denom = s2 + n_eff * tau * tau
     log_term = math.log(math.sqrt(denom / s2) / alpha)
     if log_term <= 0:
         log_term = 1e-9
-    variance_term = (s2 / n_eff) * (denom / denom) + (s2 * tau * tau) / denom
+    variance_term = s2 * denom / (n_eff * n_eff * tau * tau)
     radius = math.sqrt(2.0 * variance_term * log_term)
 
-    # e-value (evidence measure): mixture likelihood ratio under H1/H0
+    # e-value (evidence measure): mixture likelihood ratio under H1/H0.
     # For decision, reject H0: diff = 0 when |diff| > radius.
     if se > 0:
         z = diff / se
     else:
         z = 0.0
     e_value = math.sqrt(s2 / denom) * math.exp(
-        (n_eff * diff * diff * tau * tau) / (2.0 * s2 * denom)
+        (n_eff * n_eff * diff * diff * tau * tau) / (2.0 * s2 * denom)
     )
     return radius, z, e_value
 
@@ -291,15 +300,26 @@ def group_sequential_boundaries(n_interims, alpha=0.05, spending="obrien_fleming
     two-sided. Interims are spaced at information fractions
     t_k = k / n_interims for k = 1..n_interims.
 
-    - O'Brien-Fleming (1979): very conservative early, approaches the
+    - O'Brien-Fleming (1979): very conservative early, relaxing toward the
       fixed-horizon critical value at the final look. Boundary falls
       monotonically across interims.
-    - Pocock (1977): roughly constant boundary at each interim — same
-      nominal critical value every time.
+    - Pocock (1977): a near-constant boundary, trending mildly upward across
+      looks under this implementation (see the approximation note below).
 
-    Both are implemented via the Lan-DeMets (1983) alpha spending
-    representation, which produces classical O'Brien-Fleming and Pocock
-    boundaries when interims are equally spaced.
+    Approximation: boundaries are derived from the Lan-DeMets (1983) alpha
+    *spending functions* (the OBF and Pocock forms), but the per-look z is
+    obtained by converting the *incremental* alpha at each look to a nominal
+    two-sided z, treating looks as independent. Exact group-sequential
+    boundaries require recursive integration over the multivariate normal of
+    the test statistic at successive looks, which accounts for the positive
+    correlation between cumulative statistics. Because that correlation is
+    ignored here, the boundaries reproduce the qualitative OBF (monotone
+    decreasing) and Pocock (roughly flat) shapes but are not the exact
+    classical critical values: the final-look OBF bound is somewhat more
+    conservative than the textbook value, and the Pocock bound drifts mildly
+    upward rather than being exactly constant. Use these for shape/intuition
+    and conservative gating, not as drop-in replacements for an exact
+    group-sequential package.
 
     Args:
         n_interims: number of interim analyses (>= 1).
@@ -352,8 +372,8 @@ def group_sequential_boundaries(n_interims, alpha=0.05, spending="obrien_fleming
         )
     else:
         shape_note = (
-            "Pocock: approximately constant z-boundary at each interim — "
-            "same bar for significance at every look."
+            "Pocock: near-constant z-boundary across interims (drifts mildly "
+            "upward under the independent-increment spending approximation)."
         )
 
     interp = (

@@ -192,7 +192,13 @@ def proportion_test(c_success, c_n, t_success, t_n, alpha=0.05):
         z_stat = diff / se_test
         p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))
 
-    # Unpooled SE for confidence interval (Agresti-Caffo approach)
+    # Unpooled Wald SE for the CI on the difference of proportions. The test
+    # statistic above uses the *pooled* SE (valid under H0: p_c = p_t); the CI
+    # uses the *unpooled* SE so it is consistent with the reported point
+    # estimate `diff`. This is the standard two-proportion Wald interval. For
+    # small n or rates near 0/1, an Agresti-Caffo adjustment (+1 success and +1
+    # failure per arm) would give better coverage; we use plain Wald here so
+    # the interval stays centered on the unadjusted `diff` we report.
     se_ci = math.sqrt(rate_c * (1 - rate_c) / c_n + rate_t * (1 - rate_t) / t_n)
     z_crit = stats.norm.ppf(1 - alpha / 2)
     ci_lower = diff - z_crit * se_ci
