@@ -109,7 +109,11 @@ def _msprt_core(diff, se, n_eff, sigma2, tau, alpha):
     denom = s2 + n_eff * tau * tau
     log_term = math.log(math.sqrt(denom / s2) / alpha)
     if log_term <= 0:
-        log_term = 1e-9
+        # The mixture is uninformative at this point (the prior is too diffuse
+        # relative to the data for the level alpha). Do NOT fabricate a tiny
+        # radius — that would manufacture a spurious STOP. Return an infinite
+        # radius so the CI spans the line and the caller CONTINUES.
+        return math.inf, (diff / se if se > 0 else 0.0), 1.0
     variance_term = s2 * denom / (n_eff * n_eff * tau * tau)
     radius = math.sqrt(2.0 * variance_term * log_term)
 
@@ -119,25 +123,43 @@ def _msprt_core(diff, se, n_eff, sigma2, tau, alpha):
         z = diff / se
     else:
         z = 0.0
-    e_value = math.sqrt(s2 / denom) * math.exp(
-        (n_eff * n_eff * diff * diff * tau * tau) / (2.0 * s2 * denom)
-    )
+    exponent = (n_eff * n_eff * diff * diff * tau * tau) / (2.0 * s2 * denom)
+    try:
+        e_value = math.sqrt(s2 / denom) * math.exp(exponent)
+    except OverflowError:
+        # Overwhelming evidence (a very large effect at large n): the mixture
+        # likelihood ratio overflows float. Saturate to +inf rather than crash;
+        # the decision is driven by the CI radius, not the raw e-value.
+        e_value = math.inf
     return radius, z, e_value
 
 
-def msprt_test(control, treatment, tau=None, alpha=0.05):
+_MSPRT_MIN_N = 30
+
+
+def msprt_test(control, treatment, tau=None, alpha=0.05, min_n=_MSPRT_MIN_N):
     """Mixture SPRT for the difference in means between two groups.
 
-    Always-valid: decisions and CIs remain valid under arbitrary optional
-    stopping. Uses a Gaussian mixing distribution on the effect size with
-    prior SD `tau`. If `tau` is None, defaults to the pooled sample SD
-    (a weakly-informative choice from Howard et al. 2021).
+    Always-valid under optional stopping: the CI maintains 1-alpha coverage
+    simultaneously over all sample sizes. Uses a Gaussian mixing distribution
+    on the effect size with prior SD `tau`. If `tau` is None, defaults to the
+    pooled sample SD (a weakly-informative choice from Howard et al. 2021).
+
+    Small-n caveat: the canonical guarantee assumes a *fixed* mixing variance.
+    This implementation plugs in the running pooled variance for both `sigma`
+    and `tau`, which is noisy at small n and inflates Type-I if you act on a
+    STOP very early (measured ~0.10-0.13 peeking from n=2, vs <=alpha from
+    n>=~30). To keep decisions trustworthy we refuse to STOP until BOTH groups
+    reach `min_n`; the CI is still reported for transparency. Pass a fixed
+    `tau` (chosen a priori) and `min_n=2` to recover the textbook behavior.
 
     Args:
         control: array-like of continuous outcomes for control.
         treatment: array-like of continuous outcomes for treatment.
         tau: prior SD on the true effect size (None = pooled sigma).
         alpha: one minus the desired coverage level (default 0.05).
+        min_n: minimum per-group sample size before a STOP_REJECT is allowed
+            (default 30). Below it the decision is held at CONTINUE.
 
     Returns:
         dict with: test, diff, se, n_control, n_treatment, tau, sigma,
@@ -179,7 +201,10 @@ def msprt_test(control, treatment, tau=None, alpha=0.05):
     ci_lower = diff - radius
     ci_upper = diff + radius
 
-    if ci_lower > 0 or ci_upper < 0:
+    excludes_zero = ci_lower > 0 or ci_upper < 0
+    below_floor = n_c < min_n or n_t < min_n
+
+    if excludes_zero and not below_floor:
         decision = "STOP_REJECT"
         significant = True
     else:
@@ -192,6 +217,13 @@ def msprt_test(control, treatment, tau=None, alpha=0.05):
             f"Always-valid CI excludes zero: treatment ({mean_t:.4f}) is "
             f"{direction} than control ({mean_c:.4f}) by {diff:+.4f} "
             f"(95% AV CI: [{ci_lower:.4f}, {ci_upper:.4f}]). STOP and reject null."
+        )
+    elif excludes_zero and below_floor:
+        interp = (
+            f"Always-valid CI excludes zero (diff = {diff:+.4f}), but the "
+            f"smaller group has only {min(n_c, n_t)} obs (< min_n={min_n}); the "
+            f"plug-in mixture variance is too noisy to trust a STOP this early. "
+            f"CONTINUE until both groups reach {min_n}."
         )
     else:
         interp = (

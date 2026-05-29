@@ -44,6 +44,45 @@ class TestMsprt:
             f"(with slack). Sequential guarantee violated."
         )
 
+    def test_type_i_rate_peeking_from_tiny_n(self):
+        """Peeking from n=2 must still control Type-I via the min_n floor.
+
+        Without the floor, re-plugging the noisy running variance into the
+        mixture at small n inflates the realized rate to ~0.10-0.13. The floor
+        refuses to STOP until both groups reach min_n, restoring control.
+        """
+        rng = np.random.default_rng(11)
+        n_reps = 600
+        alpha = 0.05
+        false_rejects = 0
+        peek_points = list(range(2, 1001, 10))  # start at n=2
+
+        for _ in range(n_reps):
+            ctrl_full = rng.normal(0.0, 1.0, 1000)
+            treat_full = rng.normal(0.0, 1.0, 1000)
+            for n in peek_points:
+                if msprt_test(ctrl_full[:n], treat_full[:n], alpha=alpha)[
+                    "decision"
+                ] == "STOP_REJECT":
+                    false_rejects += 1
+                    break
+
+        rate = false_rejects / n_reps
+        assert rate <= alpha + 0.02, (
+            f"Type I peeking from n=2 = {rate:.3f} > alpha+slack; the small-n "
+            f"floor is not protecting the guarantee."
+        )
+
+    def test_below_min_n_never_stops_even_on_huge_effect(self):
+        """A clear effect below the floor must hold at CONTINUE; min_n=2 frees it."""
+        ctrl = np.zeros(10)
+        treat = np.ones(10) * 5.0
+        held = msprt_test(ctrl, treat, alpha=0.05)
+        assert held["decision"] == "CONTINUE"
+        assert held["significant"] is False
+        freed = msprt_test(ctrl, treat, alpha=0.05, min_n=2)
+        assert freed["decision"] == "STOP_REJECT"
+
     def test_always_valid_ci_wider_than_fixed(self):
         """Always-valid CI must be strictly wider than fixed-horizon CI."""
         rng = np.random.default_rng(7)
