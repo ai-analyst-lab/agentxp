@@ -19,6 +19,10 @@ leads with ship-blockers, and ranks improvement hypotheses. Verification used
 Two **Failing/Weak** dimensions (D3, D6) and one **Weak** (D4) are
 release-blockers for an open-source v0.1 by the rubric's own bar.
 
+> This is the **as-found** scorecard. After the fixes in this doc, a gate re-run
+> moved D3 Weak→Strong, D6 Failing→Strong, D4 Weak→Adequate, D1 Adequate→Strong
+> (no regressions). See **Post-fix re-grade** near the bottom.
+
 ---
 
 ## Ship-blockers (fix before any public release)
@@ -250,6 +254,34 @@ Resolved by product decision:
   bump and `_versioning.py` carries tests. This is an accepted, intentional forward
   reservation, not unaccounted-for dead code; the review correctly flagged it and
   the owner consciously chose to retain it. No code change.
+
+## Post-fix re-grade (gate re-run, 2026-05-28)
+
+Re-graded each dimension against `REVIEW_RUBRIC.md` after the fixes, with fresh
+evidence (not the resolution log). Suite green at `1298 passed, 63 skipped`.
+
+| Dim | Before | After | Evidence the bar is now cleared |
+|-----|--------|-------|---------------------------------|
+| D1 | Adequate | **Strong** | `ab_tests.py:57` zero-SE guard → `undefined`; `:77` t-stat sign matches `diff`; `:36` n<2 already guarded. Two HIGH bugs closed; methods unchanged. |
+| D2 | Adequate | **Adequate** | A-1 reclassified as an intentional v0.5+ reservation (owner decision); A-2 correctly NOT abstracted. No new dead code. |
+| D3 | Weak | **Strong** | `grep` confirms ONE `_SENSITIVE_KEYS` literal (`adapter.py:96`); the four SB-1 keys (`client_secret`/`private_key_file_pwd`/`passcode`/`oauth_token`) all present; `snowflake_loader` delegates to canonical. No surviving local set. |
+| D4 | Weak | **Adequate** | `connect_common` surfaces the curated install hint on `ImportError`; dispatcher disambiguates argparse-2 from `EXIT_WARNING`. Happy path now matches the rewritten QUICKSTART. |
+| D5 | Adequate | **Adequate** | W-4 de-circularized (`_extract_bytes_scanned` branch tests + None-when-omitted); W-5 added signature + result-model parity locks. Named open gap: cross-adapter *error-mapping* parity still needs live drivers. |
+| D6 | Failing | **Strong** | `tests/docs/test_docs_conformance.py` ratchets every `agentxp <cmd>` in the docs against `SUBCOMMANDS`; QUICKSTART rewritten; proven non-tautological. |
+
+Two Weak/Failing release-blockers (D3, D6) cleared to Strong; D4 cleared to
+Adequate. No dimension regressed. Per the rubric (ratchet, not maximize), this
+clears the v0.1 bar.
+
+Residual (tracked, not blockers):
+- **D5 error-mapping parity** — auth/timeout/over-scan exception parity across
+  the three live adapters; needs credentials (Tier-B). Deferred to the
+  integration matrix.
+- **W-4 real-bytes** — Tier-B assertion that Snowflake `bytes_scanned` reflects
+  a real scan; needs credentials.
+- **Minor (new, this re-grade):** `tests/test_snowflake_loader.py:183` emits a
+  `DeprecationWarning` — `load_experiment(where=...)` uses a deprecated param;
+  migrate the internal call to `filters=`. Cosmetic; not graded.
 
 ## Verdict on the review process itself
 The trial produced what it was meant to: a security ship-blocker the prior
