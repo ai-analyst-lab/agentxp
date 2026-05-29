@@ -11,6 +11,7 @@ input) + §13 (QueryArtifact.explain).
 """
 from __future__ import annotations
 
+from agentxp.audit.redactor import redact_message
 from agentxp.sql.adapter import BaseAdapter, PreviewResult
 
 
@@ -34,7 +35,7 @@ def preview_query(adapter: BaseAdapter, sql: str, purpose: str) -> PreviewResult
             estimated_cost_usd=None,
             warnings=[
                 f"Preview failed on adapter {adapter.get_dialect()}: "
-                f"{type(e).__name__}: {e}"
+                f"{type(e).__name__}: {redact_message(e)}"
             ],
         )
 
