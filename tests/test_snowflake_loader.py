@@ -94,8 +94,37 @@ class TestCredentialSafety:
     def test_safe_params_masks_password(self):
         raw = {"account": "a", "user": "u", "password": "hunter2"}
         safe = SnowflakeLoader._safe_params_for_log(raw)
-        assert safe["password"] == "***"
+        assert safe["password"] == "[REDACTED]"
         assert safe["account"] == "a"
+
+    def test_safe_params_masks_all_connector_secrets(self):
+        # Regression: the loader once kept its own 4-key secret set that missed
+        # private_key_file_pwd / client_secret / passcode / oauth_token, leaking
+        # them to DEBUG logs. It now routes through the canonical redactor.
+        raw = {
+            "account": "a",
+            "user": "u",
+            "password": "pw",
+            "private_key": b"DERBYTES",
+            "private_key_file_pwd": "passphrase",
+            "client_secret": "cs",
+            "passcode": "123456",
+            "oauth_token": "tok",
+            "token": "tok2",
+        }
+        safe = SnowflakeLoader._safe_params_for_log(raw)
+        for k in (
+            "password",
+            "private_key",
+            "private_key_file_pwd",
+            "client_secret",
+            "passcode",
+            "oauth_token",
+            "token",
+        ):
+            assert safe[k] == "[REDACTED]", f"{k} not masked"
+        assert safe["account"] == "a"
+        assert safe["user"] == "u"
 
     def test_password_never_logged_on_connect(self, monkeypatch, caplog):
         conn = _make_fake_conn(_make_fake_cursor([(1,)], ["n"]))

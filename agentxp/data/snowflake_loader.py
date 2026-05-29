@@ -35,6 +35,8 @@ from typing import Any
 
 import pandas as pd
 
+from agentxp.sql.adapter import _redact_creds_for_log
+
 logger = logging.getLogger(__name__)
 
 #: Default row-count guardrail. Queries that would return more than this many
@@ -51,9 +53,6 @@ ENV_VAR_MAP = {
     "schema": "AGENTXP_SNOWFLAKE_SCHEMA",
     "role": "AGENTXP_SNOWFLAKE_ROLE",
 }
-
-#: Keys that must NEVER appear in log output.
-_SECRET_KEYS = {"password", "private_key", "token", "oauth_token"}
 
 #: Regex for validating SQL identifiers (table names, column names).
 #: Allows letters, digits, underscore, and a single optional dotted qualifier.
@@ -125,11 +124,14 @@ class SnowflakeLoader:
 
     @staticmethod
     def _safe_params_for_log(params: dict[str, Any]) -> dict[str, Any]:
-        """Return a copy of params with secret fields masked."""
-        return {
-            k: ("***" if k in _SECRET_KEYS else v)
-            for k, v in params.items()
-        }
+        """Return a copy of params with secret fields masked.
+
+        Delegates to the single canonical redactor in
+        :mod:`agentxp.sql.adapter` so every secret-bearing connection key the
+        Snowflake connector accepts (``private_key_file_pwd``, ``token``,
+        ``private_key`` …) is masked consistently with the rest of AgentXP.
+        """
+        return _redact_creds_for_log(params)
 
     def _connect(self):
         """Open a Snowflake connection (direct mode only)."""

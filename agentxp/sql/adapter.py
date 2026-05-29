@@ -119,6 +119,9 @@ _SENSITIVE_KEYS: frozenset[str] = frozenset(
         "client_secret",
         # Snowflake key-pair file passphrase.
         "private_key_file_pwd",
+        # Snowflake MFA passcode + OAuth token (connector-accepted secrets).
+        "passcode",
+        "oauth_token",
     }
 )
 
