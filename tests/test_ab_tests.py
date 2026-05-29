@@ -65,6 +65,22 @@ class TestWelchTest:
         assert result["n_control"] == 4
         assert result["n_treatment"] == 4
 
+    def test_zero_variance_both_groups_is_undefined(self):
+        # Both arms constant but with different means: scipy yields t=±inf,
+        # p=0 -> a false "significant". The test must report undefined instead.
+        result = welch_test([0, 0, 0, 0], [1, 1, 1, 1])
+        assert result["significant"] is False
+        assert "error" in result
+        assert "p_value" not in result
+
+    def test_t_stat_sign_matches_diff(self):
+        # t_stat must carry the same sign as diff = mean_t - mean_c. Treatment
+        # higher than control -> positive diff -> positive t_stat.
+        up = welch_test([1, 2, 3, 4], [5, 6, 7, 8])
+        assert up["diff"] > 0 and up["t_stat"] > 0
+        down = welch_test([5, 6, 7, 8], [1, 2, 3, 4])
+        assert down["diff"] < 0 and down["t_stat"] < 0
+
 
 class TestProportionTest:
     def test_detects_large_effect(self, large_effect_ab):

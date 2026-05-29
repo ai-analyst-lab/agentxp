@@ -41,8 +41,6 @@ def welch_test(control, treatment, alpha=0.05):
             "interpretation": "Insufficient data for hypothesis test.",
         }
 
-    t_stat, p_value = stats.ttest_ind(control, treatment, equal_var=False)
-
     mean_c = float(control.mean())
     mean_t = float(treatment.mean())
     diff = mean_t - mean_c
@@ -51,6 +49,32 @@ def welch_test(control, treatment, alpha=0.05):
     n_c, n_t = len(control), len(treatment)
     var_c, var_t = float(control.var(ddof=1)), float(treatment.var(ddof=1))
     se = math.sqrt(var_c / n_c + var_t / n_t)
+
+    # Both groups have zero within-group variance: there is no sampling
+    # variability to test against, so a t-test is undefined. Returning a
+    # p-value here (scipy yields p=0 / t=±inf when the means differ) would be a
+    # false "significant" result on information-free data.
+    if se == 0:
+        return {
+            "test": "welch_t_test",
+            "error": "Zero variance in both groups; t-test is undefined.",
+            "significant": False,
+            "mean_control": mean_c,
+            "mean_treatment": mean_t,
+            "diff": float(diff),
+            "n_control": n_c,
+            "n_treatment": n_t,
+            "interpretation": (
+                f"Both groups have zero variance (control mean {mean_c:.4f}, "
+                f"treatment mean {mean_t:.4f}). A Welch t-test cannot be "
+                f"computed without within-group variability — collect more "
+                f"varied data before testing."
+            ),
+        }
+
+    # Argument order matches diff = mean_t - mean_c, so t_stat carries the same
+    # sign as the reported difference (scipy computes (a_mean - b_mean) / se).
+    t_stat, p_value = stats.ttest_ind(treatment, control, equal_var=False)
 
     nu_num = (var_c / n_c + var_t / n_t) ** 2
     nu_den = (var_c / n_c) ** 2 / (n_c - 1) + (var_t / n_t) ** 2 / (n_t - 1)
