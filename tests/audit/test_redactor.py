@@ -48,6 +48,32 @@ def test_url_credentials_redacted() -> None:
     assert "https://[REDACTED_URL_CREDS]@host.example.com/path/to/db" in out
 
 
+@pytest.mark.parametrize(
+    "text,secret,host_kept",
+    [
+        ("ATTACH 'mysql://root:rootpw123@10.0.0.1/app' AS m", "rootpw123", "10.0.0.1"),
+        ("postgresql://u:topsecret@10.0.0.5/db", "topsecret", "10.0.0.5"),
+        # Password containing '@' must not strand a fragment after the placeholder.
+        ("postgresql://admin:S3cretP@ss@db/prod", "S3cretP", "db/prod"),
+        (
+            "snowflake://user:hunter2@acct.snowflakecomputing.com/db",
+            "hunter2",
+            "acct.snowflakecomputing.com",
+        ),
+        ("redis://default:R3disPw@cache:6379/0", "R3disPw", "cache:6379"),
+        ("jdbc:mysql://svc:Jdbc_Pw_9@host:3306/wh", "Jdbc_Pw_9", "host:3306"),
+    ],
+)
+def test_non_http_dsn_credentials_redacted(text, secret, host_kept) -> None:
+    # The canonical redactor is scheme-agnostic: only matching https:// would
+    # leak passwords from mysql/postgres/snowflake/redis/jdbc DSNs, which a
+    # DuckDB user can ATTACH and a driver can echo in an exception.
+    out = redact(text)
+    assert secret not in out
+    assert "[REDACTED_URL_CREDS]" in out
+    assert host_kept in out  # host is preserved; only the userinfo is scrubbed
+
+
 def test_password_in_error_message_redacted() -> None:
     text = "connection failed: password=mySecret123 on host"
     out = redact(text)

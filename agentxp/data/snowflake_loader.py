@@ -422,8 +422,13 @@ class SnowflakeLoader:
         if self._conn is not None:
             try:
                 self._conn.close()
-            except Exception:  # pragma: no cover - best effort
-                logger.debug("Error closing Snowflake connection", exc_info=True)
+            except Exception as exc:  # pragma: no cover - best effort
+                # No exc_info: the chained driver traceback can carry a DSN /
+                # password. Log only the class name (the redactor seam covers
+                # message text; this is the one path that bypassed it).
+                logger.debug(
+                    "Error closing Snowflake connection: %s", type(exc).__name__
+                )
             finally:
                 self._conn = None
 

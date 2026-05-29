@@ -42,8 +42,14 @@ _SNOWFLAKE_CONN = re.compile(
     re.IGNORECASE,
 )
 
-# URL with embedded credentials: scheme://user:pass@host -> placeholder.
-_URL_CREDS = re.compile(r"(https?://)[^:/\s]+:[^@\s]+@")
+# URL/DSN with embedded credentials: scheme://user:pass@host -> placeholder.
+# Scheme-agnostic on purpose: mysql://, postgresql://, snowflake://, redis://,
+# jdbc:...:// etc. all carry passwords the same way, and a DuckDB user can
+# `ATTACH 'mysql://user:pw@host'`. Matching only https:// would let those leak.
+# The password class allows '@' and greedily consumes to the LAST '@' in the
+# authority (authority ends at the first '/'), so a password containing '@'
+# does not strand a fragment after the placeholder. Host is preserved.
+_URL_CREDS = re.compile(r"([a-zA-Z][a-zA-Z0-9+.\-]*://)[^\s/@]+:[^\s/]*@")
 
 # Generic password/secret/token key=value pair. `\b` anchors the keyword so the
 # engine doesn't restart the alternation at every character. The value class
