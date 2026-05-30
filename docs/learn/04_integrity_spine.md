@@ -17,7 +17,7 @@ the log wasn't replay-reproducible, and the integrity wall didn't exist in the
 code. The remediation made all three real. This module is the result, and it's the
 subsystem that most justifies the word "trustworthy."
 
-There are **two distinct integrity mechanisms** here, and conflating them is the
+There are two distinct integrity mechanisms here, and conflating them is the
 most common mistake. Teach them as separate ideas:
 
 1. **The parent-action chain** — every logged event names its parent by
@@ -45,7 +45,7 @@ And one more wall, structurally simpler but conceptually central:
 ### 1. The five chain invariants (`agentxp/audit/chain.py`)
 
 `validate_chain(experiment_id, *, from_event=0, to_event=None, perf_budget_ms=200, _root=None) -> ChainValidation`
-is called at **every `_commit_stage`** (Module 1, step 6). Critically: **it returns
+is called at every `_commit_stage` (Module 1, step 6). Critically: **it returns
 violations, it does not raise on them.** It returns a `ChainValidation` with
 `ok = (len(violations) == 0)`. The *only* thing it raises is `PerfBudgetExceeded`,
 when validation takes longer than the hard cap (2× the soft budget — default
@@ -94,13 +94,13 @@ because a naive timestamp would corrupt chain validation), `action_id` (ULID),
 `parent_action_id` (the linkage), `actor_kind`, `actor_name`, `experiment_id`,
 plus the pinned `event_name`. Some events carry content anchors — `bundle_hash`,
 `raw_hash`/`ast_hash` (on `query.proposed`), `result_hash` (on `query.executed`).
-**These are recorded values, not chain links** — `validate_chain` doesn't verify
+These are recorded values, not chain links — `validate_chain` doesn't verify
 them; they're for replay and provenance.
 
 The **append-only substrate** (`agentxp/audit/storage.py`) adds two physical
 guards worth knowing: every log line must be ≤ 4096 bytes (PIPE_BUF, so appends
 are atomic and can't interleave), and the file is created `chmod 600` and
-**re-verified 600 on every append** — if the mode drifted, the write is refused
+re-verified 600 on every append — if the mode drifted, the write is refused
 with a `PermissionError`. Integrity isn't only logical; it's enforced at the
 filesystem.
 
@@ -133,15 +133,14 @@ classifies each change as **material** or **administrative** (`classify_change` 
 metric/power/hypothesis/variant/data changes are material; description/notes/tags/
 owner are administrative), requires a reason ≥ 10 chars ("describe WHY, not just
 WHAT"), and appends an `Amendment` record to `amendments.jsonl` plus a breadcrumb
-to the log. It does **not** write the new YAML to disk.
+to the log. It does not write the new YAML to disk.
 
-The honest v0.1 boundary (G14): the `amendments/` package operates on the *legacy*
-`ExperimentStore` (root `~/.agentxp`, un-chained log), which is a different store
-from the `OrchestratorStore` that holds the chained pipeline. So amendments are
-real and tested, but they are **not yet chained into the orchestrator's log** —
-wiring them naively would break Invariant 1 (an un-chained event has no valid
-parent). Module 7 covers why this was kept-but-unwired rather than deleted or
-half-wired.
+The honest v0.1 boundary (G14): the `amendments/` package runs against the legacy
+store, *not* the chained orchestrator log. So amendments are real and tested, but
+they are **not yet chained into the orchestrator's log** — wiring them naively
+would break Invariant 1, since an un-chained event has no valid parent. Module 6
+explains the two-store split that makes this concrete; Module 7 covers why it was
+kept-but-unwired rather than deleted or half-wired.
 
 ### 5. `agentxp audit` — replay on demand (`agentxp/cli/audit.py`)
 

@@ -33,9 +33,10 @@ motivated-reason because the motivation is not in its context.
 
 You can read this axiom directly in the prompts — it's stated, not implied:
 
-- **`monitor.system.md` §1** — the monitor checks guardrails against the locked
-  thresholds and is scoped to exactly that; it does not get the narrative of why
-  the feature matters.
+- **`monitor.system.md`** — the monitor runs the sample-ratio-mismatch (SRM) check
+  against the design and is scoped to exactly that; it does not get the narrative of
+  why the feature matters. (Guardrails are *measured* by the analyzer at Stage 6 and
+  *enforced* by the tree at Stage 7 — see Module 1.)
 - **`interpreter.system.md` §2 / §9** — explicitly: *"you do not have access to
   state.yaml"*. The interpreter is handed the analyzer's numbers and the locked
   decision rule, nothing else. No hypothesis, no hopes, no history.
@@ -84,21 +85,25 @@ $ ls agents/designer/
 | Agent | Stage | Decides | Notably blind to |
 |-------|-------|---------|------------------|
 | `profiler` | 0 | column types, candidate metrics, "is this an experiment?" | — (it's the eyes) |
-| `designer/architect` | 1 | hypothesis → variants → metrics structure | — |
-| `designer/editor` | 1–2 | tightens/locks the brief; refuses post-lock loosening | — |
-| `designer/namer` | 1 | the experiment slug/name | the results |
-| `power` | 3 | MDE / required n / achieved power | the observed effect |
-| `analyzer` | 5 | computes lifts, CIs, p-values, SRM | the hypothesis *intent* |
-| `monitor` | 6 | guardrail breach? block ship? | the narrative/why-it-matters |
+| `semantic_modeler` | 0.5 | drafts the semantic model (entities, dimensions) | — |
+| `metric_drafter` | 0.75 | drafts the metric catalog (primary / guardrail / control) | — |
+| `designer/elicitor` | 1–2 | pulls intent out of the dialogue, then drafts the hypothesis | — |
+| `designer/drafter` | 3–4 | writes the brief (`experiment.yaml`) and the data plan | — |
+| `designer/editor` | 3b + edits | applies *scoped* edits; refuses post-lock loosening | — |
+| `consistency_judge` | 3 / 3b | does the drafted brief contradict the hypothesis? | a restricted view, so it can't be swayed |
+| `sql_query_writer` | 5–6 | proposes the SRM and analysis SQL | — |
+| `sql_corrector` | 5–6 | re-drafts a query the warehouse rejected | — |
+| `monitor` | 5 | the SRM (sample-ratio-mismatch) check | the narrative/why-it-matters |
+| `analyzer` | 6 | computes lifts, CIs, p-values, guardrail tests | the hypothesis *intent* |
 | `interpreter` | 7 | **the verdict** (8-label tree) | hypothesis prose, hopes, `state.yaml` |
 | `readout` | 8 | the human writeup | nothing new — verdict is fixed |
-| `consistency_judge` | cross | do the artifacts agree? | the thing it independently checks |
 
-The **designer trio** (architect / editor / namer) is worth dwelling on: design is
-split into three narrow agents rather than one, because "invent the structure,"
-"tighten and lock it," and "name it" are three different judgments with different
-failure modes. The editor in particular carries the G9/G14 integrity behavior —
-it refuses to loosen a locked pre-registration and routes any legitimate change
+The **designer trio** (elicitor / drafter / editor) is worth dwelling on: design is
+split into three narrow agents rather than one, because "pull the intent and shape
+the hypothesis," "write the brief and data plan," and "apply a scoped edit" are
+three different judgments with different failure modes. The editor in particular
+carries the G9/G14 integrity behavior — it applies edits scoped to a single field,
+refuses to loosen a locked pre-registration, and routes any legitimate change
 through the disclosed-deviation path (Module 4).
 
 ### How inputs reach an agent: the bundle
@@ -148,7 +153,7 @@ path, because the supported path doesn't carry it.*
 ship" during design. Then run through to the verdict and `agentxp audit` the
 experiment. Confirm that the interpreter's committed inputs (its bundle) contain
 the locked rule and the numbers — not your plea. The plea lives in the
-conversation; it never enters the judge's context. *The bias had nowhere to land.*
+conversation; it never enters the judge's context, so it can't affect the verdict.
 
 **Lab 2d — read the refusal contract.** Open `agents/designer/editor.system.md`
 and find the v0.1 behavior block describing what happens when someone tries to

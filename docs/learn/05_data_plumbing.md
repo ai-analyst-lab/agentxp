@@ -31,7 +31,8 @@ Two honest framings to carry, because a reviewer will probe them:
   shape.
 - **DuckDB is the only *verified* adapter.** Snowflake, BigQuery, and Databricks
   ship `live_unverified`: code-complete, mock-tested, but never run against live
-  credentials (Module 7). Naming that boundary is part of looking like an expert.
+  credentials (Module 7). Name that boundary plainly when you demo — it's a known
+  limitation, not a hidden one.
 
 ---
 

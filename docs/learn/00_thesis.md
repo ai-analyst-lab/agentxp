@@ -69,8 +69,9 @@ experiments only**. It is not a causal-inference toolkit (no diff-in-diff, no
 matching, no synthetic control — those decline cleanly, which is itself a
 feature; Module 2). It does not run a long-lived headless loop yet (Phase 5;
 Module 6). Three warehouse adapters ship code-complete but unverified against
-live credentials (Module 5). Knowing the boundaries *cold* is half of looking
-like an expert — amateurs oversell, experts name the edges.
+live credentials (Module 5). Knowing these boundaries cold is part of defending
+the system: a reviewer trusts the claims you make more when you're the one naming
+what the tool doesn't do.
 
 ---
 

@@ -1,15 +1,16 @@
-# Module 1 — The shape: 11 stages
+# Module 1 — The shape: the eleven stages
 
 > **Goal:** Hold the whole experiment in your head as a single pipeline. Name all
-> 11 stages in order, say which agent owns each, what artifact each commits, and
-> what gate can stop it. By the end you can drive `ship_demo.csv` from Stage 0 to
-> a SHIP verdict and narrate every step as it happens.
+> eleven stages in order (0, 0.5, 0.75, then 1 through 8), say which agent owns
+> each, what artifact each commits, and what gate can stop it. By the end you can
+> drive `ship_demo.csv` from Stage 0 to a SHIP verdict and narrate every step as
+> it happens.
 
 ---
 
 ## Why (the design reasoning)
 
-An experiment platform is really a **pipeline with a conscience**. The pipeline
+An experiment platform is really a pipeline with a conscience. The pipeline
 part is ordinary: ingest data, check it, design a test, collect, analyze,
 interpret, write it up. The conscience is the part that makes AgentXP different —
 at fixed points the pipeline *stops itself* and refuses to continue unless a
@@ -25,10 +26,9 @@ is load-bearing: you cannot design a decision rule *after* you've seen the
 analysis, because then the rule is just a story about the result. Stage order is
 how pre-registration is enforced in time.
 
-The single most important structural fact to carry out of this module:
-**every stage ends at the same chokepoint — `_commit_stage`** — and that one
-function is where the artifact gets written, the chain gets validated, and the
-state advances. Eleven stages, one commit path. When you understand that one
+The single most important structural fact to carry out of this module: every
+stage ends at the same chokepoint, `_commit_stage` — and that one function is
+where the artifact gets written, the chain gets validated, and the state advances. Eleven stages, one commit path. When you understand that one
 function (Module 6 goes deep; we meet it here), the whole pipeline stops looking
 like eleven things and starts looking like one thing that runs eleven times.
 
@@ -37,7 +37,7 @@ like eleven things and starts looking like one thing that runs eleven times.
 Re-anchor the two surfaces from the README before you trace anything:
 
 - The **shell CLI** (`agentxp …`) does setup and inspection only.
-- The **eleven-stage pipeline runs inside a Claude Code conversation**, started
+- The eleven-stage pipeline runs inside a Claude Code conversation, started
   with `/experiment`. **Claude is the orchestrator** — it walks the stages,
   dispatches the agents, and calls the commit path. The headless Python
   orchestration loop (`_invoke_llm` / `advance()`) is deliberately stubbed in
@@ -55,61 +55,65 @@ as programs) click.
 Read this table as the spine of the whole course. Every later module zooms into
 one row or one column of it.
 
-| # | Stage | Owner agent | Commits (artifact) | Gate that can stop it |
+| # | Stage (`state` value) | Owner agent | Commits (artifact) | Gate that can stop it |
 |---|-------|-------------|--------------------|-----------------------|
-| 0 | **Profile** | `profiler` | `profile.yaml` — column types, row counts, candidate metrics | data unreadable / not an experiment → decline |
-| 1 | **Design** | `designer/*` (architect, editor, namer) | `experiment.yaml` (hypothesis, variants, metrics) | non-experimental request → clean decline |
-| 2 | **Pre-register** | `designer` + orchestrator | locked `brief.yaml` (the decision rule) | rule incomplete (no MDE / direction / guardrails) |
-| 3 | **Power** | `power` reasoning + `stats.power_*` | `power.yaml` (MDE, n required, achieved power) | underpowered design → warn / redesign |
-| 3b | **(substate) Collect-readiness** | orchestrator | gate record | not enough data to proceed |
-| 4 | **Collect** | orchestrator + adapters | `collection.yaml` (query receipts, row counts) | SRM / data-quality halt |
-| 5 | **Analyze** | `analyzer` + `stats.*` | `analysis.yaml` (lifts, CIs, p-values, SRM χ²) | analysis can't be computed |
-| 6 | **Monitor** | `monitor` | `monitor.yaml` (guardrail check) | guardrail breach → block ship |
-| 7 | **Interpret** | `interpreter` (blind) | `verdict.yaml` (one of 8 labels) | — (this is the verdict itself) |
-| 8 | **Read out** | `readout` | `readout.md` (the human-facing writeup) | — (terminal) |
+| 0 | **Profile** (`data_loaded`) | `profiler` | `data_plan.yaml` (partial: source + register) | bad timestamps → `mixed_timestamp_formats` (escalated only) |
+| 0.5 | **Semantic models** (`semantic_models_drafted`) | `semantic_modeler` | `semantic_models/{entity}.yaml` | `confirm_semantic_model` |
+| 0.75 | **Metrics** (`metrics_bootstrapped`) | `metric_drafter` | `metrics/{name}.yaml` | `confirm_metric` |
+| 1 | **Intent** (`intent_captured`) | `designer.elicitor` | captured intent + `conversation.jsonl` | — (multi-turn; no gate) |
+| 2 | **Hypothesis** (`hypothesis_drafted`) | `designer.elicitor` (hypothesis mode) | `decisions/02-hypothesis.yaml` | — (folds into `confirm_brief`) |
+| 3 | **Brief / pre-register** (`brief_drafted`) | `designer.drafter` + `consistency_judge` | locked `experiment.yaml` + `decisions/03-brief.yaml` | `confirm_brief` |
+| 3b | **(substate) Contradiction** (`brief_contradicted`) | `consistency_judge` fires; `designer.editor` on edit | `decisions/03b-contradiction.yaml` | `brief_contradiction` (r/e/o) |
+| 4 | **Data plan** (`data_plan_confirmed`) | `designer.drafter` (+ `metric_drafter`) | full `data_plan.yaml` + `decisions/04-data-plan.yaml`; DAG → POWERED | `confirm_data_plan`, `confirm_cohort`, `confirm_assignment` |
+| 5 | **Monitor / SRM** (`monitor`) | `sql_query_writer` + `monitor` | `analyses/{ts}.json` (pre-analysis); DAG → COLLECTING → ANALYZING | `confirm_query`; SRM breach → `srm_override` |
+| 6 | **Analyze** (`analyze`) | `sql_query_writer` + `analyzer` | `analyses/{ts}.json` (full: lifts, CIs, p-values) | `confirm_query`; `cross_adapter_resolution` |
+| 7 | **Interpret** (`interpret`) | `interpreter` (blind) | `interpretation.json` (verdict + confidence); DAG → INTERPRETED | — (this is the verdict itself) |
+| 8 | **Read out** (`readout`) | `readout` | `report.md` + `report.json`; DAG → REPORTED | `confirm_readout` (+ `NoShipReasonCode` on a no-ship) |
 
-A few things to notice, because reviewers will test you on them:
+That's eleven stages, not nine: the decimal stages 0.5 and 0.75 are real stages
+with their own agents and gates, and 3b is a *substate* of Stage 3, not a stage of
+its own. Stages 0.5 and 0.75 skip automatically when the project already has
+matching semantic models and metrics, which is why a second experiment on the same
+data feels shorter. A few things to notice, because reviewers will test you on them:
 
-- **Stage 2 is the integrity hinge.** The brief is *locked* here — written once,
-  and `_write_artifact` will refuse to overwrite it (Module 4, the `ArtifactLocked`
-  wall). Everything downstream is measured against this locked rule.
-- **Stage 3b is a substate, not a full stage.** It's the "do we have enough
-  collected data to analyze?" checkpoint. It exists because collect-then-analyze
-  has a readiness condition that's cleaner to model as its own gate than to bury
-  inside Stage 4.
-- **Stages 6 and 7 are the two blind judges.** The monitor checks guardrails and
-  the interpreter renders the verdict — and *neither sees your hypothesis prose or
-  what you hoped for* (Module 2's isolation axiom). The monitor can block a ship
-  the interpreter would otherwise grant; the rule beats the number.
-- **Stage 8 is the only stage that produces prose**, and it's produced by an agent
-  that is told the verdict is already decided and unchangeable — the readout
-  *explains*, it does not *re-decide* (`readout.system.md §6`: a readout that
-  argues with the verdict is "wrong by construction").
+- **Stage 3 is the integrity hinge.** The brief (`experiment.yaml`) is *locked*
+  here — written once, and `_write_artifact` will refuse to overwrite it (Module 4,
+  the `ArtifactLocked` wall). Everything downstream is measured against this locked
+  rule. This is the stage the README calls "pre-register."
+- **Stage 3b is a substate, not a full stage.** It only exists when the
+  `consistency_judge` catches the drafted brief contradicting the hypothesis (at
+  confidence ≥ 0.7). It opens a revert / edit / override (r/e/o) gate; an override
+  is logged with a reason and the contradiction is preserved in
+  `decisions/03b-contradiction.yaml`. No silent edits.
+- **There is no standalone "power" or "collect" stage.** Power and MDE are
+  parameters of the brief (Stage 3) and the data plan (Stage 4); collection is the
+  `POWERED → COLLECTING → ANALYZING` transition that rides on the Stage 5 commit.
+  If you remember an earlier draft that listed "Stage 3 Power" and "Stage 4
+  Collect," forget it — those were never real stages.
+- **The interpreter (Stage 7) is the blind judge.** It renders the verdict from the
+  analyzer's numbers and the locked brief's rules, and it never sees your hypothesis
+  prose or what you hoped for (Module 2's isolation axiom). Guardrails are *measured*
+  by the analyzer at Stage 6 and *enforced* by the tree at Stage 7 (Step 2 →
+  `NO-SHIP-GUARDRAIL`); the monitor at Stage 5 is a different check — sample-ratio
+  mismatch (SRM), not guardrails.
+- **Stage 8 is the only stage that produces prose**, and the readout agent is told
+  the verdict is already decided and unchangeable — it *explains*, it does not
+  *re-decide* (`readout.system.md`: a readout that argues with the verdict is wrong
+  by construction).
 
 ### The one function under all eleven: `_commit_stage`
 
 Every stage, no matter which agent ran, ends the same way. The orchestrator calls
-`_commit_stage` on the `OrchestratorStore`, and that function does a fixed
-sequence (we trace it line-by-line in Module 6; here's the shape so you recognize
-it):
+`_commit_stage` on the `OrchestratorStore`, and that one function writes the
+artifact, validates the chain, appends to the log, and advances the state — under
+a lock, with SIGINT deferred so Ctrl-C can't tear a commit in half.
 
-1. **Disk pre-flight** (space check) — *outside* the lock, so a full disk fails
-   fast without holding the lock.
-2. **Acquire `.state.lock`** — the concurrency guard on `state.yaml`.
-3. **Defer SIGINT** — so Ctrl-C can't tear a commit in half.
-4. **Write the artifact(s)** via `_write_artifact` (refuses to overwrite a locked
-   file).
-5. **Mutate state in memory.**
-6. **`validate_chain` BEFORE advancing** — if the audit chain wouldn't validate,
-   the commit doesn't happen.
-7. **Emit `stage.committed` to `log.jsonl` BEFORE writing `state.yaml`** — this is
-   the *append-then-advance* ordering that closes the G11 crash window: the log is
-   the source of truth, so the log must record the step before the state claims
-   it.
-8. **Write `state.yaml` last.**
-
-Memorize the ordering of 6→7→8 (validate, then append, then advance). It's the
-whole reason a crash mid-commit is recoverable (Module 6, resume).
+The one ordering to memorize is the tail: **validate the chain → append
+`stage.committed` to `log.jsonl` → write `state.yaml` last.** The log is the
+source of truth, so it must record the step before the state claims it. That
+*validate → append → advance* sequence is what closes the G11 crash window and
+makes a crash mid-commit recoverable. Module 6 traces all eight steps line by
+line; here you only need the chokepoint and that tail ordering.
 
 ---
 
@@ -148,7 +152,7 @@ committed. You should reach a **SHIP** verdict. When you do, inspect the receipt
 
 ```bash
 $ ls experiments/                  # find the exp_id that was created
-$ ls experiments/<exp_id>/         # profile.yaml, brief.yaml, ... readout.md
+$ ls experiments/<exp_id>/         # experiment.yaml, data_plan.yaml, decisions/, analyses/, interpretation.json, report.md, log.jsonl, state.yaml
 $ agentxp audit <exp_id>           # the full event timeline + chain integrity
 ```
 
@@ -172,14 +176,16 @@ that "ON" is the hard-won part).
 
 You pass Module 1 when you can, without notes:
 
-1. **List all 11 stages in order** (0→8 plus 3b), and for each name the owner
-   agent, the artifact it commits, and the gate that can stop it.
-2. **Explain why Stage 2 (pre-register) must come before Stage 5 (analyze)** in
+1. **List all eleven stages in order** (0, 0.5, 0.75, 1–8, plus the 3b substate),
+   and for each name the owner agent, the artifact it commits, and the gate that
+   can stop it.
+2. **Explain why Stage 3 (pre-register) must come before Stage 6 (analyze)** in
    terms of the thesis — why ordering *is* the integrity mechanism.
 3. **Name the one function every stage funnels through** and recite the
    validate → append → advance ordering, and say what crash it protects against.
-4. **Point at two stages whose agents are deliberately blind**, and say what each
-   is blind to and why that makes the verdict more trustworthy, not less.
+4. **Name the blind judge (Stage 7, the interpreter)**, say what it's blind to (your
+   hypothesis prose, what you hoped for), and why that makes the verdict more
+   trustworthy, not less.
 
 Drive `ship_demo.csv` 0→8 in front of me and narrate it as you go. When your
 narration matches the `agentxp audit` timeline, check the box and we go to

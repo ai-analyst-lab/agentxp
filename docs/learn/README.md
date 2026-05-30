@@ -92,19 +92,28 @@ The 8 CSVs in `sample-data/` are each a deliberate verdict path. Nothing in the
 codebase depends on them — they exist *only* to practice on. You will use these
 constantly from Module 1 onward.
 
-| Fixture | Scenario | Lands on | Teaches |
+The "Lands on" column uses the canonical eight-value `Verdict` enum from
+`agentxp/interpret/tree.py` (Module 3). Note: `sample-data/README.md` and the
+direction tests in `tests/test_sample_data_verdicts.py` use older informal labels
+(`INVALID`, `INVESTIGATE`) that predate the enum — where they differ, the table
+flags it, because the divergence is itself a teaching point.
+
+| Fixture | Scenario | Lands on (verdict) | Teaches |
 |---------|----------|----------|---------|
 | `clean_ab.csv` | Standard positive A/B | **SHIP** | The happy path |
 | `ship_demo.csv` | LL demo, n=3k/grp, +22.3% conv | **SHIP** | Full 0→8; the E2E anchor |
-| `checkout_redesign.csv` | Positive proportion, flat revenue | **SHIP** | How metric *type* affects power |
-| `no_effect.csv` | Null, adequately powered | **LEARN (powered)** | A real null is a finding, not a failure |
-| `underpowered.csv` | Null, n=500/grp too small | **LEARN (underpowered)** | Power & MDE |
+| `checkout_redesign.csv` | Positive proportion, flat revenue | **SHIP** (or **LIFT-WITH-CAVEAT** if the lift is below MDE/2) | How metric *type* affects power |
+| `no_effect.csv` | Null, adequately powered (n≥5k/grp) | **LEARN** (well-powered null), or **NO-LIFT** if the CI is wider than 2×MDE | A real null is a finding, not a failure |
+| `underpowered.csv` | Null, n=500/grp too small | **INCONCLUSIVE** (Step 3: underpowered *and* the 95% CI straddles 0) — *not* the informal "LEARN (underpowered)" | Power & MDE; Step 3 vs Step 8 |
 | `srm_violation.csv` | Broken randomization 52/48 | **INVALID-SRM** | Why a halt beats a flag |
 | `guardrail_violation.csv` | Primary flat, latency +16% | **NO-SHIP-GUARDRAIL** | The rule beats the number |
-| `mixed_results.csv` | Simpson's paradox, segment reversal | **caveat / investigate** | Why averages lie |
+| `mixed_results.csv` | Simpson's paradox, segment reversal | the tree walks the **primary** and lands on its verdict; the segment conflict surfaces as a `CONTRADICTORY_SEGMENTS` reason code at readout, not a verdict | Why averages lie |
 
-A good drill at any point: read the fixture name, predict the verdict and the
-*step that fires*, then run it and check yourself.
+A few of these are brief-dependent — `no_effect` and `underpowered` hinge on how
+the brief sets `n_required` and MDE relative to the observed CI, which is exactly
+why Module 3 has you walk Steps 3-8 by hand. A good drill at any point: read the
+fixture name, predict the verdict and the *step that fires*, then run it and check
+yourself.
 
 ---
 

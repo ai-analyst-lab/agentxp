@@ -85,13 +85,18 @@ source of truth" operational: state is *derived*, and this is the derivation.
 ### Resume: the 8 cases (`agentxp/cli/resume.py::_detect_case`)
 
 `agentxp resume` doesn't guess — it classifies the on-disk situation into one of
-**8 cases** (`_detect_case`) and acts deterministically per case: clean state ahead
-of nothing, log ahead of state (the common crash → reconstruct and continue),
-missing state, missing log, an open gate that was never resolved, etc. The point
-isn't to memorize all eight verbatim; it's to understand that **resume is a
-function of (log, state) divergence**, and each divergence has one correct
-resolution because the append-then-advance ordering constrains what divergences
-are even possible.
+**8 cases** (`_detect_case`) and surfaces the recommended next action on stderr.
+Be precise about what v0.1 does here: **resume detects and reports; it does not
+auto-fix.** The docstring says so outright ("v0.1 does not auto-fix"). It loads
+`state.yaml` and `log.jsonl`, prints something like `resume case 5: lock died
+mid-commit … current_stage may advance on resume`, and returns an exit code —
+clean no-op for Case 1, a user-error code for the cases that need attention (unless
+you pass `--force` to acknowledge). The actual roll-forward is
+`reconstruct_from_log` (below), which the orchestrator runs on the next dispatch
+inside Claude Code; `resume` is the diagnosis, not the repair. The point isn't to
+memorize all eight verbatim; it's to understand that **resume is a function of
+(log, state) divergence**, and each divergence has one correct resolution because
+the append-then-advance ordering constrains what divergences are even possible.
 
 ---
 
@@ -104,10 +109,14 @@ close the conversation) mid-pipeline. Then:
 ```bash
 $ agentxp list                      # see the half-finished experiment
 $ agentxp audit <exp_id>            # the log shows committed stages; chain OK
-$ agentxp resume <exp_id>           # detect case → reconstruct → continue
+$ agentxp resume <exp_id>           # detect the case, print the recommendation
 ```
 
-Confirm it picks up from the last *logged* commit, not from a stale state.
+Read the `resume case N: …` line it prints to stderr — that's the diagnosis, the
+divergence it found between log and state, and what to do next. It does *not*
+silently roll the experiment forward; the roll-forward happens when you re-open the
+experiment in Claude Code and the orchestrator calls `reconstruct_from_log` (Lab
+6b). Confirm the case it reports matches where you interrupted.
 
 **Lab 6b — watch the rebuild in the test suite.**
 ```bash
@@ -116,13 +125,23 @@ $ .venv/bin/python -m pytest tests/smoke/test_resume_reconstruct_from_log.py -v
 Read that test next to `reconstruct_from_log`. It deliberately constructs a
 log-ahead-of-state situation and proves the rebuild lands on the truth.
 
-**Lab 6c — manufacture the lying state and watch resume win.** Copy a completed
-experiment dir. Hand-edit `state.yaml` to claim a stage *behind* what `log.jsonl`
-records (simulating the crash between steps 7 and 8). Run `agentxp resume` and
-confirm it reconstructs forward from the log, ignoring the stale state. Then try
-the reverse — make `state.yaml` claim a stage *ahead* of the log — and reason about
-why the append-then-advance ordering means this divergence shouldn't occur from a
-real crash, only from tampering (and how that connects to `validate_chain`).
+**Lab 6c — manufacture the lying state and watch the detector catch it.** Copy a
+completed experiment dir. Hand-edit `state.yaml` to claim a stage *behind* what
+`log.jsonl` records (simulating the crash between steps 7 and 8). Run `agentxp
+resume` and confirm it detects the log-ahead-of-state divergence and reports the
+matching case (it tells you the state may advance on resume — it does not rewrite
+`state.yaml` itself). Then drive the actual roll-forward by calling
+`reconstruct_from_log` directly (as Lab 6b's test does) and confirm it lands on the
+log's stage, ignoring the stale state. Then try the reverse — make `state.yaml`
+claim a stage *ahead* of the log — and reason about why the append-then-advance
+ordering means this divergence shouldn't occur from a real crash, only from
+tampering (and how that connects to `validate_chain`).
+
+> **Not a Python person?** Labs 6a and 6d are pure CLI — you can do them as-is. For
+> 6b/6c, you don't have to call `reconstruct_from_log` yourself: hand-editing
+> `state.yaml` and running `agentxp resume` (6a/6c) shows the *detection*, and
+> reading `tests/smoke/test_resume_reconstruct_from_log.py` shows the *rebuild*. The
+> CLI plus the test give you the whole resume story without writing any Python.
 
 **Lab 6d — exercise the lock.** Inspect `.state.lock` during a run (PID + timestamp
 envelope). Read the store tests for stale-lock detection

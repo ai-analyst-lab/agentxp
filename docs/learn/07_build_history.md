@@ -1,7 +1,7 @@
 # Module 7 — Build history & judgment
 
-> **Goal:** Learn the rarest engineering skill the codebase teaches — *judgment
-> about what to build and what to leave alone*. By the end you can reconstruct why
+> **Goal:** Learn the engineering judgment this codebase teaches — *what to build
+> and what to leave alone*. By the end you can reconstruct why
 > a specific keep-vs-cut call was made, defend three modules that were rescued from
 > deletion, and explain why the most rigorous-looking subsystem was the most
 > broken.
@@ -23,9 +23,8 @@ The headline you must internalize comes from `SYSTEM_AUDIT.md`'s verdict:
 > the product sells as its differentiator is green-but-broken; and roughly a fifth
 > of the surface is dead or duplicate."*
 
-Sit with "green-but-broken." The tests passed. The thing the tests were protecting
-did not work. That's the single most important lesson in this module, and we'll
-trace exactly how it happened.
+"Green-but-broken" is the lesson of this module. The tests passed; the thing the
+tests were protecting did not work. We'll trace exactly how that happened.
 
 ---
 

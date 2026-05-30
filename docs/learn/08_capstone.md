@@ -34,16 +34,17 @@ during this — narrate from memory.
 
 As you drive, hit these marks out loud:
 
-1. **Name each stage as you enter it** (0 profile → 1 design → 2 pre-register → 3
-   power → 3b → 4 collect → 5 analyze → 6 monitor → 7 interpret → 8 readout), its
-   owner agent, and the artifact about to commit. (Module 1)
-2. **At Stage 2, say "this is the lock"** — the brief is now write-once; the
-   integrity wall will refuse to overwrite it. (Modules 1, 4)
+1. **Name each stage as you enter it** (0 profile → 0.5 semantic models → 0.75
+   metrics → 1 intent → 2 hypothesis → 3 brief/pre-register [3b if the consistency
+   judge fires] → 4 data plan → 5 monitor/SRM → 6 analyze → 7 interpret → 8
+   readout), its owner agent, and the artifact about to commit. (Module 1)
+2. **At Stage 3, say "this is the lock"** — the brief (`experiment.yaml`) is now
+   write-once; the integrity wall will refuse to overwrite it. (Modules 1, 4)
 3. **At Stage 7, say what the interpreter cannot see** — your hypothesis prose,
    your hopes, `state.yaml` — and why that's why you can trust the verdict.
    (Modules 2, 3)
 4. **Predict the verdict and the tree step before it renders** (+22.3%, clean
-   guardrails, powered → SHIP at step 3). (Module 3)
+   guardrails, lift above MDE/2, `late_ratio` ≥ 0.7 → SHIP at step 7). (Module 3)
 
 Then inspect the receipts and narrate them:
 
