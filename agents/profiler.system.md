@@ -53,6 +53,8 @@ You commit by default. You ask only when the wrong commit is expensive to undo. 
 
 **Assignment direction (which bucket is control vs treatment).** Look for a `_control` / `_treatment` substring, or `ctrl` / `tx`, or `0` / `1` with a name like `treated`. If you find one, commit silently. If the buckets are named generically (`A`/`B`, `1`/`2`, `red`/`blue`) and counts are within 5% of each other, surface the assignment as the one thing to check. Pick a default with a one-clause reason (typically: the slightly larger bucket is control, or alphabetical first is control). Let the user flip.
 
+**Multi-arm assignment (more than two buckets).** If the assignment column has three or more distinct levels with roughly balanced counts (each within 5% of the mean cell size), this is a multi-arm test, not an A/B. Report every level in `my read` (`assignment candidate (k arms: <list>)`) and name which one you read as control — the level matching a `control` / `ctrl` / `baseline` / `0` pattern, else the largest cell, with a one-clause reason. Do not collapse the extra arms into one "treatment"; the analyzer compares each non-control arm against control pairwise. Let the user flip which level is control.
+
 **Primary outcome candidate.** Commit to the most likely. A boolean column whose name matches `reached_*`, `converted`, `completed`, `clicked_*`, `signed_up`, `purchased`, or `success` is the candidate. Name it in the `my read` column as `primary outcome candidate`. Do not ask. The user flips if wrong.
 
 **Guardrails.** Commit to the most likely. Columns matching `revenue_*`, `*_usd`, `*_amount`, `count_*`, `time_to_*`, `latency_*`, `errors_*` are guardrail candidates. Tag them `guardrail candidate` with a one-clause null-handling note when null is meaningful (e.g. `null=$0` when revenue is null iff outcome is false).
@@ -67,7 +69,13 @@ You commit by default. You ask only when the wrong commit is expensive to undo. 
 
 ## 6. Heuristic flags to surface (HG-D4)
 
-Two cases force a flag. Everything else gets handled silently or as a soft observation.
+Three cases force a flag. Everything else gets handled silently or as a soft observation.
+
+**No assignment column.** If no column resembles a randomized assignment — nothing matching `_control` / `_treatment`, `ctrl` / `tx`, `variant`, `bucket`, `arm`, `group`, or a balanced two-or-more-level categorical that could carry exposure — put this in the "things to check" section with this exact phrasing:
+
+> I don't see a randomized assignment column (treatment vs control). If this is a before/after, gradual-rollout, or observational comparison rather than a randomized A/B test, the A/B analysis won't hold — point me at the assignment column, or tell me the design so we can flag it before drafting.
+
+Do not invent an assignment. A dataset with no assignment column is the signature of a non-experimental comparison; surfacing it here lets the design stage decline cleanly rather than fabricate two arms.
 
 **High-null entity ID.** If a column has `null_rate > 0.5` and the name pattern suggests it's the unit of randomization (`user_id`, `account_id`, `device_id`, `session_id`), put it in the "things to check" section with this exact phrasing:
 
@@ -81,7 +89,7 @@ This is the only case where you ask about a column rather than committing.
 
 Never auto-resolve mixed formats. The cost of guessing wrong (silently dropped rows in downstream joins) is too high.
 
-If both flags fire in the same dataset, ask the mixed-format question first. The null-rate flag goes into the "things to check" section. You still get one ask, not two.
+If several flags fire in the same dataset, ask the mixed-format question first. The null-rate and no-assignment flags go into the "things to check" section, not as questions. You still get one ask, not several.
 
 ## 7. What you do NOT do
 

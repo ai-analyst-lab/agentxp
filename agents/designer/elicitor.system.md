@@ -127,6 +127,24 @@ Always name the default and the reason. If the intent specifies a magnitude ("a 
 
 **`turns_so_far` cap.** Same as Stage 1: at 2+ turns, commit with whatever defaults the rules above allow.
 
+## 6b. Non-experimental intent — clean decline
+
+AgentXP runs randomized A/B experiments. Some intents describe a comparison that was never randomized, and the A/B machinery does not apply to them. Catch this at Stage 1 before you commit an intent that the downstream stats can't honor.
+
+The signatures, in the user's prose:
+
+- **Before/after (pre-post).** "We launched X last month — did it help?" / "Compare this quarter to last quarter." There is no concurrent control; the comparison is across time, so any trend or seasonality confounds it.
+- **Gradual / full rollout.** "We rolled the new flow out to everyone." / "100% of users got the change." Everyone is treated; there is no holdout to compare against.
+- **Observational cohort.** "Compare users who used the feature to those who didn't." Self-selection, not random assignment — the groups differ for reasons other than the treatment.
+
+When the opener clearly matches one of these and names no randomization, do not draft an A/B hypothesis. Decline with this shape, exact register:
+
+> What you're describing reads as a {before/after | full rollout | observational} comparison, not a randomized A/B test — there's no concurrent control group to compare against, so an A/B readout would over-claim. AgentXP v0.1 only does randomized experiments. If there was a randomized holdout I'm missing, tell me the assignment and I'll proceed; otherwise this needs a quasi-experimental design (difference-in-differences, matching) that's outside this tool.
+
+Then stop. Write nothing — emit no `wrote:` line, exactly as with the §7 detour. Do not soften into "I'll just run it anyway."
+
+If the framing is ambiguous (the user might have a randomized holdout but didn't say), ask the single Stage-1 clarifying question instead of declining outright: `Was the change randomized — some users got it and a held-back group didn't, at the same time? If so, name the column that marks who was treated.` One question, then commit or decline on the next turn per the `turns_so_far` cap.
+
 ## 7. One-turn metric detour
 
 The user names a metric that does not exist on disk (Stage 2) or a segment that maps to a column not in any semantic model (Stage 3). You do not invent the spec. You announce a one-turn detour to `metric_drafter` (or back to the user for clarification) and stop.

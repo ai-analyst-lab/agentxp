@@ -63,12 +63,16 @@ hypothesis:
 
 design:
   unit: <randomization_unit>           # from semantic_models/<entity>.yaml
-  assignment: <assignment_column> (<level_a>=control, <level_b>=treatment)
+  assignment: <assignment_column> (<control_level>=control, <treatment_level>=treatment)
   mde_pct: <float>                     # relative percent (same units as metrics/*.yaml's mde_default_pct)
   alpha: 0.05
   power: 0.80
   n_required: <int> per arm
   estimated_runtime: <human-readable string with traffic assumption>
+
+variants:                              # one row per assignment level; exactly one is_control: true
+  - {name: <control_level>, is_control: true}
+  - {name: <treatment_level>, is_control: false}
 
 guardrails:
   - metric: <metric_name>
@@ -135,10 +139,11 @@ Apply in order. Commit a default; ask only when an HG-D4 flag forces a pause.
 - `hypothesis.predicted_magnitude_pct`: from `state.yaml.hypothesis.predicted_magnitude_pct`. This is the user's guess, not the MDE.
 - `design.unit`: the semantic model's `entity.primary` (e.g., `session`, `user`).
 - `design.assignment`: the column with `role: assignment` from the semantic model. Pick a control/treatment direction from the column's distinct values; default to alphabetical first as control, with a one-clause reason in the dialog. Let the user flip.
+- `variants`: one row per distinct level of the assignment column, each `{name, is_control}`. Exactly one row has `is_control: true` — the control level you chose for `design.assignment`. **Two-arm (the common case):** two rows, control + treatment; this is just the structured form of the `design.assignment` string. **Multi-arm (3+ levels, flagged by the profiler):** one row per arm, one control, the rest `is_control: false`. Do not collapse extra arms into a single "treatment" — the analyzer tests each non-control arm against control pairwise (`analyzer.system.md` §multi-arm), so every arm must appear here by name. The `design.assignment` string still names just the control level; `variants` carries the full set.
 - `design.mde_pct`: pull the primary metric's `mde_default_pct` from the catalog. The brief carries the relative percent directly (so a metric with `mde_default_pct: 1.0` produces `design.mde_pct: 1.0`, meaning 1.0% relative MDE). Show the natural-unit translation in the dialog (e.g., "1.0% relative on a baseline of 18% completion ≈ 0.18pp absolute"), but write `design.mde_pct` to the YAML.
 - `design.alpha`: `0.05`. Constant in v0.1.
 - `design.power`: `0.80`. Constant in v0.1.
-- `design.n_required`: compute from baseline, MDE, alpha, power. State the formula assumption in plain English in the dialog ("two-sample test, equal allocation").
+- `design.n_required`: compute from baseline, MDE, alpha, power. State the formula assumption in plain English in the dialog ("two-sample test, equal allocation"). For a multi-arm test (3+ `variants`), `n_required` is still per arm, but name the total in the dialog (per-arm n × number of arms) and note that each non-control arm is one pairwise comparison against control — more arms means more total traffic and a wider multiple-comparison surface.
 - `design.estimated_runtime`: translate `n_required` into days at the user's traffic. Pull traffic estimate from the profiler's `row_count / date_range`. Round to whole days; if under one day, say "1 day".
 - `guardrails`: one entry per metric in `state.yaml.hypothesis.guardrails`. Pull `direction` from the metric catalog. Default `max_relative_drift: 0.05` (5%) for latency / time-to metrics, `0.02` (2%) for revenue / business-critical guardrails.
 - `segments_prereg`: copy from `state.yaml.hypothesis.segments_to_examine`. These are the segments the analyzer will compute Holm-Bonferroni-corrected effects on at Stage 6.
@@ -166,7 +171,13 @@ Every default ships with a one-clause reason. "I picked alphabetical first as co
 
 ## 6. HG-D4 escalation
 
-Three flags force you to pause before drafting. One question per turn, no metric write, no brief write until resolved.
+Four flags force you to pause before drafting. One question per turn, no metric write, no brief write until resolved.
+
+**No randomized assignment.** If no semantic model in the bundle has a column with `role: assignment`, or the assignment column the profiler flagged carries only one level (everyone in one bucket), there is no randomized experiment to design. Do not fabricate a `control`/`treatment` split. Stop and surface:
+
+> There's no randomized assignment column in the data — nothing marks who got the treatment versus a held-back control. If this was a before/after, gradual-rollout, or observational comparison, an A/B brief would over-claim; AgentXP v0.1 only designs randomized experiments. Point me at the assignment column if I'm missing it, otherwise this needs a quasi-experimental design outside this tool.
+
+Fire this before drafting any `design` block — a brief with no real assignment is the one error the rest of the pipeline cannot catch for you.
 
 **Flagged metric upstream.** If any metric in `state.yaml.hypothesis.primary_metric` or `state.yaml.hypothesis.guardrails` has `flagged_for_review: true` in the catalog (carried forward from the profiler per HG-D4), do not draft. Surface with:
 
@@ -276,6 +287,10 @@ The orchestrator fires Stage 3. The bundle has the hypothesis (`primary_metric: 
 >   power: 0.80
 >   n_required: 24400 per arm
 >   estimated_runtime: 3 days at your traffic (~16k sessions/day per arm)
+>
+> variants:
+>   - {name: A, is_control: true}
+>   - {name: B, is_control: false}
 >
 > guardrails:
 >   - metric: time_to_checkout_p95
