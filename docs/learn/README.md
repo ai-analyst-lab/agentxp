@@ -77,7 +77,7 @@ experiment" means: `agentxp audit <exp_id>` in the shell.
 | 0 | **Thesis & market** | Why does this exist? Why now? | FAQ skeptic drill: "why not Eppo/StatSig/GrowthBook?" | Defend the one-sentence thesis against three objections |
 | 1 | **The shape: 11 stages** | What happens end-to-end? | Drive `ship_demo.csv` Stage 0→8 to SHIP | Name all 11 stages, their agent, and what each commits |
 | 2 | **Agents as programs** | How do markdown prompts do work? Why is each sealed off? | Trace the isolation axiom from profiler → interpreter | Explain why the interpreter never sees the hypothesis |
-| 3 | **The deterministic core** | How is the verdict computed? | Predict verdicts for 4 fixtures, check against the 8-step tree | Walk the tree cold on a novel analyzer output |
+| 3 | **The deterministic core** | How is the verdict computed? | Predict verdicts for all 8 fixtures, check against the 8-step tree | Walk the tree cold on a novel analyzer output |
 | 4 | **The integrity spine** | Why is it trustworthy? | Break-it: rewrite a locked brief / corrupt the chain | Explain all chain invariants + the locked-rule wall |
 | 5 | **Data plumbing** | How does it touch a warehouse safely? | Trace a query through all 5 SQL-safety layers | Explain what each layer rejects + the redaction bar |
 | 6 | **State, stores & resume** | How does it survive a crash? | Interrupt a run, resume from the log | Explain the two store layers + `_commit_stage` chokepoint |
@@ -137,9 +137,15 @@ yourself.
 When a module cites reasoning, it traces to one of these. You should end the
 curriculum having read all of them:
 
-- `docs/USER_JOURNEYS.md` — the 30+ journeys the product must serve; the gap
-  register (G1–G14); the discipline-defense interrogation scripts (J3.5.6–9).
-- `SYSTEM_AUDIT.md` — the deep audit that found what was wrong before release.
+- `docs/USER_JOURNEYS.md` — the 30+ journeys the product must serve; an *early*
+  gap register (G1–G14, dated 2026-05-29); the discipline-defense interrogation
+  scripts (J3.5.6–9).
+- `SYSTEM_AUDIT.md` — the deep audit that found what was wrong before release. Its
+  §11 "Updated gap register" (G1–G16, with G15/G16 found *during* the audit) is the
+  one the curriculum cites — Module 7 especially. **Heads-up:** the two registers
+  *renumber* the gaps (e.g. G3 means "invariants 4&5 never fire" in USER_JOURNEYS
+  but "log not replay-reproducible" in SYSTEM_AUDIT). When a module says "G3,"
+  it means the SYSTEM_AUDIT §11 numbering.
 - `REMEDIATION_PLAN.yaml` — the four-wave fix plan; every keep-vs-cut decision.
 - `OVER_ENGINEERING_REVIEW.md` — what was deliberately *not* built, and why.
 - `BUILD_STATUS.yaml` — current build state, what ships `live_unverified`.

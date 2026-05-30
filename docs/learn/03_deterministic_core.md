@@ -165,10 +165,22 @@ find them):
 
 Separate from the verdict, `map_confidence(...)` assigns one of **7
 `ConfidenceLabel` values** describing how *strongly* the inputs support the
-verdict (tight CI, clean power, no novelty → high; wide CI or novelty flags →
-lower). The verdict says *what*; the confidence label says *how sure*. Don't
-conflate them — a SHIP can be low-confidence and that nuance is exactly what an
-honest readout (Stage 8) surfaces.
+verdict. They form a symmetric ladder around "inconclusive":
+
+```
+highly likely positive · very likely positive · leaning positive
+            · inconclusive ·
+leaning negative · very likely negative · highly likely negative
+```
+
+The label keys off where the **90% and 95% CIs sit relative to 0** (oriented so a
+benefit is positive): both CIs clear 0 → *highly likely*; only the 90% clears 0 →
+*very likely*; both straddle but the center is off zero → *leaning*; the center
+sits within ±5% of the 90% half-width of 0 → *inconclusive*. The verdict says
+*what*; the confidence label says *how sure*. Don't conflate them — a SHIP can be
+*leaning positive* rather than *highly likely positive*, and that nuance is exactly
+what an honest readout (Stage 8) surfaces. (Both `confidence.py` and
+`schemas/report.py` pin the same 7 strings, so the label is closed, not free text.)
 
 ---
 
