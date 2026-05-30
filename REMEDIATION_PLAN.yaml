@@ -1,0 +1,239 @@
+# AgentXP — Remediation Plan
+# Source of truth for fixing every finding in SYSTEM_AUDIT.md (2026-05-29).
+# Shape mirrors BUILD_STATUS.yaml. Execution: single-agent sequential, grouped
+# commits, diff review at each wave boundary. Waves respect real dependencies.
+#
+# status: pending | in_progress | done | blocked
+# severity: critical | high | med | low
+# Each item carries the gap id(s) from SYSTEM_AUDIT.md §11 and the journey anchor.
+
+meta:
+  created: 2026-05-29
+  audit: SYSTEM_AUDIT.md
+  supersedes_tasks: [63, 64, 65, 66, 67, 68, 69, 70, 71, 72]
+  execution_model: single-agent-sequential
+  commit_policy: grouped-per-wave; review diffs at wave boundary; no remote push without explicit approval
+  replay_decision: full-fix-now   # user choice 2026-05-29 (G3)
+  amendments_decision: KEEP        # audit overruled old task #68; amendments/ is the G9 re-confirm vehicle
+
+# ─────────────────────────────────────────────────────────────────────────────
+wave_1_credibility_spine:
+  goal: >
+    Make the product's headline true: a validator that fires on real logs, tests
+    that exercise real emitters, and an integrity wall that refuses to loosen a
+    locked rule after results are visible. Nothing else matters until this holds.
+  exit_criteria:
+    - validate_chain returns ok=True on a real multi-event gated log produced by the live emitters
+    - chain tests run against real emitters (no monkeypatched validate_chain, no fabricated log shape)
+    - attempting to rewrite a committed/locked artifact is refused in BOTH code and the editor prompt
+    - a legitimate post-lock change is routed through amendments/, not a silent overwrite
+  items:
+    - id: W1.1
+      subject: Fix validate_chain Invariant 1 — thread parent_action_id through _emit
+      gap: [G4]
+      severity: critical
+      files: [agentxp/audit/chain.py, agentxp/audit/events.py, agentxp/audit/storage.py]
+      detail: >
+        _emit always passes parent_action_id=None, so Inv 1 flags every event after
+        the first. Thread the prior action_id (per-experiment last-id) into each emit.
+      anchor: J2.1, J3.1
+      status: done
+    - id: W1.2
+      subject: Fix Invariants 4/5 — gate pairing without a stage field
+      gap: [G4]
+      severity: critical
+      files: [agentxp/audit/chain.py, agentxp/audit/events.py]
+      detail: >
+        Inv 4/5 read event["stage"] on gate events; GateOpened/Resolved/Blocked
+        payloads are extra="forbid" and carry no stage. Either add stage to the gate
+        payloads or key pairing off action_id/open-id. Prefer keying off ids (less
+        schema churn, more robust).
+      anchor: J3.1
+      status: done
+    - id: W1.3
+      subject: Remove dead Invariant 3(b) decisions-hash branch
+      gap: [G4]
+      severity: high
+      files: [agentxp/audit/chain.py]
+      detail: >
+        Inv 3(b) hashes decisions/*.yaml that nothing writes (decisions.py dead).
+        Remove the branch here; the module deletion is W3.2.
+      anchor: —
+      status: done
+    - id: W1.4
+      subject: Delete the monkeypatch — chain tests must exercise real emitters
+      gap: [G16]
+      severity: high
+      files: [tests/audit/test_chain*.py]
+      detail: >
+        Tests monkeypatch validate_chain to a stub and assert on a fabricated log
+        shape the emitters can't produce; perf tests monkeypatch the clock. Rewrite
+        to build a real log via the live emitters and validate it. This is the test
+        that should have caught W1.1–1.3.
+      depends_on: [W1.1, W1.2, W1.3]
+      anchor: —
+      status: done
+    - id: W1.5
+      subject: Guard _write_artifact against rewriting a committed artifact
+      gap: [G10]
+      severity: high
+      files: [agentxp/orchestrator/store.py]
+      detail: >
+        _write_artifact (~615) does unconditional _atomic_write_bytes to any exp path.
+        Add a committed?/locked? guard so a locked brief can't be silently overwritten.
+      anchor: J3.5.4
+      status: done
+    - id: W1.6
+      subject: Editor prompt must refuse post-lock loosening; route real changes to amendments
+      gap: [G9, G14]
+      severity: critical
+      files: [agents/designer/editor.system.md, agentxp/amendments/]
+      detail: >
+        editor.system.md:7,20 explicitly accepts stage: post_commit. Make it refuse to
+        loosen a locked rule (guardrail/success criterion) once results are seen; a
+        legitimate amendment goes through the amendments/ flow (KEEP, per audit) with an
+        explicit, logged, attributed override — never a silent edit.
+      depends_on: [W1.5]
+      anchor: J3.5.1, J3.5.4, J3.5.5
+      status: done
+
+# ─────────────────────────────────────────────────────────────────────────────
+wave_2_trust_correctness:
+  goal: Make the log reproducible, close the crash window, and stop the schema/leak bleeds.
+  exit_criteria:
+    - re-running the same experiment on the same seed yields the same chain hash
+    - a crash between state advance and log append cannot leave state ahead of the log
+    - Stage 7 verdicts are all accepted by the Stage 8 report schema
+    - no untyped exception can surface a raw credential
+  items:
+    - id: W2.1
+      subject: Replay determinism — deterministic ids, recorded timestamps, order-stable result_hash
+      gap: [G3]
+      severity: critical
+      files: [agentxp/audit/events.py, agentxp/audit/storage.py, agentxp/orchestrator/store.py, agentxp/stats/*]
+      detail: >
+        Replace uuid4 action ids with content-hash or per-experiment sequence; record
+        timestamps as a supplied/replayable field rather than wall-clock in the hashed
+        body; make result_hash order-stable (sort rows / canonicalize before hashing).
+        Goal: two reviewers replay and reach the same chain hash.
+      anchor: J4.5, J5.2
+      status: pending
+    - id: W2.2
+      subject: Close the _commit_stage crash window — append commit event before advancing state
+      gap: [G11]
+      severity: high
+      files: [agentxp/orchestrator/store.py]
+      detail: >
+        state.yaml advances (~552) before the stage.committed append (~599). Reorder to
+        append-then-advance (or make the pair atomic) so a crash can't leave state ahead
+        of the log.
+      anchor: J3.3
+      status: pending
+    - id: W2.3
+      subject: Reconcile the Verdict enum — report.py imports tree.py's literal
+      gap: [G5]
+      severity: high
+      files: [agentxp/schemas/report.py, agentxp/interpret/tree.py]
+      detail: >
+        report.py:27 is the outlier; tree.py:29 and SKILL.md:143 agree. Make report.py
+        import Verdict from tree.py. Also correct OVER_ENGINEERING_REVIEW.md §C (it has
+        the direction backwards).
+      anchor: J2.1
+      status: pending
+    - id: W2.4
+      subject: Wrap dispatch_sql in a final redacted except
+      gap: [G15]
+      severity: med
+      files: [agentxp/orchestrator/dispatch.py]
+      detail: >
+        dispatch_sql catches only 3 typed exceptions; an unexpected type bypasses the
+        redactor and can leak a raw driver message. Add a final except Exception that
+        routes through redact_message before re-raise.
+      anchor: J3.4
+      status: pending
+
+# ─────────────────────────────────────────────────────────────────────────────
+wave_3_cleanup:
+  goal: Remove dead/duplicate code and doc sprawl (keeping amendments/ and sequential/).
+  exit_criteria:
+    - confirmed-dead modules deleted; test suite still green
+    - one Snowflake impl, one state model
+    - root carries only README + QUICKSTART + KNOWN_LIMITATIONS; build-history archived
+  items:
+    - id: W3.1
+      subject: Delete orphaned agents/experiment-*.md prompt set (highest-leverage)
+      gap: [G6]
+      severity: med
+      files: [agents/experiment-*.md]
+      detail: 5 stale parallel prompts that make dead code grep as reachable.
+      status: pending
+    - id: W3.2
+      subject: Delete grep-confirmed dead modules
+      gap: [G6]
+      severity: med
+      files: [agentxp/audit/decisions.py, agentxp/schemas/_versioning.py, agentxp/sql/cache.py, agentxp/sql/preview.py, agentxp/stats/prep.py]
+      detail: >
+        Zero non-test callers. NOTE: do NOT delete amendments/ (W1.6 uses it) or
+        sequential.py (roadmap J2.5.7). decisions.py deletion completes W1.3.
+      depends_on: [W1.3]
+      status: pending
+    - id: W3.3
+      subject: Verify-then-delete transpiler.py + surgical stats orphan cleanup
+      gap: [G6]
+      severity: low
+      files: [agentxp/sql/transpiler.py, agentxp/stats/*]
+      detail: Confirm zero callers one more time at edit-time, then remove.
+      status: pending
+    - id: W3.4
+      subject: Reconcile duplication — one Snowflake impl, one state model, one atomic-write helper
+      gap: [G8]
+      severity: med
+      files: [agentxp/data/snowflake_loader.py, agentxp/sql/adapters/snowflake_adapter.py, agentxp/storage/lifecycle.py, agentxp/schemas/state.py, agentxp/audit/storage.py, agentxp/storage/store.py]
+      detail: >
+        Delete snowflake_loader.py (parallel to the real adapter); delete the lifecycle
+        DAG (live loop uses Stage enum); collapse the two _atomic_write_bytes/_check_disk_space.
+      status: pending
+    - id: W3.5
+      subject: Doc sprawl — archive build-history, fix path mismatch
+      gap: [G7]
+      severity: low
+      files: [docs/, "*.md (root)"]
+      detail: >
+        Move WAVE*/REVIEW*/PRD_COVERAGE/TEST_PLAN/FINAL_STATUS/DEMO to docs/build-history/.
+        Fix journeys profiles/ vs code credentials/ (code is canonical). Reconcile README
+        v0.1.1 vs BUILD_STATUS live_unverified.
+      status: pending
+    - id: W3.6
+      subject: P3 minor batch — EOF loop in connect wizard, driver.py W_sql msg, docstrings/hints/dead branches
+      gap: []
+      severity: low
+      files: [agentxp/cli/*, agentxp/orchestrator/driver.py]
+      detail: Folds old tasks #63, #64, #65.
+      status: pending
+
+# ─────────────────────────────────────────────────────────────────────────────
+wave_4_demonstrate:
+  goal: Prove the periphery with a real end-to-end run and build resume.
+  exit_criteria:
+    - one experiment runs Stage 0→8 end-to-end on the DuckDB ship_demo seed with the integrity check ON
+    - an interrupted run can be resumed from the log
+  items:
+    - id: W4.1
+      subject: E2E smoke — drive Stage 0→8 on ship_demo seed with validate_chain enabled
+      gap: [G2]
+      severity: high
+      files: [tests/, agentxp/orchestrator/*]
+      detail: Folds old task #66. Depends on Wave 1 (validator must not halt the run).
+      depends_on: [W1.4]
+      status: pending
+    - id: W4.2
+      subject: Resume an interrupted run from the log
+      gap: [G12]
+      severity: high
+      files: [agentxp/orchestrator/store.py, agentxp/orchestrator/driver.py]
+      detail: >
+        J3.3 resume is ABSENT. Reconstruct in-flight state from the append-only log.
+        Depends on W2.1 (deterministic log) and W2.2 (no crash window).
+      depends_on: [W2.1, W2.2]
+      anchor: J3.3
+      status: pending
