@@ -565,6 +565,91 @@ class OrchestratorStore:
             self.state.read()
         return None
 
+    # ── resume: reconstruct state from the log (J3.3 / W4.2) ─────────────
+
+    def reconstruct_from_log(self) -> Optional[Stage]:
+        """Roll ``state.yaml`` forward to match the append-only log (J3.3).
+
+        Closes the W2.2 crash window. ``_commit_stage`` emits
+        ``stage.committed`` to ``log.jsonl`` *before* writing ``state.yaml``
+        (append-then-advance, G11), so a crash between the two leaves the log
+        ahead of state: the durable log records a commit the state file never
+        caught up to. The log is the source of truth for resume, so this
+        rebuilds the stage fields of ``state.yaml`` from the ordered
+        ``stage.committed`` events in the log:
+
+          - ``current_stage`` / ``last_committed_stage`` ← the last committed
+            stage in the log;
+          - ``stage_history`` ← one entry per ``stage.committed`` event, in
+            log order, stamped with each event's recorded timestamp.
+
+        Every other state field (intent, hypothesis, pending_decision, …) is
+        preserved. If ``state.yaml`` is absent (crash before the very first
+        state write) it is bootstrapped from the log. Idempotent: returns
+        ``None`` when state already matches the log (the common, no-crash
+        case); otherwise returns the :class:`Stage` it rolled forward to.
+        Holds ``.state.lock`` across the read-modify-write like every other
+        state mutation.
+        """
+        committed: list[tuple[Stage, datetime]] = []
+        log_path = self._exp_dir() / "log.jsonl"
+        if log_path.exists():
+            with log_path.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(row, dict):
+                        continue
+                    if row.get("event_name") != "stage.committed":
+                        continue
+                    stage_val = row.get("stage")
+                    ts_val = row.get("timestamp")
+                    if not isinstance(stage_val, str) or not isinstance(ts_val, str):
+                        continue
+                    committed.append((Stage(stage_val), datetime.fromisoformat(ts_val)))
+
+        # No committed stage in the log → nothing the log can roll forward to.
+        if not committed:
+            return None
+
+        target_stage = committed[-1][0]
+        new_history = [
+            StageHistoryEntry(stage=s, committed_at=ts) for s, ts in committed
+        ]
+
+        def _key(history: list[StageHistoryEntry]) -> list[tuple[str, str]]:
+            return [(e.stage.value, e.committed_at.isoformat()) for e in history]
+
+        with self._file_lock():
+            with _defer_sigint():
+                if self.state.path.exists():
+                    state = self.state.read()
+                else:
+                    state = StateYaml(
+                        experiment_id=self.exp_id,
+                        current_stage=target_stage,
+                    )
+
+                already_synced = (
+                    self.state.path.exists()
+                    and state.current_stage == target_stage
+                    and state.last_committed_stage == target_stage
+                    and _key(state.stage_history) == _key(new_history)
+                )
+                if already_synced:
+                    return None
+
+                state.current_stage = target_stage
+                state.last_committed_stage = target_stage
+                state.stage_history = new_history
+                self.state.write(state)
+                return target_stage
+
     # ── the chokepoint: _commit_stage ───────────────────────────────────
 
     def _commit_stage(

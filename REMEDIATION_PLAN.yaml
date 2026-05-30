@@ -275,7 +275,19 @@ wave_4_demonstrate:
       files: [tests/, agentxp/orchestrator/*]
       detail: Folds old task #66. Depends on Wave 1 (validator must not halt the run).
       depends_on: [W1.4]
-      status: pending
+      status: done
+      done_notes: >
+        Added tests/smoke/test_e2e_ship_demo.py. Two tests: (1) Stage-0
+        profile_dataset reads the real DuckDB-backed sample-data/ship_demo.csv
+        seed (asserts row_count>0 and the variant/converted/revenue columns);
+        (2) drives all 11 main stages DATA_LOADED→READOUT through the real
+        OrchestratorStore chokepoint with validate_chain ENABLED on every
+        commit (gates opened+resolved before three of them to exercise
+        Invariants 4/5). The run reaches READOUT with zero CommitRollback, the
+        full chain validates ok=True, exactly one root event, 11 stage.committed
+        events. Proves the W1 validator guards without false-positiving across a
+        clean run. Headless LLM dispatch stays stubbed (Phase 5), so this
+        exercises the live deterministic spine, not real agents.
     - id: W4.2
       subject: Resume an interrupted run from the log
       gap: [G12]
@@ -286,4 +298,20 @@ wave_4_demonstrate:
         Depends on W2.1 (deterministic log) and W2.2 (no crash window).
       depends_on: [W2.1, W2.2]
       anchor: J3.3
-      status: pending
+      status: done
+      done_notes: >
+        The 8-case resume CLI (agentxp/cli/resume.py) already CLASSIFIES the
+        recovery cases but explicitly does NOT auto-fix — the actual
+        reconstruction was the absent piece. Added
+        OrchestratorStore.reconstruct_from_log() (store.py, after advance()):
+        scans log.jsonl for the ordered stage.committed events, rolls
+        state.yaml forward to the last committed stage, and rebuilds
+        stage_history from the authoritative log (the W2.2 crash window — log
+        ahead of state). Preserves all non-stage fields (intent, hypothesis,
+        pending_decision); bootstraps state.yaml if it is missing entirely;
+        holds .state.lock; idempotent (returns None when already in sync, the
+        Stage rolled-to otherwise). Added
+        tests/smoke/test_resume_reconstruct_from_log.py (4 tests: roll-forward
+        + field preservation + idempotency, clean no-op, state.yaml-absent
+        bootstrap, empty-log None). Did NOT rewire the resume CLI classifier
+        (out of scope; its 8-case tests stay green).
