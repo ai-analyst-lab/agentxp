@@ -35,6 +35,7 @@ from pydantic import BaseModel
 
 from agentxp.orchestrator import store as store_mod
 from agentxp.orchestrator.store import (
+    ArtifactLocked,
     CommitRollback,
     InsufficientDiskSpace,
     OrchestratorStore,
@@ -354,6 +355,46 @@ def test_commit_stage_writes_artifacts_atomically(
     assert mode == 0o600
     loaded = yaml.safe_load(target.read_text())
     assert loaded == {"name": "thing", "value": 42}
+
+
+def test_write_artifact_refuses_to_overwrite_committed_artifact(
+    orchestrator: OrchestratorStore,
+) -> None:
+    """G9 integrity wall: a second write to an existing artifact path is refused.
+
+    Every artifact reaches disk through _commit_stage, so a file already on
+    disk is committed. _write_artifact must refuse a silent overwrite.
+    """
+    class Artifact(BaseModel):
+        name: str
+        value: int
+
+    orchestrator._write_artifact("brief.yaml", Artifact(name="locked", value=1))
+
+    with pytest.raises(ArtifactLocked) as exc_info:
+        orchestrator._write_artifact("brief.yaml", Artifact(name="loosened", value=2))
+    assert "brief.yaml" in str(exc_info.value)
+
+    # The on-disk artifact is unchanged — the loosening write never landed.
+    target = orchestrator._exp_dir() / "brief.yaml"
+    assert yaml.safe_load(target.read_text()) == {"name": "locked", "value": 1}
+
+
+def test_write_artifact_amend_allows_explicit_overwrite(
+    orchestrator: OrchestratorStore,
+) -> None:
+    """The amendments seam: amend=True permits an explicit, logged overwrite."""
+    class Artifact(BaseModel):
+        name: str
+        value: int
+
+    orchestrator._write_artifact("brief.yaml", Artifact(name="locked", value=1))
+    orchestrator._write_artifact(
+        "brief.yaml", Artifact(name="amended", value=2), amend=True
+    )
+
+    target = orchestrator._exp_dir() / "brief.yaml"
+    assert yaml.safe_load(target.read_text()) == {"name": "amended", "value": 2}
 
 
 def test_commit_stage_sigint_during_critical_section_deferred(

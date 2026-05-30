@@ -19,14 +19,15 @@ Invariants (per §10.7.2):
   2. conversation_ref integrity — every bundles/{agent}.ctx.yaml with a
      conversation_ref block points at a turn_id that exists in
      conversation.jsonl.
-  3. artifact SHA256 match — every query_id referenced from
-     bundles/*.out.yaml resolves to queries/{ulid}.yaml on disk, and every
-     decisions/*.yaml provenance.bundle_hash matches the on-disk bundle.
+  3. artifact reference integrity — every query_id referenced from
+     bundles/*.out.yaml resolves to queries/{ulid}.yaml on disk. (The v0.1
+     decisions/*.yaml bundle_hash sub-check is deferred with the decisions
+     writer; see _check_invariant_3_artifact_hashes.)
   4. no stage.committed while a gate is OPEN — for each stage, the gate
      state machine must be CLOSED (or NEVER_OPENED) at commit time.
-  5. no gate.resolved/blocked without a preceding gate.opened — every
-     terminal gate event traces back to a matching opener for the same
-     (stage, kind).
+  5. no gate.resolved without a preceding gate.opened — every resolved gate
+     traces back to a matching opener of the same kind in the same stage.
+     gate.blocked is a terminal system halt and is exempt from pairing.
 
 Disk layout (relative to ``experiments/{experiment_id}/``):
 
@@ -35,11 +36,9 @@ Disk layout (relative to ``experiments/{experiment_id}/``):
   - ``bundles/*.ctx.yaml``  — agent input bundles (Invariant 2)
   - ``bundles/*.out.yaml``  — agent output bundles (Invariant 3)
   - ``queries/*.yaml``      — SQL query artifacts (Invariant 3)
-  - ``decisions/*.yaml``    — recorded decisions with provenance (Invariant 3)
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import time
 from pathlib import Path
@@ -251,58 +250,67 @@ def _check_gate_pairing(
 ) -> tuple[list[Violation], list[Violation]]:
     """Invariants 4 + 5 — fused gate-pairing scan (§10.7.2).
 
-    Invariant 4: ``stage.committed(stage=S)`` MUST NOT fire while
-    ``(S, *)`` has any OPEN gate.
+    Invariant 4: ``stage.committed(stage=S)`` MUST NOT fire while ``S`` has
+    any OPEN gate.
 
-    Invariant 5: every ``gate.resolved`` / ``gate.blocked`` event must
-    trace back to an earlier ``gate.opened`` for the same ``(stage, kind)``.
+    Invariant 5: every ``gate.resolved`` event must trace back to an earlier
+    ``gate.opened`` of the same ``kind`` in the same stage. ``gate.blocked``
+    is EXEMPT — it is a terminal system halt (disk_full, auth_expired,
+    chain_validation_failed, project_locked) emitted spontaneously with no
+    preceding opener, so requiring a pairing would flag every legitimate halt
+    (including the halt the validator itself triggers).
 
-    Algorithm: single pass, dict ``stage -> set[kind]`` tracks currently-open
-    gates per stage. On ``stage.entered(stage=S)`` we reset ``open_kinds[S]``
-    (per §10.6 resume semantics).
+    Gate payloads carry no ``stage`` field (only stage.entered/committed do),
+    so gates are attributed to the AMBIENT stage — the stage of the most
+    recent ``stage.entered``. This matches reality: a gate opens and resolves
+    within the stage that is currently active. On ``stage.entered(S)`` we
+    reset ``open_gates[S]`` (per §10.6 resume semantics).
 
     Returns:
         (invariant_4_violations, invariant_5_violations)
     """
     v4: list[Violation] = []
     v5: list[Violation] = []
-    open_gates: dict[str, set[str]] = {}
+    open_gates: dict[Optional[str], set[str]] = {}
+    current_stage: Optional[str] = None
 
     for event in events:
         name = event.get("event_name")
-        stage = event.get("stage")
         kind = event.get("kind")
         action_id = event.get("action_id")
+        # stage.entered/committed carry their own stage; gate events do not,
+        # so they fall back to the ambient (most-recently-entered) stage.
+        event_stage = event.get("stage")
 
-        if name == "stage.entered" and stage is not None:
+        if name == "stage.entered" and event_stage is not None:
+            current_stage = event_stage
             # Re-entry per §10.6 resets that stage's gate-state machine.
-            open_gates[stage] = set()
+            open_gates[event_stage] = set()
 
-        elif name == "gate.opened" and stage is not None and kind is not None:
-            open_gates.setdefault(stage, set()).add(kind)
+        elif name == "gate.opened" and kind is not None:
+            open_gates.setdefault(current_stage, set()).add(kind)
 
-        elif name in ("gate.resolved", "gate.blocked"):
-            matched = False
-            if stage is not None and kind is not None:
-                kinds = open_gates.get(stage, set())
-                if kind in kinds:
-                    kinds.discard(kind)
-                    matched = True
-            if not matched:
-                terminal = name.split(".", 1)[1]  # "resolved" or "blocked"
+        elif name == "gate.resolved":
+            kinds = open_gates.get(current_stage, set())
+            if kind is not None and kind in kinds:
+                kinds.discard(kind)
+            else:
                 v5.append(
                     Violation(
                         invariant_id=5,
                         description=(
-                            f"gate.{terminal}(stage={stage}, kind={kind}, "
+                            f"gate.resolved(stage={current_stage}, kind={kind}, "
                             f"action_id={action_id}) without preceding gate.opened"
                         ),
                         offending_action_id=action_id,
                     )
                 )
 
-        elif name == "stage.committed" and stage is not None:
-            kinds = open_gates.get(stage, set())
+        # gate.blocked: exempt from Invariant 5 (terminal system halt).
+
+        elif name == "stage.committed":
+            commit_stage = event_stage if event_stage is not None else current_stage
+            kinds = open_gates.get(commit_stage, set())
             if kinds:
                 # Surface ALL still-open gates so the user sees the full picture.
                 for open_kind in sorted(kinds):
@@ -310,7 +318,7 @@ def _check_gate_pairing(
                         Violation(
                             invariant_id=4,
                             description=(
-                                f"stage.committed(stage={stage}, "
+                                f"stage.committed(stage={commit_stage}, "
                                 f"action_id={action_id}) emitted while gate "
                                 f"kind={open_kind} is OPEN"
                             ),
@@ -388,23 +396,23 @@ def _check_invariant_2_conversation_refs(exp_dir: Path) -> list[Violation]:
 
 
 def _check_invariant_3_artifact_hashes(exp_dir: Path) -> list[Violation]:
-    """Invariant 3 — artifact SHA256 match (§10.7.2).
+    """Invariant 3 — artifact reference integrity (§10.7.2).
 
-    Two sub-checks:
-      (a) every ``query_id`` referenced from a ``bundles/*.out.yaml`` resolves
-          to a ``queries/{query_id}.yaml`` on disk.
-      (b) every ``decisions/*.yaml`` with a ``provenance.bundle_hash`` field
-          has that hash equal to ``sha256(bundle_file_bytes)``.
+    Every ``query_id`` referenced from a ``bundles/*.out.yaml`` must resolve to
+    a ``queries/{query_id}.yaml`` on disk.
 
     Orphan queries (a ``queries/{ulid}.yaml`` not referenced by any bundle)
     are NOT a violation in v0.1 (§10.7.2 "Counts as broken when").
+
+    NOTE: the v0.1 plan also specced a ``decisions/*.yaml`` ``bundle_hash``
+    sub-check, but ``decisions/`` is never written in v0.1 (the decisions
+    writer is deferred), so that branch was vacuous and coupled this live
+    checker to dead code. It is removed; reinstate it when decisions/ ships.
     """
     violations: list[Violation] = []
     bundles_dir = exp_dir / "bundles"
     queries_dir = exp_dir / "queries"
-    decisions_dir = exp_dir / "decisions"
 
-    # (a) every referenced query_id has a corresponding queries/{ulid}.yaml.
     if bundles_dir.exists():
         for out_path in sorted(bundles_dir.glob("*.out.yaml")):
             try:
@@ -430,54 +438,6 @@ def _check_invariant_3_artifact_hashes(exp_dir: Path) -> list[Violation]:
                             offending_path=str(expected),
                         )
                     )
-
-    # (b) every decision's recorded bundle_hash matches the on-disk file.
-    if decisions_dir.exists() and bundles_dir.exists():
-        for dec_path in sorted(decisions_dir.glob("*.yaml")):
-            try:
-                dec_doc = yaml.safe_load(dec_path.read_text(encoding="utf-8"))
-            except yaml.YAMLError:
-                continue
-            if not isinstance(dec_doc, dict):
-                continue
-            prov = dec_doc.get("provenance")
-            if not isinstance(prov, dict):
-                continue
-            recorded = prov.get("bundle_hash")
-            bundle_ref = prov.get("bundle_path") or prov.get("bundle")
-            if not isinstance(recorded, str) or not isinstance(bundle_ref, str):
-                continue
-            # bundle_ref is "bundles/{agent}.ctx.yaml" relative to exp_dir,
-            # or just "{agent}.ctx.yaml".
-            candidate = (
-                exp_dir / bundle_ref
-                if "/" in bundle_ref
-                else bundles_dir / bundle_ref
-            )
-            if not candidate.exists():
-                violations.append(
-                    Violation(
-                        invariant_id=3,
-                        description=(
-                            f"bundle_hash mismatch for {bundle_ref}: "
-                            f"expected={recorded[:8]}, actual=<missing file>"
-                        ),
-                        offending_path=str(candidate),
-                    )
-                )
-                continue
-            actual = hashlib.sha256(candidate.read_bytes()).hexdigest()
-            if actual != recorded:
-                violations.append(
-                    Violation(
-                        invariant_id=3,
-                        description=(
-                            f"bundle_hash mismatch for {bundle_ref}: "
-                            f"expected={recorded[:8]}, actual={actual[:8]}"
-                        ),
-                        offending_path=str(candidate),
-                    )
-                )
 
     return violations
 

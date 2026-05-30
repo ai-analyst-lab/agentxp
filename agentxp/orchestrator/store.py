@@ -120,6 +120,18 @@ class CommitRollback(Exception):
     through Case 8 (§10.6) or the §10.5.8 chain-validation-failed gate."""
 
 
+class ArtifactLocked(Exception):
+    """Raised by ``_write_artifact`` when a caller tries to silently overwrite
+    an artifact that is already committed on disk (the G9 integrity wall).
+
+    Every artifact reaches disk through ``_commit_stage``, so a file already
+    present under ``experiments/{exp_id}/`` is a committed artifact. Rewriting
+    it would let a locked rule (guardrail, success criterion, brief) be
+    loosened after the fact. A legitimate post-lock change must go through the
+    ``amendments/`` flow, which calls ``_write_artifact(..., amend=True)`` so
+    the override is explicit, logged, and attributed — never silent."""
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────
@@ -289,6 +301,13 @@ class OrchestratorStore:
         self.conversation = ConversationStore(exp_dir / "conversation.jsonl")
         self._lock_path = exp_dir / ".state.lock"
 
+        # Linear parent-linkage for Invariant 1: each emitted event's
+        # parent_action_id is the action_id of the prior event in this
+        # experiment's log. Lazily recovered from the log tail on first emit
+        # so a resumed session links onto the existing chain.
+        self._last_action_id: Optional[str] = None
+        self._last_action_id_loaded = False
+
     # ── path helpers ────────────────────────────────────────────────────
 
     def _exp_dir(self) -> Path:
@@ -449,11 +468,55 @@ class OrchestratorStore:
     def _emit(self, event: BaseModel) -> None:
         """Append an audit event under the experiment dir.
 
-        Thin wrapper around ``audit.storage.append_event`` so callers
-        within this module can route every emission through one seam
-        (test fixtures monkeypatch this for spy coverage).
+        Single seam for every emission. Stamps Invariant-1 parent linkage:
+        when a caller leaves ``parent_action_id`` unset, this fills it with
+        the prior event's ``action_id`` so log.jsonl forms one cycle-free
+        chain (the very first event stays root with ``parent_action_id=None``).
+        A caller that sets ``parent_action_id`` explicitly (e.g. agent
+        dispatch fan-out) is left untouched.
         """
+        if not self._last_action_id_loaded:
+            self._last_action_id = self._recover_last_action_id()
+            self._last_action_id_loaded = True
+
+        if (
+            hasattr(event, "parent_action_id")
+            and getattr(event, "parent_action_id") is None
+            and self._last_action_id is not None
+        ):
+            event.parent_action_id = self._last_action_id
+
         append_event(self._exp_dir(), event)
+
+        new_id = getattr(event, "action_id", None)
+        if isinstance(new_id, str):
+            self._last_action_id = new_id
+
+    def _recover_last_action_id(self) -> Optional[str]:
+        """Return the action_id of the last event in log.jsonl, or None.
+
+        Lets a resumed session (new store instance over an existing
+        experiment) link its first emission onto the tail of the existing
+        chain instead of starting a second root — which Invariant 1 would
+        otherwise flag.
+        """
+        log_path = self._exp_dir() / "log.jsonl"
+        if not log_path.exists():
+            return None
+        last_id: Optional[str] = None
+        with log_path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                aid = row.get("action_id") if isinstance(row, dict) else None
+                if isinstance(aid, str):
+                    last_id = aid
+        return last_id
 
     # ── high-level entry: advance() ─────────────────────────────────────
 
@@ -612,13 +675,23 @@ class OrchestratorStore:
 
     # ── artifact + rollback helpers ─────────────────────────────────────
 
-    def _write_artifact(self, filename: str, payload: BaseModel) -> Path:
+    def _write_artifact(
+        self, filename: str, payload: BaseModel, *, amend: bool = False
+    ) -> Path:
         """Atomically write one artifact under the experiment dir.
 
         ``filename`` is interpreted as a path relative to
         ``experiments/{exp_id}/``. Pydantic models are serialised through
         YAML (sorted=False to preserve declaration order). The file lands
         chmod 600 per §1.7.3.
+
+        Integrity wall (§10.7 / G9): refuses to silently overwrite an
+        artifact that already exists on disk. Every artifact reaches disk
+        through ``_commit_stage``, so a file already present is a committed
+        artifact; rewriting it would loosen a locked rule after the fact.
+        A legitimate post-lock change passes ``amend=True`` (the seam the
+        ``amendments/`` flow uses) so the override is explicit and logged,
+        never silent. Raises ``ArtifactLocked`` otherwise.
         """
         exp_dir = self._exp_dir()
         target = (exp_dir / filename).resolve()
@@ -629,6 +702,13 @@ class OrchestratorStore:
             raise ValueError(
                 f"artifact path {filename!r} escapes experiment dir {exp_dir}"
             ) from exc
+        if target.exists() and not amend:
+            raise ArtifactLocked(
+                f"artifact {filename!r} is already committed for experiment "
+                f"{self.exp_id!r}; refusing to overwrite a locked artifact. "
+                f"Route a legitimate post-lock change through the amendments "
+                f"flow (which writes with amend=True)."
+            )
         data = payload.model_dump(mode="json")
         text = yaml.safe_dump(data, sort_keys=False, default_flow_style=False)
         _atomic_write_bytes(target, text.encode("utf-8"), mode=_FILE_MODE)
@@ -864,6 +944,7 @@ class OrchestratorStore:
 
 
 __all__ = [
+    "ArtifactLocked",
     "CommitRollback",
     "InsufficientDiskSpace",
     "OrchestratorStore",

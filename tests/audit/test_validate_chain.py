@@ -9,7 +9,6 @@ Test naming follows §10.7.6 exactly.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -106,20 +105,6 @@ def _build_healthy_experiment(tmp_path: Path, exp_id: str = "exp-001") -> Path:
     _write_yaml(
         exp_dir / "queries" / "Q1.yaml",
         {"schema_version": 1, "query_id": "Q1", "sql": "select 1"},
-    )
-
-    # decisions/d1.yaml referencing the bundle with the correct hash
-    bundle_path = exp_dir / "bundles" / "designer.elicitor.ctx.yaml"
-    bundle_hash = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
-    _write_yaml(
-        exp_dir / "decisions" / "d1.yaml",
-        {
-            "schema_version": 1,
-            "provenance": {
-                "bundle_path": "bundles/designer.elicitor.ctx.yaml",
-                "bundle_hash": bundle_hash,
-            },
-        },
     )
 
     return root
@@ -252,19 +237,10 @@ def test_invariant_3_missing_query_artifact(tmp_path: Path) -> None:
     assert any("Q1.yaml" in v.description for v in inv3)
 
 
-def test_invariant_3_bundle_hash_mismatch(tmp_path: Path) -> None:
-    """Decision-recorded bundle_hash does not match on-disk content."""
-    root = _build_healthy_experiment(tmp_path)
-    # Mutate the bundle file so its sha256 no longer matches the decision record.
-    bundle_path = root / "exp-001" / "bundles" / "designer.elicitor.ctx.yaml"
-    doc = yaml.safe_load(bundle_path.read_text())
-    doc["new_field"] = "tampered"
-    _write_yaml(bundle_path, doc)
-
-    result = validate_chain("exp-001", _root=root)
-    assert result.ok is False
-    inv3 = [v for v in result.violations if v.invariant_id == 3]
-    assert any("bundle_hash mismatch" in v.description for v in inv3)
+# NOTE: the Invariant 3(b) decisions/*.yaml bundle_hash sub-check is deferred
+# with the decisions writer (it was vacuous in v0.1 — nothing writes decisions/).
+# Its test is removed until that writer ships; see chain.py
+# _check_invariant_3_artifact_hashes.
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -343,8 +319,15 @@ def test_invariant_5_resolve_without_open(tmp_path: Path) -> None:
     assert "without preceding gate.opened" in inv5[0].description
 
 
-def test_invariant_5_block_without_open(tmp_path: Path) -> None:
-    """gate.blocked with no preceding gate.opened on the same (stage, kind)."""
+def test_invariant_5_blocked_is_exempt(tmp_path: Path) -> None:
+    """gate.blocked is a terminal system halt — exempt from Invariant 5.
+
+    System halts (disk_full, auth_expired, chain_validation_failed,
+    project_locked) emit gate.blocked spontaneously with no preceding opener,
+    so requiring a pairing would flag every legitimate halt. A lone
+    gate.blocked after stage.entered must therefore produce NO Invariant-5
+    violation.
+    """
     root = _build_healthy_experiment(tmp_path)
     log_path = root / "exp-001" / "log.jsonl"
     rows = [
@@ -359,17 +342,14 @@ def test_invariant_5_block_without_open(tmp_path: Path) -> None:
             "action_id": "A2",
             "parent_action_id": "A1",
             "stage": "0",
-            "kind": "confirm_semantic_model",
             "reason": "disk_full",
         },
     ]
     _write_jsonl(log_path, rows)
 
     result = validate_chain("exp-001", _root=root)
-    assert result.ok is False
-    inv5 = [v for v in result.violations if v.invariant_id == 5]
-    assert len(inv5) == 1
-    assert "gate.blocked" in inv5[0].description
+    assert result.ok is True, f"unexpected violations: {result.violations}"
+    assert [v for v in result.violations if v.invariant_id == 5] == []
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -454,3 +434,59 @@ def test_partial_range_validation(tmp_path: Path) -> None:
     result = validate_chain("exp-001", _root=root, from_event=2, to_event=4)
     assert result.ok is False
     assert any(v.invariant_id == 5 for v in result.violations)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Real-emitter integration (W1.4) — the test that should have caught W1.1–1.3.
+#
+# Every test above feeds validate_chain a HAND-WRITTEN log shape. That is how
+# the original audit chain shipped broken: the fixtures carried a `stage` field
+# on gate events and threaded parent_action_id, neither of which the live
+# emitters produce. This test drives the REAL OrchestratorStore emitters and
+# asserts the chain they produce validates clean — coupling the validator to
+# what the system actually writes, not to a fixture's idea of it.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def test_real_emitters_produce_validatable_chain(tmp_path: Path) -> None:
+    """A gate opened+resolved+committed via the live emitters validates clean.
+
+    Exercises the W1.1 (_emit parent threading) and W1.2 (stage-less gate
+    pairing) fixes against the real on-disk log, with no fabricated shape.
+    """
+    from agentxp.orchestrator.store import OrchestratorStore
+    from agentxp.schemas.state import PendingDecisionKind, Stage
+
+    store = OrchestratorStore(project_root=tmp_path, experiment_id="exp-real")
+
+    store.set_pending(
+        PendingDecisionKind.CONFIRM_SEMANTIC_MODEL,
+        options=["proceed", "revise"],
+        prompt="Confirm the drafted semantic model?",
+    )
+    store.resolve_decision("proceed")
+
+    # Must NOT raise CommitRollback — the chain produced so far is valid, so
+    # the internal validate_chain at commit time returns ok=True.
+    store._commit_stage(Stage.SEMANTIC_MODELS_DRAFTED)
+
+    result = validate_chain("exp-real", _root=tmp_path / "experiments")
+    assert result.ok is True, f"real-emitter chain failed validation: {result.violations}"
+    assert result.violations == []
+
+    # Prove the old fixtures were unrealistic: real gate events carry NO
+    # `stage` field (only stage.entered/committed do). If this ever changes,
+    # the stage-less gate-pairing logic in chain.py must change with it.
+    log_path = tmp_path / "experiments" / "exp-real" / "log.jsonl"
+    rows = [json.loads(line) for line in log_path.read_text().splitlines() if line]
+    gate_rows = [r for r in rows if str(r.get("event_name", "")).startswith("gate.")]
+    assert gate_rows, "expected at least one gate event from the live emitters"
+    assert all("stage" not in r for r in gate_rows), (
+        "live gate events unexpectedly carry a 'stage' field; the validator's "
+        "ambient-stage logic assumes they do not"
+    )
+
+    # And the parent chain is real: exactly one root, every other event links
+    # to a prior action_id (the W1.1 fix).
+    roots = [r for r in rows if r.get("parent_action_id") is None]
+    assert len(roots) == 1, f"expected exactly one root event, got {len(roots)}"
