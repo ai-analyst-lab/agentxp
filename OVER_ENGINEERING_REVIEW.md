@@ -76,7 +76,7 @@ This matters for the user's actual question: the audit trail is the product's cr
 
 ### D. Speculative for a distant roadmap — defer behind a flag
 
-`stats/bayesian.py` (620), `stats/sequential.py` (600), `stats/cuped.py` (430), `stats/power.py`+`ratio_power.py` (470) are all **v0.5–v1.0 per `FINAL_STATUS.md:165`** and called by **nothing** in the v0.1 workflow (the drafter sizes samples in prose, the analyzer dispatches only Welch/proportion/ratio + Holm + SRM). ~2,100 LOC of mathematically-correct, well-tested, **unreachable** code in the default import surface.
+`stats/bayesian.py` (620), `stats/sequential.py` (600), `stats/cuped.py` (430), `stats/power.py`+`ratio_power.py` (470) are all **v0.5–v1.0 per `docs/build-history/FINAL_STATUS.md:165`** and called by **nothing** in the v0.1 workflow (the drafter sizes samples in prose, the analyzer dispatches only Welch/proportion/ratio + Holm + SRM). ~2,100 LOC of mathematically-correct, well-tested, **unreachable** code in the default import surface.
 
 > **Honest note on our own recent effort:** the two prior sessions hardened `sequential.py` (the mSPRT radius + small-n Type-I floor, fixes P3-2/#62). That module is roadmap-v1.0 and called by nothing in the live workflow. We did careful work on an organ the body doesn't yet use. That is precisely the pattern this review exists to surface — and a reason to pause the remaining P3 fixes until we agree on scope.
 

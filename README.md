@@ -120,14 +120,14 @@ Plain-English questions also work. "Why did exp_007 halt at Stage 5?" produces t
 
 v0.1 ships deliberately narrow.
 
-- **v0.1 is in active development.** The data-profiling stage and the audit substrate are complete; the brief-drafting, analysis, interpretation, and readout stages land through the W1-W7 build waves. See `BUILD_STATUS.yaml` for current state.
+- **v0.1 is in active development.** The data-profiling stage, the deterministic statistics engine, and the audit substrate are complete; the three warehouse adapters are code-complete but unverified against live accounts (mock-tier tests green, live-credential tests authored and skipping). See `BUILD_STATUS.yaml` for the current per-component state.
 - Single-user. No team collaboration, no shared project locks.
 - Randomized A/B tests only. Causal inference and quasi-experimental designs are a separate project.
 - v0.1 profiles and analyzes DuckDB-readable sources only. Credential profiles for the three analytical warehouses — Snowflake, BigQuery, and Databricks — can already be registered (`/connect-data <dialect>`), but profiling and reading *from* a warehouse (`profile --adapter snowflake`) is not yet wired — it returns a "ships in v0.1.1" message. Warehouse-backed reads land in v0.1.1, within two weeks of v0.1. The operational stores (Postgres, MySQL, Redshift) follow in v0.1.2.
 - No external hook system. The internal `validate_chain` runs on every stage commit. Hooks land in v0.2.
 - No OpenTelemetry export. The append-only log is the audit substrate. OTel lands in v0.5.
 
-Full list at [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
+Per-component build state is tracked in [BUILD_STATUS.yaml](BUILD_STATUS.yaml).
 
 ---
 

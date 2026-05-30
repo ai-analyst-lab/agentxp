@@ -164,7 +164,7 @@ user, warehouse, and role, and store them as a credential profile with no
 secret written to disk in the clear. Want me to set that up?
 
   [collects credentials securely, never echoed]
-  wrote: ~/.agentxp/profiles/snowflake_prod  (chmod 600)
+  wrote: ~/.agentxp/credentials/snowflake/snowflake_prod.yaml  (chmod 600)
 
 Connection registered.
 

@@ -76,7 +76,9 @@ def profile_dataset(
 ) -> ProfileReport:
     """Run Stage-0 profiling for ``source_ref`` and return a ``ProfileReport``."""
     if adapter_type != "duckdb":
-        raise NotImplementedError(f"adapter {adapter_type!r} ships in W_sql")
+        raise NotImplementedError(
+            f"warehouse-backed profiling for {adapter_type!r} ships in v0.1.1"
+        )
 
     # Deferred imports — the SUMMARIZE adapter + HG-D4 heuristics land in
     # W_pre2.2; importing them at module load would break ``from

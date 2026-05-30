@@ -166,7 +166,7 @@ wave_3_cleanup:
       severity: med
       files: [agents/experiment-*.md]
       detail: 5 stale parallel prompts that make dead code grep as reachable.
-      status: pending
+      status: done
     - id: W3.2
       subject: Delete grep-confirmed dead modules
       gap: [G6]
@@ -175,15 +175,27 @@ wave_3_cleanup:
       detail: >
         Zero non-test callers. NOTE: do NOT delete amendments/ (W1.6 uses it) or
         sequential.py (roadmap J2.5.7). decisions.py deletion completes W1.3.
+        EXCLUDED stats/prep.py at edit-time: it is NOT dead — exported in
+        stats.__all__ (prepare_experiment_data), exercised by
+        tests/test_missing_functions.py, and referenced by errors/codes.py.
+        Deleted the other four + their test files.
       depends_on: [W1.3]
-      status: pending
+      status: done
     - id: W3.3
       subject: Verify-then-delete transpiler.py + surgical stats orphan cleanup
       gap: [G6]
       severity: low
       files: [agentxp/sql/transpiler.py, agentxp/stats/*]
-      detail: Confirm zero callers one more time at edit-time, then remove.
-      status: pending
+      detail: >
+        Confirm zero callers one more time at edit-time, then remove.
+        VERIFIED LIVE — NOTHING DELETED: transpiler.transpile() is used by
+        tests/integration/test_adapter_matrix.py (authors a canonical duckdb
+        query once, transpiles per-target, executes on each adapter), so it is
+        not an orphan. Every agentxp/stats/*.py module is re-exported through
+        stats/__init__.py's public facade (__all__), so there are no
+        whole-module stats orphans to remove either. verify-then-delete
+        correctly resolves to keep-all here.
+      status: done
     - id: W3.4
       subject: Reconcile duplication — one Snowflake impl, one state model, one atomic-write helper
       gap: [G8]
@@ -192,7 +204,25 @@ wave_3_cleanup:
       detail: >
         Delete snowflake_loader.py (parallel to the real adapter); delete the lifecycle
         DAG (live loop uses Stage enum); collapse the two _atomic_write_bytes/_check_disk_space.
-      status: pending
+        DONE w/ corrections at edit-time:
+        (1) Deleted data/snowflake_loader.py + its test — confirmed test-only; the live
+            adapter is sql/adapters/snowflake_adapter.py (in the adapter registry).
+        (2) KEPT storage/lifecycle.py — the plan premise was WRONG. lifecycle is live:
+            amendments/tracker.py (the W1.6-protected flow), validators/experiment_validator.py
+            (ALL_STATES), and storage/store.py all import it. It is the 11-state experiment
+            *status* DAG, a different concern from the orchestrator Stage commit enum; the two
+            are not duplicates. No safe deletion.
+        (3) Collapsed _atomic_write_bytes: storage/store.py now imports the canonical
+            audit/storage.py helper (deleted its lesser local copy + tempfile import). Hardened
+            the canonical helper to unlink its tmp on a failed/interrupted write (preserves the
+            old ExperimentStore contract). storage outputs now land chmod 600 (intentional
+            §1.7.3 hardening).
+        (4) Collapsed _check_disk_space: removed the dead audit/storage.py copy (bool/statvfs,
+            only its own test referenced it) + its test; the live one is
+            orchestrator/store._check_disk_space (raises InsufficientDiskSpace).
+        (5) Bonus: fixed a real TOCTOU in _AtomicJsonlWriter create (O_EXCL now tolerates a
+            concurrent appender winning the race) — surfaced by the concurrent-appenders smoke test.
+      status: done
     - id: W3.5
       subject: Doc sprawl — archive build-history, fix path mismatch
       gap: [G7]
@@ -202,14 +232,34 @@ wave_3_cleanup:
         Move WAVE*/REVIEW*/PRD_COVERAGE/TEST_PLAN/FINAL_STATUS/DEMO to docs/build-history/.
         Fix journeys profiles/ vs code credentials/ (code is canonical). Reconcile README
         v0.1.1 vs BUILD_STATUS live_unverified.
-      status: pending
+        DONE: git mv'd 9 build-history docs (WAVE1/2_REVIEW, REVIEW_4_FINAL, REVIEW_FINDINGS,
+        REVIEW_RUBRIC, PRD_COVERAGE, TEST_PLAN, FINAL_STATUS, DEMO) into docs/build-history/;
+        fixed the dangling FINAL_STATUS.md path ref in OVER_ENGINEERING_REVIEW.md. Kept the
+        active remediation set at root (README, CLAUDE, SYSTEM_AUDIT, OVER_ENGINEERING_REVIEW,
+        REMEDIATION_PLAN, BUILD_STATUS). Fixed USER_JOURNEYS.md profiles/ ->
+        credentials/snowflake/snowflake_prod.yaml (matches connect_common's
+        ~/.agentxp/credentials/{adapter}/{name}.yaml). Reconciled README Limitations to
+        BUILD_STATUS's live_unverified vocabulary (warehouse adapters code-complete, mock-tier
+        green, live-credential tests skipping) and repointed the dead KNOWN_LIMITATIONS.md link
+        (file never existed in this repo) to BUILD_STATUS.yaml.
+      status: done
     - id: W3.6
       subject: P3 minor batch — EOF loop in connect wizard, driver.py W_sql msg, docstrings/hints/dead branches
       gap: []
       severity: low
       files: [agentxp/cli/*, agentxp/orchestrator/driver.py]
       detail: Folds old tasks #63, #64, #65.
-      status: pending
+      status: done
+      done_notes: >
+        (1) EOF infinite loop in connect_common.py prompt_text fixed — on EOF
+        (raw == "") a required field now raises EOFError instead of looping
+        forever on a closed stdin (default/allow_empty still return cleanly).
+        (2) profiler/driver.py:79 no longer leaks the internal "W_sql" codename —
+        message is now "warehouse-backed profiling for <adapter> ships in v0.1.1";
+        tests/profiler/test_driver.py updated to match="v0.1.1". Left the
+        store.py dispatch_sql "W_sql" spine stub + its test_store.py:516 matcher
+        unchanged (deliberate Phase-5 exclusion, out of scope). Suite: 1234
+        passed, 63 skipped.
 
 # ─────────────────────────────────────────────────────────────────────────────
 wave_4_demonstrate:

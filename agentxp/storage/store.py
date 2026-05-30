@@ -27,13 +27,13 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from agentxp.audit.storage import _atomic_write_bytes
 from .lifecycle import (
     ALL_STATES,
     is_backward,
@@ -54,32 +54,6 @@ def _timestamp_str() -> str:
 
 def _iso_now() -> str:
     return _utcnow().isoformat().replace("+00:00", "Z")
-
-
-def _atomic_write_bytes(path: Path, data: bytes) -> None:
-    """Write `data` to `path` atomically via tmp file + os.replace.
-
-    The tmp file lives in the same directory to guarantee same-filesystem
-    rename (os.replace is atomic on POSIX when src and dst are on the same FS).
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=str(path.parent),
-    )
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
 
 
 def _atomic_write_text(path: Path, text: str) -> None:

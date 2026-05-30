@@ -5,8 +5,7 @@ Covers acceptance criteria for W_pre1.5:
   2. Oversize lines (> 4096 bytes) raise ValueError.
   3. Multiple atomic appends preserve order and one-line-per-call shape.
   4. _atomic_write_bytes lands with chmod 600.
-  5. _check_disk_space returns a bool (and True on impossibly-small thresholds).
-  6. Naive datetimes inside event payloads raise ValueError via _json_default.
+  5. Naive datetimes inside event payloads raise ValueError via _json_default.
 
 Source spec: experimentation-platform/OPENXP_V01_PLAN.md §1.7.3, §1.7.2, §10.5.6, §9.
 """
@@ -23,7 +22,6 @@ import pytest
 from agentxp.audit.storage import (
     _AtomicJsonlWriter,
     _atomic_write_bytes,
-    _check_disk_space,
     _json_default,
     append_conversation_turn,
     append_event,
@@ -107,19 +105,6 @@ def test_atomic_write_bytes_chmod_600(tmp_path: Path) -> None:
     )
     # Tmp sibling should have been renamed away.
     assert not (tmp_path / "state.yaml.tmp").exists()
-
-
-def test_disk_space_check(tmp_path: Path) -> None:
-    """_check_disk_space: True for tiny requirement, False for impossibly-huge one."""
-    # 1 byte should always be available.
-    assert _check_disk_space(tmp_path, required_bytes=1) is True
-    # 1 exabyte (1e18) should not be available on any test machine — unless
-    # the platform lacks statvfs (Windows), where we return True best-effort.
-    result = _check_disk_space(tmp_path, required_bytes=10**18)
-    if hasattr(os, "statvfs"):
-        assert result is False, "expected False on POSIX for 1EB requirement"
-    else:
-        assert result is True, "Windows fallback should return True"
 
 
 def test_naive_datetime_rejected_by_json_default() -> None:

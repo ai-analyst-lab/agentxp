@@ -51,7 +51,7 @@ def _make_report(columns: list[ColumnProfile], row_count: int = 100) -> ProfileR
 
 
 def test_profile_dataset_raises_for_non_duckdb() -> None:
-    with pytest.raises(NotImplementedError, match="W_sql"):
+    with pytest.raises(NotImplementedError, match="v0.1.1"):
         profile_dataset("some.table", adapter_type="snowflake")
 
 

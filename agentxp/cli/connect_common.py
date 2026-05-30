@@ -85,10 +85,13 @@ def prompt_text(
         sys.stderr.write(f"{label}{suffix}: ")
         sys.stderr.flush()
         raw = sys.stdin.readline()
-        if raw == "":  # EOF
-            value = ""
-        else:
-            value = raw.strip()
+        if raw == "":  # EOF: stdin is closed, so re-prompting would spin forever.
+            if default is not None:
+                return default
+            if allow_empty:
+                return ""
+            raise EOFError(f"stdin closed while a value for {label!r} was required")
+        value = raw.strip()
         if not value:
             if default is not None:
                 return default

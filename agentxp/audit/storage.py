@@ -13,9 +13,10 @@ POSIX semantics primary:
   - Every append re-verifies mode == 0o600 and raises PermissionError if drift
     is detected (§1.7.3 / B9).
 
-Windows fallback: `os.statvfs` is unavailable, so `_check_disk_space` returns
-True (best-effort). chmod semantics are weaker on Windows; we still call
-`os.chmod` but tolerate failures.
+Windows fallback: chmod semantics are weaker on Windows; we still call
+`os.chmod` but tolerate failures. (The pre-flight disk-space check lives in
+``orchestrator.store._check_disk_space``, which raises ``InsufficientDiskSpace``;
+this module no longer carries a parallel copy.)
 
 Source spec: experimentation-platform/OPENXP_V01_PLAN.md §1.7.3, §10.5.6, §9.
 """
@@ -52,12 +53,18 @@ class _AtomicJsonlWriter:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             # Create with chmod 600 from the start (no world-readable window).
-            fd = os.open(
-                str(self.path),
-                os.O_CREAT | os.O_WRONLY | os.O_EXCL,
-                self.create_mode,
-            )
-            os.close(fd)
+            # O_EXCL races a concurrent appender; if a peer wins the create we
+            # treat the file as already-present and fall through to the shared
+            # mode check (the appends themselves stay atomic via O_APPEND).
+            try:
+                fd = os.open(
+                    str(self.path),
+                    os.O_CREAT | os.O_WRONLY | os.O_EXCL,
+                    self.create_mode,
+                )
+                os.close(fd)
+            except FileExistsError:
+                pass
         # Verify mode (B9 / §1.7.3 enforcement). Refuse to write if drifted.
         current_mode = stat.S_IMODE(self.path.stat().st_mode)
         if current_mode != self.create_mode:
@@ -178,19 +185,28 @@ def append_conversation_turn(experiment_dir: Path, turn: dict) -> None:
 def _atomic_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
     """Atomic full-file write: write to tmp, fsync, then rename.
 
-    Used by state.yaml + state.yaml.bak writers (callers in W_pre0/storage of
-    state). The rename is atomic on POSIX; we re-chmod after rename in case
-    umask interfered.
+    The single shared atomic-write helper (also used by ExperimentStore). The
+    rename is atomic on POSIX; we re-chmod after rename in case umask
+    interfered. If any step before the rename completes fails (e.g. an
+    interrupt mid-write), the partial tmp sibling is unlinked so an aborted
+    write never leaves a ``*.tmp`` leftover behind.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
-    fd = os.open(str(tmp_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, mode)
     try:
-        os.write(fd, data)
-        os.fsync(fd)
-    finally:
-        os.close(fd)
-    os.replace(tmp_path, path)
+        fd = os.open(str(tmp_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, mode)
+        try:
+            os.write(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.replace(tmp_path, path)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except FileNotFoundError:
+            pass
+        raise
     # Enforce mode on the final path (rename may have inherited a different mode).
     try:
         os.chmod(path, mode)
@@ -198,24 +214,9 @@ def _atomic_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
         pass  # Tolerate on Windows / restricted filesystems.
 
 
-def _check_disk_space(path: Path, *, required_bytes: int = 100 * 1024 * 1024) -> bool:
-    """Pre-flight disk-space check from §10.5.3.
-
-    Returns False if < ``required_bytes`` free on the volume containing
-    ``path.parent``. On Windows (no ``os.statvfs``) returns True (best-effort).
-    """
-    try:
-        usage = os.statvfs(path.parent)  # type: ignore[attr-defined]
-        free_bytes = usage.f_frsize * usage.f_bavail
-        return free_bytes >= required_bytes
-    except (AttributeError, OSError):
-        return True  # Windows / non-POSIX: skip check.
-
-
 __all__ = [
     "append_event",
     "append_conversation_turn",
     "canonical_chain_hash",
     "_atomic_write_bytes",
-    "_check_disk_space",
 ]
