@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ..storage.lifecycle import BACKWARD_TARGETS, is_backward
+from ..storage.lifecycle import is_backward
 from ..storage.store import ExperimentStore, _extract_status
 from .diff import classify_change, diff_experiments
 
@@ -108,16 +108,6 @@ def require_amendment_for_transition(from_state: str, to_state: str) -> bool:
     ``INTERPRETED -> {COLLECTING}``, and ``INVALID -> {DESIGNING, ABANDONED}``.
     """
     return is_backward(from_state, to_state)
-
-
-def backward_transitions_snapshot() -> dict[str, list[str]]:
-    """Return the current backward-transition map, derived from lifecycle.
-
-    Useful for agents that want to surface "which retreats require an
-    amendment" without hardcoding a list. Always reflects the runtime state
-    of ``lifecycle.BACKWARD_TARGETS``.
-    """
-    return {src: sorted(targets) for src, targets in BACKWARD_TARGETS.items()}
 
 
 class AmendmentTracker:
