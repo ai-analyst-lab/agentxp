@@ -198,6 +198,28 @@ def test_dispatch_auth_expired_surrenders(tmp_path: Path):
     assert failed[-1]["error_class"] == "AuthExpiredError"
 
 
+def test_dispatch_unexpected_adapter_exception_is_redacted(tmp_path: Path):
+    """An adapter exception outside the AdapterError contract must not leak a
+    raw credential. dispatch_sql wraps it through the redactor and re-raises
+    with the original cause suppressed (G15)."""
+    secret = "SuperSecret123"
+    raw = RuntimeError(
+        f"driver crashed: postgresql://admin:{secret}@db.host:5432/prod"
+    )
+    adapter = _FakeAdapter([raw])
+
+    with pytest.raises(RuntimeError) as excinfo:
+        dispatch_sql(_intent(), adapter, tmp_path)
+
+    msg = str(excinfo.value)
+    assert secret not in msg
+    assert "[REDACTED_URL_CREDS]" in msg
+    assert "RuntimeError" in msg  # names the unexpected type
+    # Cause chain suppressed so the unredacted original can't leak via __cause__.
+    assert excinfo.value.__cause__ is None
+    assert excinfo.value.__suppress_context__ is True
+
+
 def test_dispatch_writes_artifacts_at_every_status(tmp_path: Path):
     """Happy path writes both a 'proposed' artifact and an 'executed' artifact."""
     adapter = _FakeAdapter([_ok(rows=1)])

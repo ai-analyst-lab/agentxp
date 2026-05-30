@@ -117,7 +117,7 @@ wave_2_trust_correctness:
         body; make result_hash order-stable (sort rows / canonicalize before hashing).
         Goal: two reviewers replay and reach the same chain hash.
       anchor: J4.5, J5.2
-      status: pending
+      status: done
     - id: W2.2
       subject: Close the _commit_stage crash window — append commit event before advancing state
       gap: [G11]
@@ -128,7 +128,7 @@ wave_2_trust_correctness:
         append-then-advance (or make the pair atomic) so a crash can't leave state ahead
         of the log.
       anchor: J3.3
-      status: pending
+      status: done
     - id: W2.3
       subject: Reconcile the Verdict enum — report.py imports tree.py's literal
       gap: [G5]
@@ -139,18 +139,18 @@ wave_2_trust_correctness:
         import Verdict from tree.py. Also correct OVER_ENGINEERING_REVIEW.md §C (it has
         the direction backwards).
       anchor: J2.1
-      status: pending
+      status: done
     - id: W2.4
       subject: Wrap dispatch_sql in a final redacted except
       gap: [G15]
       severity: med
-      files: [agentxp/orchestrator/dispatch.py]
+      files: [agentxp/sql/dispatch.py]
       detail: >
         dispatch_sql catches only 3 typed exceptions; an unexpected type bypasses the
         redactor and can leak a raw driver message. Add a final except Exception that
         routes through redact_message before re-raise.
       anchor: J3.4
-      status: pending
+      status: done
 
 # ─────────────────────────────────────────────────────────────────────────────
 wave_3_cleanup:

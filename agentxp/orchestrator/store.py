@@ -29,11 +29,10 @@ import signal
 import stat
 import sys
 import time
-import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Callable, Iterator, Optional
 
 import yaml
 from pydantic import BaseModel
@@ -139,13 +138,6 @@ class ArtifactLocked(Exception):
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _new_action_id() -> str:
-    """UUID4 hex (uppercase) — matches the v0.1 placeholder used by
-    ``dispatch.py``. W2+ may swap to a Crockford-base32 ULID; the field
-    contract is opaque-string so callers are unaffected."""
-    return uuid.uuid4().hex.upper()
 
 
 def _check_disk_space(
@@ -287,7 +279,12 @@ class OrchestratorStore:
 
     LOCK_TIMEOUT_S: float = _DEFAULT_LOCK_TIMEOUT_S
 
-    def __init__(self, project_root: Path, experiment_id: str):
+    def __init__(
+        self,
+        project_root: Path,
+        experiment_id: str,
+        clock: Optional[Callable[[], datetime]] = None,
+    ):
         self.exp_id = experiment_id
         self.project_root = Path(project_root)
         self.store = ExperimentStore(self.project_root)
@@ -301,12 +298,23 @@ class OrchestratorStore:
         self.conversation = ConversationStore(exp_dir / "conversation.jsonl")
         self._lock_path = exp_dir / ".state.lock"
 
-        # Linear parent-linkage for Invariant 1: each emitted event's
-        # parent_action_id is the action_id of the prior event in this
-        # experiment's log. Lazily recovered from the log tail on first emit
-        # so a resumed session links onto the existing chain.
+        # Replay determinism (G3 / W2.1): the audit log must be reproducible.
+        # ``clock`` is the injectable now()-source for every event timestamp
+        # that lands in log.jsonl (and the paired state.yaml writes). Defaults
+        # to wall-clock UTC; a replay driver supplies the recorded timestamps
+        # so re-emitting a log reproduces it byte-for-byte (same chain hash).
+        # Operational timestamps (the .state.lock envelope) stay wall-clock.
+        self._clock: Callable[[], datetime] = clock or _utcnow
+
+        # Linear parent-linkage for Invariant 1 + deterministic action ids:
+        # each emitted event's ``action_id`` is a per-experiment monotonic
+        # sequence (``{exp_id}#{seq:06d}``) and its ``parent_action_id`` is
+        # the prior event's id. Both are lazily recovered from the log on
+        # first use (count of rows → next seq; last id → parent) so a resumed
+        # session continues the same chain instead of starting a second root.
         self._last_action_id: Optional[str] = None
-        self._last_action_id_loaded = False
+        self._seq: int = 0
+        self._chain_tail_loaded = False
 
     # ── path helpers ────────────────────────────────────────────────────
 
@@ -465,6 +473,26 @@ class OrchestratorStore:
 
     # ── audit emission ──────────────────────────────────────────────────
 
+    def _now(self) -> datetime:
+        """Injectable now()-source for every audit timestamp (W2.1).
+
+        Defaults to wall-clock UTC; a replay driver injects a clock that
+        returns the recorded timestamps so re-emitting a log reproduces it.
+        """
+        return self._clock()
+
+    def _next_action_id(self) -> str:
+        """Return the next deterministic per-experiment action id (W2.1).
+
+        Format ``{exp_id}#{seq:06d}`` where ``seq`` is the count of events
+        already in log.jsonl. Deterministic given event order, so a replay
+        on the same seed reproduces the same ids — and the chain hash.
+        """
+        self._ensure_chain_tail_loaded()
+        aid = f"{self.exp_id}#{self._seq:06d}"
+        self._seq += 1
+        return aid
+
     def _emit(self, event: BaseModel) -> None:
         """Append an audit event under the experiment dir.
 
@@ -475,9 +503,7 @@ class OrchestratorStore:
         A caller that sets ``parent_action_id`` explicitly (e.g. agent
         dispatch fan-out) is left untouched.
         """
-        if not self._last_action_id_loaded:
-            self._last_action_id = self._recover_last_action_id()
-            self._last_action_id_loaded = True
+        self._ensure_chain_tail_loaded()
 
         if (
             hasattr(event, "parent_action_id")
@@ -492,31 +518,37 @@ class OrchestratorStore:
         if isinstance(new_id, str):
             self._last_action_id = new_id
 
-    def _recover_last_action_id(self) -> Optional[str]:
-        """Return the action_id of the last event in log.jsonl, or None.
+    def _ensure_chain_tail_loaded(self) -> None:
+        """Lazily recover the chain tail from log.jsonl in a single scan.
 
-        Lets a resumed session (new store instance over an existing
-        experiment) link its first emission onto the tail of the existing
-        chain instead of starting a second root — which Invariant 1 would
-        otherwise flag.
+        Sets ``_last_action_id`` (the last event's id → parent linkage) and
+        ``_seq`` (the row count → next deterministic action id). Lets a
+        resumed session (new store instance over an existing experiment)
+        continue the same chain instead of starting a second root — which
+        Invariant 1 would otherwise flag.
         """
+        if self._chain_tail_loaded:
+            return
         log_path = self._exp_dir() / "log.jsonl"
-        if not log_path.exists():
-            return None
         last_id: Optional[str] = None
-        with log_path.open("r", encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                aid = row.get("action_id") if isinstance(row, dict) else None
-                if isinstance(aid, str):
-                    last_id = aid
-        return last_id
+        count = 0
+        if log_path.exists():
+            with log_path.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    count += 1
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    aid = row.get("action_id") if isinstance(row, dict) else None
+                    if isinstance(aid, str):
+                        last_id = aid
+        self._last_action_id = last_id
+        self._seq = count
+        self._chain_tail_loaded = True
 
     # ── high-level entry: advance() ─────────────────────────────────────
 
@@ -546,16 +578,25 @@ class OrchestratorStore:
 
         Per §10.5.2: holds ``.state.lock`` for the entire critical
         section, defers SIGINT, writes every artifact through
-        ``_atomic_write_bytes``, mutates ``state.yaml`` (advancing
-        ``current_stage`` and appending to ``stage_history``), validates
-        the audit chain (§10.7), and emits exactly one
-        ``stage.committed`` event after every on-disk write has landed.
+        ``_atomic_write_bytes``, validates the audit chain (§10.7), then
+        commits in append-then-advance order: emit exactly one
+        ``stage.committed`` event to the append-only log *before* writing
+        the advanced ``state.yaml`` to disk.
+
+        Append-then-advance ordering (G11): the log is the source of truth
+        for resume. By emitting ``stage.committed`` before advancing
+        ``state.yaml`` we guarantee a crash can only leave the log ahead of
+        (or equal to) state — never state ahead of the log. A crash between
+        the two leaves a committed event whose state advance is replayable
+        from the log; the reverse (state advanced, no log record) would be
+        an unverifiable chain and is now impossible.
 
         Rollback (§10.5.8): if ``validate_chain`` returns ``ok=False`` or
-        raises ``PerfBudgetExceeded``, restore the prior ``state.yaml``
-        from the in-memory snapshot, emit ``gate.blocked`` with
-        ``reason="chain_validation_failed"``, and raise
-        ``CommitRollback``.
+        raises ``PerfBudgetExceeded``, emit ``gate.blocked`` with
+        ``reason="chain_validation_failed"`` and raise ``CommitRollback``.
+        Validation runs before either the commit event or the state
+        advance, so on failure no on-disk state has moved — there is
+        nothing to roll back.
 
         Disk pre-flight (§10.5.3): when free bytes < 100MB, emit
         ``gate.blocked(reason="disk_full")`` and return without mutating
@@ -581,14 +622,6 @@ class OrchestratorStore:
 
         with self._file_lock():
             with _defer_sigint():
-                # Snapshot prior state.yaml bytes for rollback.
-                prior_bytes: Optional[bytes] = None
-                if self.state.path.exists():
-                    try:
-                        prior_bytes = self.state.path.read_bytes()
-                    except OSError:
-                        prior_bytes = None
-
                 # 1. Write artifacts atomically (per the §10.5.2 ordering:
                 #    experiment.yaml → decisions/*.yaml → state.yaml).
                 for filename, payload in artifacts.items():
@@ -603,25 +636,25 @@ class OrchestratorStore:
                         current_stage=stage,
                     )
 
-                # 3. Mutate: advance stage + append history entry.
-                committed_at = _utcnow()
+                # 3. Mutate in memory only: advance stage + append history.
+                #    state.yaml is NOT written to disk until step 6, after
+                #    the commit event lands (append-then-advance, G11).
+                committed_at = self._now()
                 current.current_stage = stage
                 current.last_committed_stage = stage
                 current.stage_history.append(
                     StageHistoryEntry(stage=stage, committed_at=committed_at)
                 )
 
-                # 4. Atomic state.yaml write.
-                self.state.write(current)
-
-                # 5. validate_chain (§10.7) — rollback on violation.
+                # 4. validate_chain (§10.7). Runs before any on-disk commit
+                #    or state advance, so a failure leaves disk untouched —
+                #    no rollback is needed, only a gate.blocked breadcrumb.
                 try:
                     result = validate_chain(
                         self.exp_id,
                         _root=self.project_root / "experiments",
                     )
                 except PerfBudgetExceeded as exc:
-                    self._rollback_state(prior_bytes)
                     self._emit_gate_blocked(
                         reason="chain_validation_failed",
                         subtype="chain_validation_perf",
@@ -632,7 +665,6 @@ class OrchestratorStore:
                     ) from exc
 
                 if not result.ok:
-                    self._rollback_state(prior_bytes)
                     self._emit_gate_blocked(
                         reason="chain_validation_failed",
                         subtype="chain_validation_failed",
@@ -646,8 +678,9 @@ class OrchestratorStore:
                         f"{[v.description for v in result.violations]}"
                     )
 
-                # 6. Emit stage.committed exactly once after on-disk
-                #    state is fully consistent.
+                # 5. Emit stage.committed exactly once — the durable commit
+                #    record lands in the append-only log BEFORE state.yaml
+                #    advances on disk (append-then-advance, G11).
                 metadata: dict[str, Any] = {}
                 if subtype:
                     metadata["subtype"] = subtype
@@ -661,8 +694,8 @@ class OrchestratorStore:
 
                 self._emit(
                     StageCommittedPayload(
-                        timestamp=_utcnow(),
-                        action_id=_new_action_id(),
+                        timestamp=self._now(),
+                        action_id=self._next_action_id(),
                         parent_action_id=None,
                         actor_kind="orchestrator",
                         actor_name="_commit_stage",
@@ -673,7 +706,12 @@ class OrchestratorStore:
                     )
                 )
 
-    # ── artifact + rollback helpers ─────────────────────────────────────
+                # 6. Advance state.yaml on disk — last, after the commit
+                #    event is durable. A crash here leaves the log ahead of
+                #    state (replayable), never state ahead of the log.
+                self.state.write(current)
+
+    # ── artifact helpers ────────────────────────────────────────────────
 
     def _write_artifact(
         self, filename: str, payload: BaseModel, *, amend: bool = False
@@ -714,24 +752,6 @@ class OrchestratorStore:
         _atomic_write_bytes(target, text.encode("utf-8"), mode=_FILE_MODE)
         return target
 
-    def _rollback_state(self, prior_bytes: Optional[bytes]) -> None:
-        """Restore ``state.yaml`` from a pre-attempt snapshot.
-
-        If ``prior_bytes`` is None the file did not exist pre-attempt;
-        in that case we delete any in-flight state.yaml so a re-attempt
-        starts clean.
-        """
-        if prior_bytes is None:
-            try:
-                self.state.path.unlink()
-            except FileNotFoundError:
-                pass
-            return
-        try:
-            _atomic_write_bytes(self.state.path, prior_bytes, mode=_FILE_MODE)
-        except OSError:
-            pass
-
     def _emit_gate_blocked(
         self,
         reason: str,
@@ -749,8 +769,8 @@ class OrchestratorStore:
             meta["subtype"] = subtype
         self._emit(
             GateBlockedPayload(
-                timestamp=_utcnow(),
-                action_id=_new_action_id(),
+                timestamp=self._now(),
+                action_id=self._next_action_id(),
                 parent_action_id=None,
                 actor_kind="orchestrator",
                 actor_name="_commit_stage",
@@ -836,7 +856,7 @@ class OrchestratorStore:
         Per §10.5: the emit happens AFTER the on-disk write succeeds so
         a crash mid-gate leaves the orchestrator in the gate-open state.
         """
-        opened_at = _utcnow()
+        opened_at = self._now()
         with self._file_lock():
             current = self.state.read() if self.state.path.exists() else StateYaml(
                 experiment_id=self.exp_id,
@@ -853,7 +873,7 @@ class OrchestratorStore:
             self._emit(
                 GateOpenedPayload(
                     timestamp=opened_at,
-                    action_id=_new_action_id(),
+                    action_id=self._next_action_id(),
                     parent_action_id=None,
                     actor_kind="orchestrator",
                     actor_name="set_pending",
@@ -895,8 +915,8 @@ class OrchestratorStore:
 
             self._emit(
                 GateResolvedPayload(
-                    timestamp=_utcnow(),
-                    action_id=_new_action_id(),
+                    timestamp=self._now(),
+                    action_id=self._next_action_id(),
                     parent_action_id=None,
                     actor_kind="user",
                     actor_name="resolve_decision",
@@ -929,8 +949,8 @@ class OrchestratorStore:
 
             self._emit(
                 GateResolvedPayload(
-                    timestamp=_utcnow(),
-                    action_id=_new_action_id(),
+                    timestamp=self._now(),
+                    action_id=self._next_action_id(),
                     parent_action_id=None,
                     actor_kind="user",
                     actor_name="override",

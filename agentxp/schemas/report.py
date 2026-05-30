@@ -8,8 +8,9 @@ Source spec: experimentation-platform/OPENXP_V01_PLAN.md §22, §23, §24, §10.
 W_pre1.6 ships this module. The downstream consumers are:
   - readout agent (writes report.json + report.md from this schema)
   - validate_chain (returns ChainValidation defined here)
-  - interpret/tree.py (consumes Verdict)
   - interpret/confidence.py (consumes ConfidenceLabel)
+
+Verdict is owned by interpret/tree.py and re-exported here for the Report schema.
 """
 from __future__ import annotations
 
@@ -21,19 +22,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# Verdict labels — 8 values per §1.8.17
+# Verdict labels — 8 values per §1.8.17.
+# Canonical home is agentxp/interpret/tree.py::Verdict (a Literal). Imported
+# here so the report schema validates against the single source of truth rather
+# than a divergent local copy. tree.py imports nothing from agentxp → no cycle.
 # ──────────────────────────────────────────────────────────────────────────
 
-class Verdict(str, Enum):
-    """Interpreter verdict labels. Closed at 8 values for v0.1 (§1.8.17)."""
-    INVALID_SRM = "INVALID-SRM"
-    LEARN_UNDERPOWERED = "LEARN-UNDERPOWERED"
-    NO_SHIP_GUARDRAIL = "NO-SHIP-GUARDRAIL"
-    NO_SHIP_PRIMARY = "NO-SHIP-PRIMARY"
-    SHIP = "SHIP"
-    ITERATE_WEAK = "ITERATE-WEAK"
-    ITERATE_NOVELTY = "ITERATE-NOVELTY"
-    LEARN = "LEARN"
+from agentxp.interpret.tree import Verdict
 
 
 # ──────────────────────────────────────────────────────────────────────────

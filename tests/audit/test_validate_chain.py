@@ -490,3 +490,56 @@ def test_real_emitters_produce_validatable_chain(tmp_path: Path) -> None:
     # to a prior action_id (the W1.1 fix).
     roots = [r for r in rows if r.get("parent_action_id") is None]
     assert len(roots) == 1, f"expected exactly one root event, got {len(roots)}"
+
+
+def test_replay_determinism_same_run_same_chain_hash(tmp_path: Path) -> None:
+    """Two identical runs (same exp id, same injected clock) produce a
+    byte-reproducible log → identical chain hash (G3 / W2.1).
+
+    This is the replay anchor: a reviewer who re-emits an experiment's events
+    with the recorded timestamps reaches the *same* ``canonical_chain_hash``.
+    The two ingredients that used to break this are now deterministic —
+    action ids are a per-experiment sequence (not uuid4) and timestamps come
+    from an injectable clock (not wall-clock).
+
+    Exit criterion (REMEDIATION_PLAN W2.1): "re-running the same experiment on
+    the same seed yields the same chain hash."
+    """
+    from datetime import datetime, timezone
+
+    from agentxp.audit.storage import canonical_chain_hash
+    from agentxp.orchestrator.store import OrchestratorStore
+    from agentxp.schemas.state import PendingDecisionKind, Stage
+
+    fixed = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    def _run(root: Path) -> Path:
+        store = OrchestratorStore(
+            project_root=root,
+            experiment_id="exp-replay",
+            clock=lambda: fixed,
+        )
+        store.set_pending(
+            PendingDecisionKind.CONFIRM_SEMANTIC_MODEL,
+            options=["proceed", "revise"],
+            prompt="Confirm the drafted semantic model?",
+        )
+        store.resolve_decision("proceed")
+        store._commit_stage(Stage.SEMANTIC_MODELS_DRAFTED)
+        return root / "experiments" / "exp-replay"
+
+    exp_dir_a = _run(tmp_path / "run_a")
+    exp_dir_b = _run(tmp_path / "run_b")
+
+    hash_a = canonical_chain_hash(exp_dir_a)
+    hash_b = canonical_chain_hash(exp_dir_b)
+    assert hash_a == hash_b, "identical runs produced divergent chain hashes"
+
+    # Prove the ids are the deterministic per-experiment sequence, not uuid4.
+    rows = [
+        json.loads(line)
+        for line in (exp_dir_a / "log.jsonl").read_text().splitlines()
+        if line
+    ]
+    action_ids = [r["action_id"] for r in rows]
+    assert action_ids == [f"exp-replay#{i:06d}" for i in range(len(rows))], action_ids

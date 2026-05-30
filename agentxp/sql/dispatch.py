@@ -494,6 +494,18 @@ def dispatch_sql(
                 final_status="failed_after_correction",
                 error_message=reason,
             )
+        except Exception as exc:  # noqa: BLE001 — last-resort credential redaction
+            # The adapter raised something outside the AuthExpiredError /
+            # AdapterError contract (e.g., a raw driver exception). Its
+            # message can carry a DSN or credential, so scrub it through the
+            # redactor before it ever reaches a traceback, log, or terminal.
+            # Re-raise as a plain error carrying only the redacted text and
+            # suppress the original cause chain (``from None``) so the
+            # unredacted message cannot leak via __cause__.
+            raise RuntimeError(
+                f"adapter.execute raised an unexpected "
+                f"{type(exc).__name__}: {redact_message(exc)}"
+            ) from None
 
         # ----- Success path -----
         execution = QueryExecution(

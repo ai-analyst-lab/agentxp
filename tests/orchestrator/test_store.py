@@ -284,6 +284,39 @@ def test_commit_stage_validate_chain_failure_rolls_back(
     assert any(b["reason"] == "chain_validation_failed" for b in blocked)
 
 
+def test_commit_stage_appends_commit_event_before_advancing_state(
+    orchestrator: OrchestratorStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Append-then-advance (G11): the stage.committed event must be durable
+    in the log *before* state.yaml advances on disk, so a crash can only
+    leave the log ahead of state — never state ahead of the log."""
+    monkeypatch.setattr(store_mod, "validate_chain", _ok_chain)
+
+    log_path = orchestrator._exp_dir() / "log.jsonl"
+    real_write = orchestrator.state.write
+    committed_in_log_at_write_time: list[bool] = []
+
+    def spy_write(state):
+        # Snapshot the log as the orchestrator sees it at the instant it
+        # advances state.yaml.
+        rows = (
+            [json.loads(l) for l in log_path.read_text().splitlines() if l]
+            if log_path.exists()
+            else []
+        )
+        committed_in_log_at_write_time.append(
+            any(r.get("event_name") == "stage.committed" for r in rows)
+        )
+        return real_write(state)
+
+    monkeypatch.setattr(orchestrator.state, "write", spy_write)
+    orchestrator._commit_stage(Stage.SEMANTIC_MODELS_DRAFTED)
+
+    # state.write was called exactly once, and the commit event was already
+    # in the log by the time it ran.
+    assert committed_in_log_at_write_time == [True]
+
+
 def test_commit_stage_acquires_state_lock(
     orchestrator: OrchestratorStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:

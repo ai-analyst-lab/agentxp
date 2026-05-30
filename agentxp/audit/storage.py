@@ -21,12 +21,13 @@ Source spec: experimentation-platform/OPENXP_V01_PLAN.md §1.7.3, §10.5.6, §9.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from agentxp.audit.events import EventPayload
 
@@ -123,6 +124,45 @@ def append_event(experiment_dir: Path, event: Union[EventPayload, dict]) -> None
     writer.append(payload)
 
 
+def canonical_chain_hash(
+    experiment_dir: Path,
+    *,
+    from_event: int = 0,
+    to_event: Optional[int] = None,
+) -> str:
+    """Stable sha256 over the canonical serialization of log.jsonl (W2.1).
+
+    The hash is the credibility anchor for replay: two reviewers who replay
+    the same experiment (deterministic per-experiment action ids + recorded
+    timestamps, per ``OrchestratorStore``) reach the *same* chain hash.
+
+    Canonicalization rules (so the hash binds content, not formatting):
+      - parse each JSON line, then re-serialize with ``sort_keys=True`` and
+        no whitespace, so key ordering / spacing never moves the hash;
+      - hash the ordered list of event objects, so event order is bound;
+      - an absent or empty log hashes to the sha256 of ``b""`` (vacuously
+        consistent — mirrors ``validate_chain`` on a missing log).
+
+    ``from_event`` / ``to_event`` slice the event list (half-open) so a
+    caller can hash a prefix — e.g. to compare two runs up to a checkpoint.
+    """
+    log_path = experiment_dir / "log.jsonl"
+    if not log_path.exists():
+        return hashlib.sha256(b"").hexdigest()
+    rows: list[Any] = []
+    with log_path.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            rows.append(json.loads(line))
+    rows = rows[from_event:to_event]
+    canonical = json.dumps(
+        rows, sort_keys=True, separators=(",", ":"), default=_json_default
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def append_conversation_turn(experiment_dir: Path, turn: dict) -> None:
     """Append one conversation turn to conversation.jsonl, same atomic+chmod600 pattern.
 
@@ -175,6 +215,7 @@ def _check_disk_space(path: Path, *, required_bytes: int = 100 * 1024 * 1024) ->
 __all__ = [
     "append_event",
     "append_conversation_turn",
+    "canonical_chain_hash",
     "_atomic_write_bytes",
     "_check_disk_space",
 ]
