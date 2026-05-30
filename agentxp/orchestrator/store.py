@@ -812,9 +812,18 @@ class OrchestratorStore:
         artifact that already exists on disk. Every artifact reaches disk
         through ``_commit_stage``, so a file already present is a committed
         artifact; rewriting it would loosen a locked rule after the fact.
-        A legitimate post-lock change passes ``amend=True`` (the seam the
-        ``amendments/`` flow uses) so the override is explicit and logged,
-        never silent. Raises ``ArtifactLocked`` otherwise.
+        A caller may force the overwrite with ``amend=True`` so the override
+        is explicit, never silent. Raises ``ArtifactLocked`` otherwise.
+
+        v0.1 boundary (G14): ``amend=True`` is the *write seam* for a future
+        chain-aware amendment flow, but that flow is NOT wired into this store
+        in v0.1. The ``amendments/`` package (``record_amendment``) operates on
+        the legacy ``ExperimentStore`` — a different root (``~/.agentxp``) with
+        a non-chained ``log.jsonl`` — so routing it here would either write to
+        the wrong directory or append an unchained event that breaks Invariant
+        1 of ``validate_chain``. Until an amendment event is made chain-aware
+        on this store, the supported way to change a locked pre-registration is
+        a new experiment. See ``docs/USER_JOURNEYS.md`` gap G14.
         """
         exp_dir = self._exp_dir()
         target = (exp_dir / filename).resolve()
@@ -829,8 +838,10 @@ class OrchestratorStore:
             raise ArtifactLocked(
                 f"artifact {filename!r} is already committed for experiment "
                 f"{self.exp_id!r}; refusing to overwrite a locked artifact. "
-                f"Route a legitimate post-lock change through the amendments "
-                f"flow (which writes with amend=True)."
+                f"v0.1 does not auto-apply post-commit amendments through this "
+                f"store (G14); to change a locked pre-registration, start a new "
+                f"experiment. The amend=True override is reserved for the "
+                f"future chain-aware amendment flow."
             )
         data = payload.model_dump(mode="json")
         text = yaml.safe_dump(data, sort_keys=False, default_flow_style=False)
