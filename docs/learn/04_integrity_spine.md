@@ -38,6 +38,12 @@ And one more wall, structurally simpler but conceptually central:
    a flag; **existence on disk is the lock.** This is how pre-registration is
    enforced against your future, results-tempted self.
 
+> **Aha — there is no `locked: true` field to flip back.** A lock you can toggle
+> is a lock you can argue your way past once the results look tempting. Here the
+> *presence of the file* is the lock, so "unlock and re-edit" isn't a setting —
+> it forces you through the amendments flow, which logs and attributes the
+> override. The integrity comes from there being no quiet door.
+
 ---
 
 ## Walkthrough — the three mechanisms in code

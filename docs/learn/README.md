@@ -29,7 +29,7 @@ Work the modules in order. Each one has the same four-beat shape:
    as if to a student. If you can't, the module isn't done. Explaining is the
    test, and it's the exact skill a public release demands.
 
-All nine modules (0–8) are written and live next to this file as `NN_slug.md`.
+All ten modules (0–9) are written and live next to this file as `NN_slug.md`.
 This README is the durable map; work the modules in order. Modules beyond v0.1
 (Phase 5 spine, chained amendments, live-cred verification, causal inference) get
 written in the same four-beat shape when the code reaches them — see Module 8's
@@ -83,6 +83,25 @@ experiment" means: `agentxp audit <exp_id>` in the shell.
 | 6 | **State, stores & resume** | How does it survive a crash? | Interrupt a run, resume from the log | Explain the two store layers + `_commit_stage` chokepoint |
 | 7 | **Build history & judgment** | How was it built? What got cut, and why? | Defend a keep-vs-cut call from the audit | Reconstruct why amendments/ was KEPT, lifecycle wasn't deleted |
 | 8 | **Release readiness (capstone)** | Can you ship and defend it? | Demo Stage 0→8 to me + survive the skeptic drill | Pass the full hostile-reviewer gauntlet |
+| 9 | **Extend it (build-to-break)** | Can you change it without breaking the spine? | Add an adapter, a verdict, and rename a stage — predict the blast radius first | Route any proposed change to the guardrail that catches it (chain vs coherence vs closure) |
+
+---
+
+## The aha index (the seven load-bearing insights)
+
+If you remember nothing else, remember these. Each is the moment a design choice
+stops feeling arbitrary and starts feeling inevitable. They're marked inline with
+a `> **Aha —**` callout in the module where they land — this index is the map.
+
+| # | The insight | Module | The inversion it teaches |
+|---|-------------|--------|--------------------------|
+| 1 | You make the judge more trustworthy by giving it *less* context. | 2 | More information ≠ better decision, when the extra information is what you hoped for. |
+| 2 | The *order* of the verdict-tree steps is the priority ranking. | 3 | A win you can't trust or can't ship is rejected before the good news is read. |
+| 3 | Existence of the file on disk *is* the lock — there's no flag to flip back. | 4 | Integrity comes from there being no quiet door, not from a toggle you promise not to touch. |
+| 4 | You can't make a crash atomic, so you point its only failure at the *recoverable* direction. | 6 | Don't eliminate the crash window; order the writes so the survivable partial state is the only one. |
+| 5 | A test that stubs the thing it tests always passes and proves nothing. | 7 | Green ≠ correct; "green-but-broken" is a category, not a fluke. |
+| 6 | "Is this code necessary?" is the wrong question; "what entry point reaches it?" is the right one. | 7 | Necessity isn't a property of the code — it's reachability you can grep for. |
+| 7 | Predict the blast radius, *then* run the suite. | 9 | The gap between your prediction and the red output is the exact shape of a coupling you didn't understand. |
 
 ---
 
@@ -129,6 +148,19 @@ yourself.
 - [ ] Module 6 — State, stores & resume
 - [ ] Module 7 — Build history & judgment
 - [ ] Module 8 — Release readiness (capstone)
+- [ ] Module 9 — Extend it (build-to-break)
+- [ ] Appendix — [the one-number trace](trace.md) (read after Module 8)
+
+---
+
+## The one-number trace (read it after Module 8)
+
+[`trace.md`](trace.md) follows a *single value* — the treatment conversion count
+in `ship_demo.csv` — from a raw CSV cell through every stage to the chain hash.
+The modules teach the subsystems one at a time; the trace proves they're one
+system. It's the fastest way to convert "I can defend each part" into "I can
+narrate the whole path a number walks." Read it once the capstone demo is in your
+hands.
 
 ---
 

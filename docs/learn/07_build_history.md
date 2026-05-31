@@ -110,6 +110,13 @@ own work:
 > *"Necessity is not an abstract property; it's reachability from a real entry
 > point."*
 
+> **Aha — "is this code necessary?" is the wrong question; "what real entry point
+> reaches it?" is the right one.** Necessity feels like a property of the code
+> itself, so the debate goes in circles. Reframing it as reachability from a named
+> entry point (the `/experiment` workflow, a README command, a stat an agent
+> prompt names) turns a taste argument into a fact you can grep for. That single
+> reframe is what let the audit sort the whole surface into keep vs delete.
+
 The three entry points: the `/experiment` 11-stage workflow, the seven README CLI
 commands, and the stats the agent prompts actually name. Everything is sorted into
 four buckets: **LOAD-BEARING** (reachable → keep), **SCAFFOLDING** (unwired but
@@ -169,7 +176,84 @@ tracked roadmap need*, not *has a caller today*.
 
 ---
 
-## Lab / defend-it (this module's exercise is argument, not code)
+## Lab / reconstruct it (make green-but-broken with your own hands)
+
+Reading that the flagship tests cheated is one thing. *Reproducing the cheat* is
+what makes it un-forgettable — and it's the one lab in this module that's code,
+not argument. You won't check out the pre-remediation tree; you'll rebuild the
+*pattern* against the current code, watch it go green, then watch the truth.
+
+> **Aha — a test that stubs the thing it's testing always passes, and proves
+> nothing.** Green-but-broken isn't a subtle bug. It's a category: the assertion
+> never touched the code it claimed to cover.
+
+**Step 1 — write the cheating test and watch it pass.** Create a throwaway
+`tests/scratch_greenbroken_test.py`:
+
+```python
+from unittest.mock import patch
+from agentxp.schemas.report import ChainValidation  # what validate_chain returns
+
+def test_chain_is_valid_CHEATING():
+    # The fabricated log: a shape the real emitters can never produce
+    # (a gate event carrying a `stage` field; orphan events with no parent).
+    fake_log = [
+        {"event_name": "gate.opened",   "stage": "monitor", "parent_action_id": None},
+        {"event_name": "gate.resolved", "stage": "monitor", "parent_action_id": None},
+    ]
+    # Stub the validator itself — assert on the stub, not the code.
+    with patch("agentxp.audit.chain.validate_chain",
+               return_value=ChainValidation(ok=True, violations=[], ms=0.0)):
+        from agentxp.audit.chain import validate_chain
+        result = validate_chain("anything")  # never reads fake_log
+    assert result.ok is True   # GREEN. And it tested nothing.
+```
+
+```bash
+$ .venv/bin/python -m pytest tests/scratch_greenbroken_test.py -q   # passes
+```
+
+It's green. Note *why* it's hollow: the `with patch(...)` line replaced
+`validate_chain` with a function that returns `ok=True` no matter what, so the
+assertion is really `assert True`. The `fake_log` is set dressing — nothing ever
+validates it. That's the exact two-part move §4.2 caught: **monkeypatch the
+validator + assert on a hand-fabricated log shape the real emitters cannot
+produce.**
+
+**Step 2 — delete the stub and watch reality.** Now make the test honest: drive
+the *real* emitters and call the *real* validator. This is what W1.4 did. The
+canonical version already lives in the suite — read it and run it:
+
+```bash
+$ .venv/bin/python -m pytest tests/audit/test_validate_chain.py::test_real_emitters_produce_validatable_chain -v
+```
+
+Open `tests/audit/test_validate_chain.py:451`. It builds a gate through
+`store.set_pending` / `resolve_decision` / `_commit_stage` — the live emitters —
+and then asserts two things the fabricated fixture got *wrong*: real gate events
+carry **no** `stage` field (line 484), and the parent chain has **exactly one
+root** (line 492). Those are the two properties the old fixtures faked. The honest
+test passes today only because W1.1–W1.3 fixed the emitter; before the fix, this
+same test would have gone red — which is the whole point of writing it.
+
+**Step 3 — the distinction that keeps you honest.** Not every monkeypatch is a
+cheat. Grep:
+
+```bash
+$ grep -rn "validate_chain" tests/ | grep -i "patch\|monkeypatch"
+```
+
+`tests/orchestrator/test_store.py` patches `validate_chain` *legitimately* — it's
+testing the store's commit **ordering** (append-then-advance), and it stubs the
+validator to isolate that one concern, never claiming to test the validator. The
+deleted W1.4-era cheat patched `validate_chain` in the **flagship chain tests** —
+the suite whose entire job was to test `validate_chain`. Same mechanism, opposite
+honesty. The rule: **a stub is fine when it isolates a *different* concern; it's a
+cheat when it stubs the subject under test.**
+
+Delete your scratch file when done (`rm tests/scratch_greenbroken_test.py`).
+
+## Lab / defend-it (the rest of this module is argument, not code)
 
 **Exercise A — "Why was `amendments/` kept but the headless loop stubbed?"** Write
 the answer. Win condition: you cite `amendments_decision: KEEP` (the G9 re-confirm

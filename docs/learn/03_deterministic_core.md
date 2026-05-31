@@ -121,6 +121,12 @@ different angles. Here is what each step checks and the verdict it can emit:
 2. **Step 2 — guardrails.** Any guardrail's 90% CI excludes 0 on its *harm* side →
    **NO-SHIP-GUARDRAIL**. The rule beats the number: even a positive primary can't
    buy back a breached guardrail.
+
+> **Aha — the *order* of the steps is the priority ranking, and it's deliberate.**
+> SRM and guardrails are checked *before* the tree ever looks at whether the
+> primary lifted. A win you can't trust (broken randomization) or can't ship
+> (breached guardrail) is rejected before the good news is even read. Reordering
+> the steps would change the verdicts — the sequence *is* the policy.
 3. **Step 3 — sample adequacy.** `n_observed < n_required` *and* the primary 95% CI
    straddles 0 → **INCONCLUSIVE**. You under-collected and the result is a wash —
    you can't tell anything yet.

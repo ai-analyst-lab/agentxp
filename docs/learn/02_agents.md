@@ -31,6 +31,11 @@ what you said you wanted, never sees the conversation.** It gets the locked rule
 and the numbers, walks a fixed tree (Module 3), and emits a label. It *cannot*
 motivated-reason because the motivation is not in its context.
 
+> **Aha — you make the judge more trustworthy by giving it *less* context, not
+> more.** Every instinct says a better decision needs more information. The
+> isolation axiom inverts that: the interpreter is reliable *because* it can't see
+> what you hoped for. Withheld context is the feature.
+
 You can read this axiom directly in the prompts — it's stated, not implied:
 
 - **`monitor.system.md`** — the monitor runs the sample-ratio-mismatch (SRM) check

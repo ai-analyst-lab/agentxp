@@ -75,6 +75,12 @@ state: `state.yaml` ahead of the log, claiming a commit the log can't prove. The
 ordering is chosen so that any crash leaves the log either equal to or *ahead of*
 state, never behind. Equal-or-ahead is recoverable; behind is a lie.
 
+> **Aha — you can't make a crash atomic, so you make its only possible failure a
+> *recoverable* one.** The trick isn't preventing the crash between the two
+> writes — that's impossible. It's ordering them so the surviving partial state
+> (log ahead of `state.yaml`) is always the *recoverable* direction. You don't
+> eliminate the crash window; you point it somewhere safe.
+
 ### Rebuilding: `reconstruct_from_log()` (`store.py:570`)
 
 `OrchestratorStore.reconstruct_from_log()` walks the chained `log.jsonl` and

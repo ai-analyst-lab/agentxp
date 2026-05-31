@@ -173,3 +173,13 @@ The honest boundaries you defended in question 16 are the roadmap:
 
 Each of those is a future module of this curriculum, written when you reach it —
 the same four-beat shape, tailored to where the code actually is then.
+
+Two things to do *now*, while the system is fresh. First, run the
+[one-number trace](trace.md): follow a single value — the treatment conversion
+count in `ship_demo.csv` — from a raw CSV cell to the chain hash, across every
+stage. Defending each subsystem is necessary; narrating one number through all of
+them is what proves you hold the whole path at once. Second, go to **Module 9 —
+Extend it**: stop defending the system someone else's decisions built and *change*
+it (add an adapter, a verdict, a stage) while predicting, in advance, which
+guardrail catches you if you're wrong. Defend, then extend — that's the full
+ownership the release demands.
