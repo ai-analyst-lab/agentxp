@@ -23,16 +23,32 @@ _STATUS_TOKEN = {
 
 
 def status_token(prov: Provenance) -> str:
-    """The one-word chain token for a receipt line."""
+    """The one-word token for the resolved render status (verified/MISMATCH/unverifiable)."""
     return _STATUS_TOKEN[prov.render_status]
+
+
+def chain_token(prov: Provenance) -> str:
+    """The honest one-word CHAIN token for the receipt line: OK / MISMATCH / unverifiable.
+
+    Derived from the minimal live check (``hash_matches``), NOT from the render
+    status — so a matching hash reads ``OK`` even while the full VERIFIED badge
+    is still gated on W3's validate_chain + tree reproduction. This keeps the
+    receipt honest: ``OK`` means "the recomputed chain hash matches the recorded
+    one", never "verified".
+    """
+    if prov.hash_matches is True:
+        return "OK"
+    if prov.hash_matches is False:
+        return "MISMATCH"
+    return "unverifiable"
 
 
 def replay_line(prov: Provenance) -> str:
     """One-line receipt: replay command + chain token. Used by glance and footers.
 
-    Example: ``agentxp audit exp_001  ·  chain unverifiable``
+    Example: ``agentxp audit exp_001  ·  chain OK``
     """
-    return f"{prov.replay_command}  ·  chain {status_token(prov)}"
+    return f"{prov.replay_command}  ·  chain {chain_token(prov)}"
 
 
 def footer_block(prov: Provenance) -> str:
@@ -46,6 +62,7 @@ def footer_block(prov: Provenance) -> str:
         "## Provenance",
         "",
         f"- Replay: `{prov.replay_command}`",
+        f"- Chain: {chain_token(prov)}",
         f"- Verification: **{prov.render_status.value}** — {prov.status_reason}",
     ]
     if prov.chain_hash_stored:
@@ -59,4 +76,4 @@ def footer_block(prov: Provenance) -> str:
     return "\n".join(lines)
 
 
-__all__ = ["status_token", "replay_line", "footer_block"]
+__all__ = ["status_token", "chain_token", "replay_line", "footer_block"]

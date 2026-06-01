@@ -151,11 +151,47 @@ def build_provenance(report: Report, exp_dir: Path) -> Provenance:
             **recorded,
         )
 
-    # Gate passed, but Wave 1 has not implemented the live flow yet. Honest
-    # state is "can't (yet) claim verified" → UNVERIFIABLE, never a green badge.
+    # W2 minimal live check: recompute the chain hash from log.jsonl and compare
+    # to the stored value. This is the cheapest honest signal — it CANNOT claim
+    # "verified" (that needs validate_chain invariants + tree reproduction, W3),
+    # but it CAN catch a stale/tampered sidecar and turn the badge red.
+    try:
+        from agentxp.audit.storage import canonical_chain_hash
+
+        live_hash = canonical_chain_hash(exp_dir)
+    except Exception as e:  # noqa: BLE001 — never crash a render over verification
+        return Provenance(
+            render_status=RenderStatus.UNVERIFIABLE,
+            status_reason=f"could not recompute chain hash ({type(e).__name__})",
+            **recorded,
+        )
+
+    hash_matches = live_hash == report.chain_hash
+    if not hash_matches:
+        # Active contradiction — the recorded hash does not match the log.
+        return Provenance(
+            render_status=RenderStatus.DRAFT_UNVERIFIED,
+            status_reason=(
+                "recomputed chain hash does not match the value recorded in "
+                "report.json — the sidecar is stale or has been edited"
+            ),
+            chain_hash_live=live_hash,
+            hash_matches=False,
+            **recorded,
+        )
+
+    # Hash matches: a real positive signal, but NOT full verification. Honest
+    # state stays UNVERIFIABLE — the green VERIFIED badge waits for W3's
+    # validate_chain + tree-reproduction. The receipt token (receipts.py) shows
+    # "chain OK" off ``hash_matches``, never "verified".
     return Provenance(
         render_status=RenderStatus.UNVERIFIABLE,
-        status_reason="live verification not yet run (lands in W2/W3)",
+        status_reason=(
+            "chain hash matches the recorded value; full verification "
+            "(validate_chain + verdict-tree reproduction) lands in W3"
+        ),
+        chain_hash_live=live_hash,
+        hash_matches=True,
         **recorded,
     )
 

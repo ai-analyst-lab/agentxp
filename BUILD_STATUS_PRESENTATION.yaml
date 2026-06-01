@@ -1,7 +1,7 @@
 project: agentxp Presentation / Shareable-Output Layer
 master_plan: PRESENTATION_LAYER_MASTER_PLAN.md
 protocol: shared/PLANNING_METHODOLOGY.md
-current_wave: 2
+current_wave: 3
 total_waves: 7
 created: 2026-06-01
 
@@ -213,7 +213,7 @@ tasks:
   - id: W2-T1
     wave: 2
     description: "cli/report.py verb modeled on audit.py: load->validate->distill->ViewBundle->adapter->atomic write"
-    status: not_started
+    status: done
     depends_on: ["W1-T3", "W1-T4", "W1-T5"]
     output_files: ["agentxp/cli/report.py"]
     agent_type: builder
@@ -224,7 +224,7 @@ tasks:
   - id: W2-T2
     wave: 2
     description: "Register 'report' subcommand in __main__.py SUBCOMMANDS"
-    status: not_started
+    status: done
     depends_on: ["W2-T1"]
     output_files: ["agentxp/cli/__main__.py"]
     agent_type: builder
@@ -235,7 +235,7 @@ tasks:
   - id: W2-T3
     wave: 2
     description: "Default-resolution logic (--format > --audience > isatty: TTY->glance / pipe->md)"
-    status: not_started
+    status: done
     depends_on: ["W2-T1"]
     output_files: ["agentxp/cli/report.py"]
     agent_type: builder
@@ -246,7 +246,7 @@ tasks:
   - id: W2-T4
     wave: 2
     description: "glance adapter (3-line verdict-first, plain text) + brand.py ANSI mirror"
-    status: not_started
+    status: done
     depends_on: ["W1-T4"]
     output_files: ["agentxp/render/adapters/glance.py", "agentxp/render/brand.py"]
     agent_type: builder
@@ -257,7 +257,7 @@ tasks:
   - id: W2-T5
     wave: 2
     description: "--audience sugar table (operator/exec/skeptic/public -> format)"
-    status: not_started
+    status: done
     depends_on: ["W2-T3"]
     output_files: ["agentxp/cli/report.py"]
     agent_type: builder
@@ -268,7 +268,7 @@ tasks:
   - id: W2-T6
     wave: 2
     description: "Exit-code semantics + schema-validation guard (ValidationError -> EXIT_FATAL); keep extra=forbid"
-    status: not_started
+    status: done
     depends_on: ["W2-T5"]
     output_files: ["agentxp/cli/report.py"]
     agent_type: builder
@@ -279,7 +279,7 @@ tasks:
   - id: W2-T7
     wave: 2
     description: "Stage-8 skippable tail scaffold, guarded on sys.stdin.isatty()"
-    status: not_started
+    status: done
     depends_on: ["W2-T1"]
     output_files: [".claude/skills/experiment/SKILL.md", ".claude/skills/experiment/STAGES.md"]
     agent_type: builder
@@ -290,7 +290,7 @@ tasks:
   - id: W2-T8
     wave: 2
     description: "/share-experiment on-demand re-render (render step only, no pipeline re-run)"
-    status: not_started
+    status: done
     depends_on: ["W2-T1", "W2-T7"]
     output_files: [".claude/skills/experiment/SKILL.md"]
     agent_type: builder
@@ -301,7 +301,7 @@ tasks:
   - id: W2-T9
     wave: 2
     description: "Minimal live chain-hash recompute+compare -> honest OK/MISMATCH/unverifiable receipt"
-    status: not_started
+    status: done
     depends_on: ["W1-T3", "W2-T1", "W2-T4"]
     output_files:
       - "agentxp/render/provenance.py"
@@ -563,3 +563,9 @@ session_log:
     tasks_completed: ["W0-T1", "W0-T2", "W0-T3", "W0-T4", "W0-T5", "W0-T6", "W0-T7", "W0-T8", "W0-T9", "W1-T1", "W1-T2", "W1-T3", "W1-T4", "W1-T5", "W1-T6", "W1-T7", "W1-T8"]
     tasks_failed: []
     notes: "Waves 0 + 1 built and reviewed. Keystone spine live: report.json -> distill() [pure] -> ReportVM -> markdown adapter, with build_provenance() assembled separately into ViewBundle. End-to-end smoke: distill+provenance+md renders verdict-first markdown with inseparable provenance footer; missing exp dir degrades to UNVERIFIABLE (honest, never 'verified' off a stored hash). Full suite 1266 passed / 63 skipped. current_wave -> 2."
+  - session: 3
+    date: "2026-06-01"
+    wave: 2
+    tasks_completed: ["W2-T1", "W2-T2", "W2-T3", "W2-T4", "W2-T5", "W2-T6", "W2-T7", "W2-T8", "W2-T9"]
+    tasks_failed: []
+    notes: "Wave 2 built and reviewed. First user-visible deliverable: `agentxp report <id>` verb (modeled on audit.py) — load report.json -> validate (extra=forbid, ValidationError->EXIT_FATAL) -> distill -> ViewBundle(build_provenance) -> adapter -> stdout/atomic-write. Resolution order --format > --audience > isatty (TTY->glance/pipe->md); audience sugar operator/exec/skeptic/public; --out+glance and deferred html/card fail fast. glance adapter (3-line, plain text) + brand.py ANSI mirror. W2-T9 minimal live check: recompute canonical_chain_hash, compare to stored -> honest chain token OK/MISMATCH/unverifiable; MISMATCH -> DRAFT_UNVERIFIED -> EXIT_WARNING; never 'verified' off a stored hash (that waits for W3). Stage-8 skippable share tail (isatty-guarded) + /share-experiment render-only command in skill docs. +20 tests (tests/render/test_glance.py, tests/cli/test_report.py). Full suite 1286 passed / 63 skipped. current_wave -> 3."

@@ -46,6 +46,14 @@ The `/experiment` command triggers this skill. Five entry points, distinguished 
 
 When the trigger is ambiguous — for example, the user typed `/experiment` and `experiments/` already contains an unresolved `state.yaml` with a non-null `pending_decision` — surface the pending gate and offer `/resume` before bootstrapping anything new.
 
+**Companion command — `/share-experiment <id>`.** A render-only sibling, NOT an entry point into the orchestration loop. It re-renders an already-finalized experiment to a chosen surface and never re-runs analysis:
+
+| User intent | Routing |
+|-------------|---------|
+| "Re-share exp_001" / "give me the markdown / glance / card for exp_001" | `/share-experiment <id> [--format <fmt>] [--audience <aud>]` shells out to `agentxp report <id> …`, which reads the committed `report.json`, runs `distill()` + `build_provenance()` + one adapter, and writes/prints the surface |
+
+It dispatches no agent, issues no warehouse query, and does not walk the verdict tree. If `report.json` is absent it errors exactly as `agentxp report` does (`no report.json — run the experiment to Stage 8 first`). The Stage-8 readout also offers this same re-render as a skippable, non-blocking tail (see `STAGES.md` §11, "Share tail").
+
 ## 5. Session bootstrap
 
 On the first turn of a new `/experiment` invocation, do three things before dispatching any agent.

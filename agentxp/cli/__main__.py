@@ -26,6 +26,7 @@ SUBCOMMANDS: dict[str, tuple[str, str] | str] = {
     "resume":     ("agentxp.cli.resume", "main"),     # W5.3 — wired
     "connect":    ("agentxp.cli.connect", "main"),    # W2.A — wired
     "audit":      ("agentxp.cli.audit", "main"),       # §15 — wired
+    "report":     ("agentxp.cli.report", "main"),     # presentation W2 — wired
     "experiment": ("agentxp.cli.experiment", "main"), # W5.2 — wired
     "migrate":    ("agentxp.cli.migrate", "main"),    # §1.7.6 — router (state|metrics)
 }
