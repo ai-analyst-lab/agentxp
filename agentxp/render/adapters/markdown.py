@@ -8,6 +8,7 @@ reader can drop).
 """
 from __future__ import annotations
 
+from agentxp.render.provenance import RenderStatus
 from agentxp.render.receipts import footer_block
 from agentxp.render.report import render_report
 from agentxp.render.viewmodel import ViewBundle
@@ -21,10 +22,20 @@ class MarkdownAdapter:
     requires_node = False
 
     def render(self, bundle: ViewBundle) -> str:
+        prov = bundle.provenance
         body = render_report(bundle.vm)
-        footer = footer_block(bundle.provenance)
-        # render_report keeps a trailing newline; separate body and footer with
-        # a blank line so the provenance block reads as its own section.
+        footer = footer_block(prov)
+        # W3-T4: an ACTIVE failure stamps a top admonition (so a reader can't
+        # miss it above the verdict) and a blunt footer line. UNVERIFIABLE stays
+        # calm — no admonition, the footer reason carries the neutral note.
+        if prov.render_status is RenderStatus.DRAFT_UNVERIFIED:
+            admonition = (
+                f"> ⚠ **DRAFT — UNVERIFIED.** {prov.status_reason}\n"
+            )
+            footer = f"{footer}\n- chain integrity: FAILED — {prov.status_reason}"
+            # render_report keeps a trailing newline; separate the sections with
+            # blank lines so each reads as its own block.
+            return f"{admonition}\n{body}\n{footer}\n"
         return f"{body}\n{footer}\n"
 
     def default_filename(self, bundle: ViewBundle) -> str:

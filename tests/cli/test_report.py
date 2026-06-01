@@ -57,10 +57,10 @@ def test_md_renders_and_exits_ok(project, capsys):
     assert code == EXIT_OK
     assert "SHIP" in out
     assert "## Provenance" in out
-    # Hash matches the recorded value → honest "chain OK", and the resolved
-    # status stays unverifiable (the green VERIFIED badge waits for W3).
+    # W3: the fixture has a valid log, a matching chain hash, and a verdict that
+    # reproduces from the recorded scalars → the full flow resolves VERIFIED.
     assert "Chain: OK" in out
-    assert "**unverifiable**" in out
+    assert "**verified**" in out
 
 
 def test_glance_default_when_piped(project, capsys, monkeypatch):

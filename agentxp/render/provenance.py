@@ -19,14 +19,15 @@ Three-state status (one-directional — any "can't check" demotes, never promote
     ``chain_hash``/``log.jsonl`` absent, or a required tree-reproduction scalar
     is missing (half-migrated v2). NOT an accusation.
 
-Wave 1 ships the contract: the frozen :class:`Provenance` model, the
-:class:`RenderStatus` enum, the ``build_provenance`` signature with the correct
-``validate_chain(experiment_id, *, _root=...)`` call shape, and a process-local
-:class:`ProvenanceCache`. The "can't-check" gate is live from W1. The positive
-live checks (recompute + validate_chain + tree reproduction → VERIFIED /
-DRAFT_UNVERIFIED) are layered in by W2 (minimal hash recompute) and W3 (full
-flow). Until then a check that passes the gate resolves to UNVERIFIABLE with a
-``not yet run`` note — honest about what has actually been verified.
+The full live flow (W3) runs in strict precedence: (0) the "can't-check" gate;
+(1) recompute ``canonical_chain_hash``; (2) compare to the stored hash;
+(3) ``validate_chain`` (perf-budget blow-out degrades to UNVERIFIABLE, never an
+accusation); (4) verdict-tree reproduction (``receipts._reproduce_verdict``);
+(5) VERIFIED iff log + stored hash present AND hash matches AND ``cv.ok`` AND the
+verdict reproduces. An active failure (hash mismatch or tree-reproduction
+failure) resolves to DRAFT_UNVERIFIED with the first-failing-check reason
+(precedence chain → hash → tree). One-directional: any "can't check" demotes to
+UNVERIFIABLE and never promotes to VERIFIED.
 """
 from __future__ import annotations
 
@@ -143,6 +144,7 @@ def build_provenance(report: Report, exp_dir: Path) -> Provenance:
         replay_command=replay_command,
     )
 
+    # ── Step 0 — can't-check gate (precedence zero, before any reproduction) ──
     cant = _cant_check_reason(report, exp_dir)
     if cant is not None:
         return Provenance(
@@ -151,10 +153,7 @@ def build_provenance(report: Report, exp_dir: Path) -> Provenance:
             **recorded,
         )
 
-    # W2 minimal live check: recompute the chain hash from log.jsonl and compare
-    # to the stored value. This is the cheapest honest signal — it CANNOT claim
-    # "verified" (that needs validate_chain invariants + tree reproduction, W3),
-    # but it CAN catch a stale/tampered sidecar and turn the badge red.
+    # ── Step 1 — recompute the chain hash from log.jsonl (never trust stored) ──
     try:
         from agentxp.audit.storage import canonical_chain_hash
 
@@ -166,32 +165,94 @@ def build_provenance(report: Report, exp_dir: Path) -> Provenance:
             **recorded,
         )
 
+    # ── Step 2 — does the recomputed hash match the recorded one? ──
     hash_matches = live_hash == report.chain_hash
-    if not hash_matches:
-        # Active contradiction — the recorded hash does not match the log.
+
+    # ── Step 3 — run the 5 chain invariants (validate_chain). A perf-budget
+    # blow-out is a "can't check", never an accusation — degrade to UNVERIFIABLE.
+    from agentxp.audit.chain import PerfBudgetExceeded, validate_chain
+
+    try:
+        cv = validate_chain(experiment_id, _root=exp_dir.parent)
+    except PerfBudgetExceeded:
         return Provenance(
-            render_status=RenderStatus.DRAFT_UNVERIFIED,
+            render_status=RenderStatus.UNVERIFIABLE,
             status_reason=(
-                "recomputed chain hash does not match the value recorded in "
-                "report.json — the sidecar is stale or has been edited"
+                "chain validation exceeded its time budget — cannot verify "
+                "within the perf cap"
             ),
             chain_hash_live=live_hash,
-            hash_matches=False,
+            hash_matches=hash_matches,
+            **recorded,
+        )
+    except Exception as e:  # noqa: BLE001 — never crash a render over verification
+        return Provenance(
+            render_status=RenderStatus.UNVERIFIABLE,
+            status_reason=f"chain validation could not run ({type(e).__name__})",
+            chain_hash_live=live_hash,
+            hash_matches=hash_matches,
+            **recorded,
+        )
+    cv_ok = cv.ok
+
+    # ── Step 4 — reproduce the verdict from the recorded inputs (W3-T2). A None
+    # means the inputs are incomplete (can't check), not a contradiction. The
+    # can't-check gate already guards the 7 scalars; this also guards a missing
+    # per-guardrail direction → UNVERIFIABLE.
+    from agentxp.render.receipts import _reproduce_verdict
+
+    tree_reproduces = _reproduce_verdict(report)
+    if tree_reproduces is None:
+        return Provenance(
+            render_status=RenderStatus.UNVERIFIABLE,
+            status_reason=(
+                "verdict-tree inputs are incomplete (a guardrail direction or "
+                "scalar is missing) — cannot reproduce the verdict"
+            ),
+            chain_hash_live=live_hash,
+            hash_matches=hash_matches,
+            chain_validation_ok=cv_ok,
             **recorded,
         )
 
-    # Hash matches: a real positive signal, but NOT full verification. Honest
-    # state stays UNVERIFIABLE — the green VERIFIED badge waits for W3's
-    # validate_chain + tree-reproduction. The receipt token (receipts.py) shows
-    # "chain OK" off ``hash_matches``, never "verified".
+    # ── Step 5 — resolve. VERIFIED iff EVERY positive check passes. ──
+    if hash_matches and cv_ok and tree_reproduces:
+        return Provenance(
+            render_status=RenderStatus.VERIFIED,
+            status_reason=(
+                "chain hash matches the recorded value, the audit chain "
+                "satisfies all invariants, and the verdict reproduces from the "
+                "recorded inputs"
+            ),
+            chain_hash_live=live_hash,
+            hash_matches=True,
+            chain_validation_ok=True,
+            tree_reproduces=True,
+            **recorded,
+        )
+
+    # Active failure → DRAFT_UNVERIFIED with the first-failing-check reason
+    # (precedence chain → hash → tree).
+    if not cv_ok:
+        detail = cv.violations[0].description if cv.violations else "invariant violated"
+        reason = f"audit chain validation failed: {detail}"
+    elif not hash_matches:
+        reason = (
+            "recomputed chain hash does not match the value recorded in "
+            "report.json — the sidecar is stale or has been edited"
+        )
+    else:  # not tree_reproduces
+        reason = (
+            "the verdict does not reproduce from the recorded inputs — the "
+            "readout's verdict disagrees with the recorded decision-tree scalars"
+        )
     return Provenance(
-        render_status=RenderStatus.UNVERIFIABLE,
-        status_reason=(
-            "chain hash matches the recorded value; full verification "
-            "(validate_chain + verdict-tree reproduction) lands in W3"
-        ),
+        render_status=RenderStatus.DRAFT_UNVERIFIED,
+        status_reason=reason,
         chain_hash_live=live_hash,
-        hash_matches=True,
+        hash_matches=hash_matches,
+        chain_validation_ok=cv_ok,
+        tree_reproduces=tree_reproduces,
         **recorded,
     )
 

@@ -14,6 +14,7 @@ PR comment or a Slack message. The receipt is never "verified" off a stored hash
 """
 from __future__ import annotations
 
+from agentxp.render.provenance import RenderStatus
 from agentxp.render.receipts import replay_line
 from agentxp.render.viewmodel import ViewBundle
 
@@ -52,7 +53,15 @@ class GlanceAdapter:
             ]
         )
         line2 = replay_line(bundle.provenance)
-        return f"{line1}\n{line2}"
+        lines = [line1, line2]
+        # W3-T4: an ACTIVE verification failure gets a leading banner BEFORE the
+        # verdict — a doctored sidecar must announce itself, not hide in the
+        # footer. UNVERIFIABLE stays calm (no banner); a legitimate override is
+        # never DRAFT (it reproduces) so it never reaches here.
+        if bundle.provenance.render_status is RenderStatus.DRAFT_UNVERIFIED:
+            banner = f"⚠ DRAFT — UNVERIFIED: {bundle.provenance.status_reason}"
+            lines = [banner, *lines]
+        return "\n".join(lines)
 
     def default_filename(self, bundle: ViewBundle) -> str:
         return f"{bundle.vm.experiment_id}.glance.txt"

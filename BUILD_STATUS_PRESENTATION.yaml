@@ -1,7 +1,7 @@
 project: agentxp Presentation / Shareable-Output Layer
 master_plan: PRESENTATION_LAYER_MASTER_PLAN.md
 protocol: shared/PLANNING_METHODOLOGY.md
-current_wave: 3
+current_wave: 4
 total_waves: 7
 created: 2026-06-01
 
@@ -316,67 +316,67 @@ tasks:
   - id: W3-T1
     wave: 3
     description: "Full live verification in build_provenance(): can't-check gate FIRST, then hash+validate_chain+tree"
-    status: not_started
+    status: done
     depends_on: ["W1-T3", "W2-T9", "W0-T3", "W0-T5", "W0-T7"]
     output_files: ["agentxp/render/provenance.py"]
     agent_type: builder
     parallel_group: "W3-prov"     # serial chain on provenance.py
-    session: null
+    session: 4
     notes: "Half-migrated v2 (missing scalars) -> UNVERIFIABLE, never DRAFT. Shares provenance.py w/ W2-T9 — serialize."
 
   - id: W3-T2
     wave: 3
     description: "_reproduce_verdict(): rebuild TreeInput, re-run walk_tree, compare (verdict, terminal_step) as enum+int"
-    status: not_started
+    status: done
     depends_on: ["W0-T3", "W0-T5", "W3-T1"]
     output_files: ["agentxp/render/receipts.py"]
     agent_type: builder
     parallel_group: "W3-receipts"
-    session: null
+    session: 4
     notes: "No string parsing of step_fired. Override never overwrites Report.verdict."
 
   - id: W3-T3
     wave: 3
     description: "ProvenanceCache: (live_hash, cv) cached per exp_dir per render session"
-    status: not_started
+    status: done
     depends_on: ["W3-T1"]
     output_files: ["agentxp/render/provenance.py"]
     agent_type: builder
     parallel_group: "W3-prov"
-    session: null
+    session: 4
     notes: "Same file as W3-T1 — serialize."
 
   - id: W3-T4
     wave: 3
     description: "Per-status DRAFT_UNVERIFIED / UNVERIFIABLE / legitimate-override stamping per format"
-    status: not_started
+    status: done
     depends_on: ["W3-T1"]
     output_files: ["agentxp/render/adapters/glance.py", "agentxp/render/adapters/markdown.py"]
     agent_type: builder
     parallel_group: "W3-stamp"
-    session: null
+    session: 4
     notes: "Verdict never hidden, always stamped."
 
   - id: W3-T5
     wave: 3
     description: "Display-short (12-char) / embed-full (64-char) chain hash everywhere"
-    status: not_started
+    status: done
     depends_on: ["W3-T2"]
     output_files: ["agentxp/render/receipts.py"]
     agent_type: builder
     parallel_group: "W3-receipts"
-    session: null
+    session: 4
     notes: "Same file as W3-T2 — serialize. Short hash never the sole anchor."
 
   - id: W3-T6
     wave: 3
     description: "Red-path + override test (release gate): tampered fixture -> DRAFT all tiers; override reproduces clean"
-    status: not_started
+    status: done
     depends_on: ["W3-T1", "W3-T2", "W3-T3", "W3-T4"]
     output_files: ["tests/render/test_provenance_redpath.py"]
     agent_type: builder
     parallel_group: "W3-test"
-    session: null
+    session: 4
     notes: "RELEASE GATE for W4+. Pins (verdict, terminal_step) so a tree.py change fails loudly."
 
   # ---------------- Wave 4 — Exec HTML + brand.json + audit_html refactor + fonts ----------------
@@ -569,3 +569,9 @@ session_log:
     tasks_completed: ["W2-T1", "W2-T2", "W2-T3", "W2-T4", "W2-T5", "W2-T6", "W2-T7", "W2-T8", "W2-T9"]
     tasks_failed: []
     notes: "Wave 2 built and reviewed. First user-visible deliverable: `agentxp report <id>` verb (modeled on audit.py) — load report.json -> validate (extra=forbid, ValidationError->EXIT_FATAL) -> distill -> ViewBundle(build_provenance) -> adapter -> stdout/atomic-write. Resolution order --format > --audience > isatty (TTY->glance/pipe->md); audience sugar operator/exec/skeptic/public; --out+glance and deferred html/card fail fast. glance adapter (3-line, plain text) + brand.py ANSI mirror. W2-T9 minimal live check: recompute canonical_chain_hash, compare to stored -> honest chain token OK/MISMATCH/unverifiable; MISMATCH -> DRAFT_UNVERIFIED -> EXIT_WARNING; never 'verified' off a stored hash (that waits for W3). Stage-8 skippable share tail (isatty-guarded) + /share-experiment render-only command in skill docs. +20 tests (tests/render/test_glance.py, tests/cli/test_report.py). Full suite 1286 passed / 63 skipped. current_wave -> 3."
+  - session: 4
+    date: "2026-06-01"
+    wave: 3
+    tasks_completed: ["W3-T1", "W3-T2", "W3-T3", "W3-T4", "W3-T5", "W3-T6"]
+    tasks_failed: []
+    notes: "Wave 3 built and reviewed — the release gate for W4+ is GREEN. build_provenance() now runs the full live flow in strict precedence: (0) can't-check gate FIRST (schema v1 / missing chain_hash / missing log.jsonl / missing tree-repro scalar -> UNVERIFIABLE, never DRAFT); (1) recompute canonical_chain_hash; (2) hash_matches; (3) validate_chain(id, _root=parent) wrapped in try/except PerfBudgetExceeded -> UNVERIFIABLE; (4) tree-reproduction; (5) VERIFIED iff log+stored-hash present AND hash matches AND cv.ok AND verdict reproduces. Active failure -> DRAFT_UNVERIFIED with first-failing reason (precedence chain->hash->tree). W3-T2 receipts._reproduce_verdict() rebuilds TreeInput from the 7 persisted scalars + per-guardrail direction, re-runs walk_tree, compares (verdict, terminal_step) as enum+int (NO step_fired string parse); returns None when inputs incomplete -> UNVERIFIABLE. W3-T3 ProvenanceCache memoizes per exp_dir (hash+validate_chain run once/session). W3-T4 DRAFT stamping: glance leading banner, md top admonition + footer 'chain integrity: FAILED'; UNVERIFIABLE stays calm; legitimate override never DRAFT (reproduces because override_justification never overwrites Report.verdict). W3-T5 chain_hash_short (12-char display) + full 64-char embed in footer. W3-T6 release-gate test (tests/render/test_provenance_redpath.py): pins (SHIP, step 7) so a tree.py change fails loudly; tampered-hash -> DRAFT all tiers; tampered-verdict caught ONLY by tree-reproduction (hash still matches); legitimate override stays VERIFIED. Updated 2 W2-era tests to the new contract (happy-path fixture now VERIFIED not UNVERIFIABLE; glance MISMATCH receipt shifts below the DRAFT banner). Full suite 1290 passed / 63 skipped. current_wave -> 4."

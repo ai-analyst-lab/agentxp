@@ -95,7 +95,11 @@ def test_glance_receipt_reads_MISMATCH_on_active_failure():
         hash_matches=False,
     )
     out = GlanceAdapter().render(_bundle(prov=prov))
-    assert "chain MISMATCH" in out.splitlines()[1]
+    lines = out.splitlines()
+    # W3-T4: an active failure prepends a DRAFT banner before the verdict; the
+    # receipt line still carries the honest MISMATCH token.
+    assert lines[0].startswith("⚠ DRAFT — UNVERIFIED")
+    assert "chain MISMATCH" in out
 
 
 def test_glance_receipt_reads_unverifiable_when_cannot_check():
