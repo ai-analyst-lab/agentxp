@@ -599,13 +599,13 @@ tasks:
   - id: W8-T1
     wave: 8
     description: "json + csv adapters (pure, no deps) over the same ViewBundle"
-    status: pending
+    status: done
     depends_on: ["W1-T4", "W1-T5"]
     output_files: ["agentxp/render/adapters/data.py", "agentxp/render/adapters/__init__.py"]
     agent_type: builder
     parallel_group: "W8-A"
-    session: null
-    notes: "Deps-free local formats; carry the already-formatted strings, never re-derive numbers."
+    session: 9
+    notes: "Deps-free local formats (stdlib json + csv) in adapters/data.py. JsonAdapter dumps {vm: model_dump(json), provenance: model_dump(json)} — receipts travel inseparably. CsvAdapter emits one row per headline metric, each row leading with experiment_id/name/verdict/render_status so it stands alone in a sheet; \\n line terminator for byte-stability; numbers carried verbatim off the VM (no re-derive, no formula-injection mangling — authenticity forbids editing the user's own numbers, csv writer still quotes comma-bearing CI fields). Both binary=False/requires_node=False; registered in ADAPTERS; --format help updated. png/pdf stay in _DEFERRED_FORMATS until W8-T2."
 
   - id: W8-T2
     wave: 8
@@ -621,13 +621,13 @@ tasks:
   - id: W8-T3
     wave: 8
     description: "Tests: json/csv deps-free; png/pdf behind an availability skip"
-    status: pending
+    status: in_progress
     depends_on: ["W8-T1", "W8-T2"]
     output_files: ["tests/render/test_data_adapters.py", "tests/render/test_raster.py"]
     agent_type: builder
     parallel_group: "W8-C"
-    session: null
-    notes: ""
+    session: 9
+    notes: "json/csv HALF DONE: tests/render/test_data_adapters.py (8 tests) — purity (binary/requires_node off), json valid + embeds vm+provenance, csv header + one-row-per-metric + identity/verdict/status lead columns, numbers byte-identical across md/json/csv, CLI json->stdout + csv->file. The png/pdf availability-skip half (test_raster.py) waits on W8-T2 (Chromium)."
 
 session_log:
   - session: 1
@@ -678,3 +678,9 @@ session_log:
     tasks_completed: ["W7-T1", "W7-T2", "W7-T3", "W7-T4"]
     tasks_failed: []
     notes: "Wave 7 (remediation) built and reviewed — closes the two real defects the post-W6 audit found plus the display-name gap. W7-T1: the index built valid-row identity (and thus report/audit hrefs) from report.experiment_id (the EMBEDDED id) while every CLI verb + the error_row path resolve by DIRECTORY name — so a dir renamed from its embedded id produced dead links. _build_row now stamps the row's experiment_id with exp_dir.name (model_copy), keeping experiment_name as the human title; _row_view hrefs (which read experiment_id) now resolve. W7-T2 render-on-index: new _render_companion_artifacts() in report.py (the I/O layer; the adapter stays a pure string renderer) shells the EXISTING report (--format html --theme --out {dir}/report.html --quiet) + audit (--html --out {dir}/audit.html --quiet) verbs per discovered dir, render-path only, threading --project — so every link the navigator emits actually exists on disk. Per-experiment isolation mirrors the adapter's per-row isolation (a failing verb leaves no artifact; its row is already an error row with no link). W7-T3 display name: Report gained optional name (additive among design-card fields; extra=forbid stays, old v1 still validates); finalize populates name=brief.get('name'); distill's experiment_name became report.name or report.experiment_id (was hard-coded to the id). W7-T4 test_index_links.py (4 tests): identity-from-dir-name (finalize into a dir != embedded exp_001, assert links use the dir name and never exp_001); render-on-index writes every linked report.html+audit.html (real self-contained pages); display-name golden ('Checkout button redesign' through finalize+distill); name=None -> id fallback. Real CLI smoke: two experiments (checkout_redesign, nav_reorder) -> report --index exit 0, all 4 emitted links resolve on disk, display name present, identity by dir name. Full suite 1332 passed / 63 skipped. current_wave -> 8 (W8 deferred export formats pending; W8-T2 PNG/PDF needs explicit Chromium-install approval)."
+  - session: 9
+    date: "2026-06-01"
+    wave: 8
+    tasks_completed: ["W8-T1"]
+    tasks_failed: []
+    notes: "Wave 8 partial — the dependency-free data exports ship; the PNG/PDF rasterizer (W8-T2) is PAUSED awaiting explicit Chromium-install approval. W8-T1: adapters/data.py adds JsonAdapter ({vm, provenance} structured dump — receipts inseparable) + CsvAdapter (one row per headline metric, each row leading with experiment_id/name/verdict/render_status; \\n terminator for byte-stability; numbers carried verbatim — no re-derive, no formula-injection mangling, csv writer quotes comma-bearing CI fields). Both pure text (binary/requires_node False); registered in ADAPTERS; report.py --format help updated. W8-T3 (json/csv half): tests/render/test_data_adapters.py (8 tests — purity, json validity + vm/provenance embedding, csv shape + lead columns, numbers byte-identical across md/json/csv, CLI json->stdout + csv->file). Real CLI smoke: report exp_001 --format json|csv -> exit 0, render_status=verified, display name carried, CI fields correctly quoted. Full suite 1340 passed / 63 skipped. W8-T2 (png/pdf via agentxp[png]) + W8-T3 raster half remain PENDING on user approval to install playwright + pinned Chromium."

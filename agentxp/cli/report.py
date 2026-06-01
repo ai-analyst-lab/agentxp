@@ -83,7 +83,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--format",
         dest="format",
         default=None,
-        help="Output format: glance, md, html, card (png/pdf via agentxp[png]).",
+        help="Output format: glance, md, html, card, json, csv (png/pdf via agentxp[png]).",
     )
     parser.add_argument(
         "--audience",
