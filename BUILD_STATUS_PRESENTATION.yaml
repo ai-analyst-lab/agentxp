@@ -1,7 +1,7 @@
 project: agentxp Presentation / Shareable-Output Layer
 master_plan: PRESENTATION_LAYER_MASTER_PLAN.md
 protocol: shared/PLANNING_METHODOLOGY.md
-current_wave: 8  # Waves 0-7 complete; W8 (deferred export formats) pending
+current_wave: 9  # ALL waves (0-8) complete
 total_waves: 9   # original 0-6 (7) + W7 remediation + W8 deferred formats
 created: 2026-06-01
 
@@ -610,24 +610,24 @@ tasks:
   - id: W8-T2
     wave: 8
     description: "PNG/PDF via the agentxp[png] extra (playwright + pinned Chromium rasterizing the html/card pages)"
-    status: pending
+    status: done
     depends_on: ["W4-T6", "W5-T1"]
-    output_files: ["agentxp/render/adapters/raster.py", "pyproject.toml"]
+    output_files: ["agentxp/render/adapters/raster.py", "pyproject.toml", "agentxp/cli/report.py"]
     agent_type: builder
     parallel_group: "W8-B"
-    session: null
-    notes: "REQUIRES EXPLICIT USER APPROVAL before installing Chromium — pause. Already wired to fail fast (_DEFERRED_FORMATS) until shipped; this makes the extra real."
+    session: 10
+    notes: "User approved 'Install & build now' (playwright 1.60 + pinned Chromium headless-shell v1223 into .venv). adapters/raster.py: PngAdapter screenshots the fixed-frame social CARD (1200x1500 viewport), PdfAdapter prints the exec HTML one-pager (page.pdf print_background) — both rasterize the EXISTING self-contained pages (inlined css + base64 fonts + inline svg, no CDN), so a fresh headless browser per call feeds Chromium one string with wait_until=networkidle and never touches the network. NO new numbers — pure rasterization of html/card output. playwright imported lazily; is_available() probes importability; build_adapter(fmt, theme, audience) threads CLI config. binary=True (CLI requires --out), requires_node=True (external browser engine per the base.py flag semantics). pyproject [png] extra = playwright>=1.40 (install hint names the second `playwright install chromium` step). report.py: png/pdf now route through raster (is_available -> fail fast naming the extra; else build+render); _DEFERRED_FORMATS kept as the message source; --format help lists json/csv. Smoke: real PNG 109KB (\\x89PNG magic) + PDF 166KB (%PDF- magic) off the ship fixture."
 
   - id: W8-T3
     wave: 8
     description: "Tests: json/csv deps-free; png/pdf behind an availability skip"
-    status: in_progress
+    status: done
     depends_on: ["W8-T1", "W8-T2"]
     output_files: ["tests/render/test_data_adapters.py", "tests/render/test_raster.py"]
     agent_type: builder
     parallel_group: "W8-C"
-    session: 9
-    notes: "json/csv HALF DONE: tests/render/test_data_adapters.py (8 tests) — purity (binary/requires_node off), json valid + embeds vm+provenance, csv header + one-row-per-metric + identity/verdict/status lead columns, numbers byte-identical across md/json/csv, CLI json->stdout + csv->file. The png/pdf availability-skip half (test_raster.py) waits on W8-T2 (Chromium)."
+    session: 10
+    notes: "Both halves done. json/csv: tests/render/test_data_adapters.py (8 tests) — purity (binary/requires_node off), json valid + embeds vm+provenance, csv header + one-row-per-metric + identity/verdict/status lead columns, numbers byte-identical across md/json/csv, CLI json->stdout + csv->file. png/pdf: tests/render/test_raster.py (8 tests) — 2 unguarded (adapters declare binary+requires_node; build_adapter maps png/pdf, KeyError on xlsx), 6 gated on raster.is_available() skip (real PNG bytes off the card with \\x89PNG magic + >1KB; real PDF bytes off the exec html with %PDF- magic; CLI png is binary -> --out required even with the extra; CLI png/pdf write real files). Also renamed test_report.py::test_deferred_format_fails_fast -> test_png_when_extra_absent_fails_fast, now self-skipping when the extra IS installed (the fail-fast path can't be exercised with Chromium present). Full suite 1346 passed / 64 skipped."
 
 session_log:
   - session: 1
@@ -684,3 +684,9 @@ session_log:
     tasks_completed: ["W8-T1"]
     tasks_failed: []
     notes: "Wave 8 partial — the dependency-free data exports ship; the PNG/PDF rasterizer (W8-T2) is PAUSED awaiting explicit Chromium-install approval. W8-T1: adapters/data.py adds JsonAdapter ({vm, provenance} structured dump — receipts inseparable) + CsvAdapter (one row per headline metric, each row leading with experiment_id/name/verdict/render_status; \\n terminator for byte-stability; numbers carried verbatim — no re-derive, no formula-injection mangling, csv writer quotes comma-bearing CI fields). Both pure text (binary/requires_node False); registered in ADAPTERS; report.py --format help updated. W8-T3 (json/csv half): tests/render/test_data_adapters.py (8 tests — purity, json validity + vm/provenance embedding, csv shape + lead columns, numbers byte-identical across md/json/csv, CLI json->stdout + csv->file). Real CLI smoke: report exp_001 --format json|csv -> exit 0, render_status=verified, display name carried, CI fields correctly quoted. Full suite 1340 passed / 63 skipped. W8-T2 (png/pdf via agentxp[png]) + W8-T3 raster half remain PENDING on user approval to install playwright + pinned Chromium."
+  - session: 10
+    date: "2026-06-01"
+    wave: 8
+    tasks_completed: ["W8-T2", "W8-T3"]
+    tasks_failed: []
+    notes: "Wave 8 complete — PNG/PDF rasterizer ships behind the agentxp[png] extra; the presentation layer is now fully built (Waves 0-8). User approved 'Install & build now': playwright 1.60 + pinned Chromium headless-shell v1223 installed into .venv. W8-T2 adapters/raster.py: PngAdapter screenshots the fixed-frame social CARD (1200x1500 viewport), PdfAdapter prints the exec HTML one-pager (print_background) — both rasterize the EXISTING self-contained pages (inlined css + base64 fonts + inline svg, no CDN), so a fresh headless browser per call feeds Chromium one string with wait_until=networkidle and never touches the network; NO new numbers. playwright imported lazily; is_available() probes importability; build_adapter(fmt, theme, audience) threads CLI config; binary=True (CLI requires --out), requires_node=True. pyproject [png] extra = playwright>=1.40 (hint names the second `playwright install chromium` step). report.py routes png/pdf through raster (is_available -> fail fast naming the extra; else build+render); --format help lists json/csv. W8-T3 raster half: tests/render/test_raster.py (8 tests, 6 gated on is_available skip — real PNG/PDF magic-byte checks, CLI --out enforcement, file writes) + renamed test_report.py fail-fast test to self-skip when the extra is present. Smoke: real PNG 109KB (\\x89PNG magic) + PDF 166KB (%PDF- magic) off the ship fixture. Full suite 1346 passed / 64 skipped. current_wave -> 9 (ALL waves 0-8 complete)."

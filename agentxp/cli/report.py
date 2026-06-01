@@ -249,38 +249,45 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     # Fail fast on a deferred / unknown format BEFORE touching disk.
     from agentxp.render.adapters import ADAPTERS, get_adapter
+    from agentxp.render.adapters import raster
 
-    if fmt not in ADAPTERS:
-        if fmt in _DEFERRED_FORMATS:
+    if fmt in raster._RASTER_FORMATS:
+        # png/pdf rasterize the html/card pages via the optional agentxp[png]
+        # extra. When it is absent, fail fast with the extra's name (and the
+        # second install step) rather than an opaque ImportError at render time.
+        if not raster.is_available():
             print(
-                f"format {fmt!r} ships in {_DEFERRED_FORMATS[fmt]}; "
+                f"format {fmt!r} ships in {_DEFERRED_FORMATS[fmt]} "
+                f"(pip install 'agentxp[png]' then: playwright install chromium); "
                 f"available now: {', '.join(sorted(ADAPTERS))}",
                 file=sys.stderr,
             )
-        else:
-            print(
-                f"unknown format {fmt!r}; choose from: "
-                f"{', '.join(sorted(ADAPTERS))}",
-                file=sys.stderr,
-            )
+            return EXIT_USER_ERROR
+        adapter = raster.build_adapter(fmt, theme=args.theme, audience=args.audience)
+    elif fmt not in ADAPTERS:
+        print(
+            f"unknown format {fmt!r}; choose from: "
+            f"{', '.join(sorted(ADAPTERS))}",
+            file=sys.stderr,
+        )
         return EXIT_USER_ERROR
+    else:
+        adapter = get_adapter(fmt)
 
-    adapter = get_adapter(fmt)
+        # html carries config (theme + audience audit-trail switch); build a
+        # configured instance rather than the registry default. exec hides the
+        # audit trail, skeptic shows it; default is exec.
+        if fmt == "html":
+            from agentxp.render.adapters.html import HtmlAdapter
 
-    # html carries config (theme + audience audit-trail switch); build a
-    # configured instance rather than the registry default. exec hides the
-    # audit trail, skeptic shows it; default is exec.
-    if fmt == "html":
-        from agentxp.render.adapters.html import HtmlAdapter
+            html_audience = args.audience if args.audience == "skeptic" else "exec"
+            adapter = HtmlAdapter(theme=args.theme, audience=html_audience)
 
-        html_audience = args.audience if args.audience == "skeptic" else "exec"
-        adapter = HtmlAdapter(theme=args.theme, audience=html_audience)
+        # card carries the theme too (the social card honours light/dark).
+        if fmt == "card":
+            from agentxp.render.adapters.card import CardAdapter
 
-    # card carries the theme too (the social card honours editorial-light/dark).
-    if fmt == "card":
-        from agentxp.render.adapters.card import CardAdapter
-
-        adapter = CardAdapter(theme=args.theme)
+            adapter = CardAdapter(theme=args.theme)
 
     # glance is a terminal surface; writing it to a file is a usage error.
     if fmt == "glance" and args.out is not None:

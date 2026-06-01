@@ -110,8 +110,14 @@ def test_out_with_glance_is_user_error(project, tmp_path, capsys):
     assert "--out is not supported" in err
 
 
-def test_deferred_format_fails_fast(project, capsys):
-    # png/pdf are recognised but deferred to the optional agentxp[png] extra.
+def test_png_when_extra_absent_fails_fast(project, capsys):
+    # png/pdf rasterize via the optional agentxp[png] extra. When it is NOT
+    # installed the verb must fail fast naming the extra (this asserts that
+    # path; when the extra IS present png renders — see test_raster.py).
+    from agentxp.render.adapters import raster
+
+    if raster.is_available():
+        pytest.skip("agentxp[png] installed — fail-fast path not exercised")
     code, out, err = _run(
         ["exp_001", "--format", "png", "--project", str(project)], capsys
     )

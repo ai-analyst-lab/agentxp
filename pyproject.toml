@@ -56,6 +56,13 @@ deep-profile = [
     "ydata-profiling>=4.6,<5.0",
     "pandas>=2.0",  # already in core deps but explicit here is safer
 ]
+png = [
+    # Rasterizes the self-contained html/card pages to PNG/PDF via a pinned
+    # headless Chromium. Heavy + network-installed, so it stays optional; the
+    # `report` verb fails fast with this extra's name when it is absent. After
+    # `pip install 'agentxp[png]'` you must also run `playwright install chromium`.
+    "playwright>=1.40",
+]
 
 [project.scripts]
 agentxp = "agentxp.cli.__main__:main"
