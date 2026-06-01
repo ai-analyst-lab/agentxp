@@ -185,3 +185,109 @@
   border-radius: 0.3rem;
   margin-bottom: 1.5rem;
 }
+
+/* ── social card — a pixel-locked 1200×1500 portrait share-out ────────────── */
+/* One screenshot-ready frame: masthead, verdict hero, one chart, callout strip,
+ * compact receipts. Fixed dimensions are layout (not colour/font), so they are
+ * literals here; every colour, font, and the DRAFT ribbon resolve through vars.
+ * The DRAFT ribbon sits diagonally ACROSS the verdict hero — NOT in the footer —
+ * because the footer is the part a LinkedIn screenshot crops away. */
+.xp-card {
+  position: relative;
+  box-sizing: border-box;
+  width: 1200px;
+  height: 1500px;
+  margin: 0 auto;
+  padding: 88px 80px 72px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--xp-paper);
+  color: var(--xp-ink);
+  font-family: var(--xp-font-sans);
+}
+.xp-card-masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid var(--xp-rule);
+  padding-bottom: 24px;
+}
+.xp-card-wordmark {
+  font-family: var(--xp-font-serif);
+  font-weight: 600;
+  font-size: 40px;
+  color: var(--xp-ink);
+}
+.xp-card-headline {
+  font-family: var(--xp-font-serif);
+  font-weight: 600;
+  font-size: 68px;
+  line-height: 1.08;
+  color: var(--xp-ink);
+  margin: 48px 0 0;
+}
+.xp-card-hero {
+  position: relative;
+  margin: 40px 0 8px;
+}
+.xp-card-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5ch;
+  font-family: var(--xp-font-mono);
+  font-weight: 600;
+  font-size: 88px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--xp-ink);
+}
+.xp-card-verdict--ship { color: var(--xp-pass); }
+.xp-card-verdict--no-ship { color: var(--xp-fail); }
+.xp-card-verdict--hold { color: var(--xp-warn); }
+.xp-card-confidence {
+  font-family: var(--xp-font-sans);
+  font-size: 30px;
+  color: var(--xp-ink-soft);
+  margin: 16px 0 0;
+}
+.xp-card-rationale {
+  font-family: var(--xp-font-serif);
+  font-size: 34px;
+  line-height: 1.35;
+  color: var(--xp-ink);
+  margin: 28px 0 0;
+}
+.xp-card-chart {
+  margin: 40px 0 0;
+  flex: 1 1 auto;
+}
+.xp-card-chart svg { display: block; width: 100%; height: auto; }
+.xp-card-footer {
+  margin-top: auto;
+  padding-top: 28px;
+  border-top: 2px solid var(--xp-rule);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-family: var(--xp-font-mono);
+  font-size: 24px;
+  color: var(--xp-ink-soft);
+}
+/* The diagonal DRAFT ribbon, struck across the verdict hero. */
+.xp-card-ribbon {
+  position: absolute;
+  top: 36px;
+  left: -120px;
+  transform: rotate(-11deg);
+  transform-origin: center;
+  background: var(--xp-fail);
+  color: var(--xp-badge-text);
+  font-family: var(--xp-font-mono);
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: 0.22em;
+  text-align: center;
+  padding: 18px 160px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+}

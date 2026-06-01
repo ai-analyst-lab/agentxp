@@ -6,9 +6,10 @@ loads the committed ``report.json``, validates it, projects it through the pure
 hands the bundle to one format adapter. Add a format = add an adapter; this verb
 never grows a per-format branch beyond output plumbing.
 
-Surfaces (Wave 2): ``glance`` (3-line terminal default on a TTY) and ``md`` (the
-full verdict-first readout, default when piped). ``html``/``card`` are recognised
-so the verb can fail fast with a "ships in wave N" message rather than an opaque
+Surfaces: ``glance`` (3-line terminal default on a TTY), ``md`` (the full
+verdict-first readout, default when piped), ``html`` (exec one-pager, W4) and
+``card`` (1200×1500 social card, W5). ``png``/``pdf`` are recognised so the verb
+can fail fast with a "ships in the agentxp[png] extra" note rather than an opaque
 error.
 
 Source spec: PRESENTATION_LAYER_MASTER_PLAN.md §Wave 2.
@@ -33,8 +34,11 @@ from agentxp.cli.exit_codes import (
 __all__ = ["main"]
 
 # Formats recognised but not yet built — used to fail fast with a helpful note.
+# png/pdf are a deferred rasterization of the html/card pages, shipped as the
+# optional ``agentxp[png]`` extra (playwright + pinned Chromium), not in core.
 _DEFERRED_FORMATS: dict[str, str] = {
-    "card": "Wave 5",
+    "png": "the optional agentxp[png] extra",
+    "pdf": "the optional agentxp[png] extra",
 }
 
 # --audience sugar. ``None`` means "use the isatty default" (glance on a TTY,
@@ -69,7 +73,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--format",
         dest="format",
         default=None,
-        help="Output format: glance, md (html ships W4, card ships W5).",
+        help="Output format: glance, md, html, card (png/pdf via agentxp[png]).",
     )
     parser.add_argument(
         "--audience",
@@ -83,7 +87,7 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="theme",
         choices=["editorial-light", "editorial-dark"],
         default="editorial-light",
-        help="Brand theme for the html format (default: editorial-light).",
+        help="Brand theme for the html/card formats (default: editorial-light).",
     )
     parser.add_argument(
         "--out",
@@ -145,13 +149,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         if fmt in _DEFERRED_FORMATS:
             print(
                 f"format {fmt!r} ships in {_DEFERRED_FORMATS[fmt]}; "
-                "available now: glance, md",
+                f"available now: {', '.join(sorted(ADAPTERS))}",
                 file=sys.stderr,
             )
         else:
             print(
                 f"unknown format {fmt!r}; choose from: "
-                f"{', '.join(sorted(ADAPTERS))} (html ships W4, card ships W5)",
+                f"{', '.join(sorted(ADAPTERS))}",
                 file=sys.stderr,
             )
         return EXIT_USER_ERROR
@@ -166,6 +170,12 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         html_audience = args.audience if args.audience == "skeptic" else "exec"
         adapter = HtmlAdapter(theme=args.theme, audience=html_audience)
+
+    # card carries the theme too (the social card honours editorial-light/dark).
+    if fmt == "card":
+        from agentxp.render.adapters.card import CardAdapter
+
+        adapter = CardAdapter(theme=args.theme)
 
     # glance is a terminal surface; writing it to a file is a usage error.
     if fmt == "glance" and args.out is not None:

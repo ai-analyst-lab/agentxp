@@ -289,10 +289,15 @@ The `o` branch accepts the brief as-drafted. The orchestrator renders the soft-p
 **Share tail (skippable, non-blocking).** After the terminal commit lands, the orchestrator MAY surface a soft share prompt — but only when `sys.stdin.isatty()` is true. On a non-interactive run (CI, a pipe, `--yes`), the tail is skipped silently and the run ends normally; it never blocks on stdin. The prompt is a single line whose default action is "do nothing":
 
 ```
-Readout committed. Share it? (enter to skip)
+Readout committed. Share it?  (h) exec HTML   (p) public card   (enter to skip)
 ```
 
-Pressing enter (empty input) terminates the run normally — identical to not showing the tail at all. The committed `report.md` is already on disk regardless; this tail only offers an OPTIONAL re-render to another surface. In Wave 2 the only offered action is `(enter to skip)`; the share options (`g` glance to clipboard, `h` exec HTML, `p` public card) are added in W4/W5 as those adapters land. The tail NEVER re-runs the pipeline — it calls only the render path (`agentxp report <id> --format …`), which reads the committed `report.json`. This keeps presentation strictly downstream of the finalized sidecar.
+Pressing enter (empty input) terminates the run normally — identical to not showing the tail at all. The committed `report.md` is already on disk regardless; this tail only offers an OPTIONAL re-render to another surface. The offered actions grow as adapters land: `h` (exec HTML one-pager) shipped in W4; `p` (the 1200×1500 public/social card) ships in W5. Each option shells out to the render path only:
+
+- `h` → `agentxp report <id> --format html` (writes `<id>.report.html`)
+- `p` → `agentxp report <id> --format card` (writes `<id>.card.html` — the social card)
+
+Both honour `--theme editorial-light|editorial-dark`. The tail NEVER re-runs the pipeline — it calls only the render path (`agentxp report <id> --format …`), which reads the committed `report.json`. This keeps presentation strictly downstream of the finalized sidecar. As with every tail action, the prompt only appears when `sys.stdin.isatty()`; a non-interactive run skips it silently.
 
 **On-demand re-render (`/share-experiment <id>`).** Independent of the Stage-8 tail, `/share-experiment <id> [--format <fmt>] [--audience <aud>]` re-enters ONLY the render step against an already-committed `report.json`. It runs `distill(report) → build_provenance(report, exp_dir) → adapter` (i.e. shells out to `agentxp report <id> …`) and never re-dispatches an agent, re-queries the warehouse, or re-walks the verdict tree. It is the supported way to produce a fresh surface (a new format, an updated provenance receipt after a `validate_chain` change) without re-running the experiment. If `report.json` is absent (experiment not finalized to Stage 8) it errors the same way the `report` verb does (`no report.json — run the experiment to Stage 8 first`).
 

@@ -108,11 +108,12 @@ def test_out_with_glance_is_user_error(project, tmp_path, capsys):
 
 
 def test_deferred_format_fails_fast(project, capsys):
+    # png/pdf are recognised but deferred to the optional agentxp[png] extra.
     code, out, err = _run(
-        ["exp_001", "--format", "card", "--project", str(project)], capsys
+        ["exp_001", "--format", "png", "--project", str(project)], capsys
     )
     assert code == EXIT_USER_ERROR
-    assert "Wave 5" in err
+    assert "agentxp[png]" in err
 
 
 def test_html_renders_self_contained_page(project, capsys):
@@ -154,9 +155,34 @@ def test_html_dark_theme_carries_dark_paper(project, capsys):
     assert "--xp-paper: #14120d;" in out
 
 
+def test_card_renders_self_contained_page(project, capsys):
+    code, out, err = _run(
+        ["exp_001", "--format", "card", "--project", str(project)], capsys
+    )
+    assert code == EXIT_OK
+    assert out.startswith("<!doctype html>")
+    assert "SHIP" in out
+    # the pixel-locked frame + self-containment (embedded font, inline svg).
+    assert "width: 1200px;" in out
+    assert "height: 1500px;" in out
+    assert "@font-face" in out
+    assert "<svg" in out
+    assert "<script" not in out
+    # receipts footer is mandatory on the card too.
+    assert "xp-card-footer" in out
+
+
+def test_card_public_audience_resolves_to_card(project, capsys):
+    code, out, err = _run(
+        ["exp_001", "--audience", "public", "--project", str(project)], capsys
+    )
+    assert code == EXIT_OK
+    assert "width: 1200px;" in out  # the public audience maps to the card format
+
+
 def test_unknown_format_lists_available(project, capsys):
     code, out, err = _run(
-        ["exp_001", "--format", "pdf", "--project", str(project)], capsys
+        ["exp_001", "--format", "xlsx", "--project", str(project)], capsys
     )
     assert code == EXIT_USER_ERROR
     assert "unknown format" in err

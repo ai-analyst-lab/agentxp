@@ -1,7 +1,7 @@
 project: agentxp Presentation / Shareable-Output Layer
 master_plan: PRESENTATION_LAYER_MASTER_PLAN.md
 protocol: shared/PLANNING_METHODOLOGY.md
-current_wave: 5
+current_wave: 6
 total_waves: 7
 created: 2026-06-01
 
@@ -475,35 +475,35 @@ tasks:
   - id: W5-T1
     wave: 5
     description: "Social card adapter + template (1200x1500; DRAFT diagonal ribbon over verdict-badge hero)"
-    status: not_started
+    status: done
     depends_on: ["W4-T6"]
     output_files: ["agentxp/render/adapters/card.py", "templates/social-card.html.j2"]
     agent_type: builder
     parallel_group: "W5-A"
-    session: null
-    notes: ""
+    session: 6
+    notes: "CardAdapter reuses html.py helpers (_inline_css/_VERDICT_MODIFIER/_receipts) + brand.svg_palette so the two tiers can't drift. One hero chart (primary lift_bar, always present); CI/sample in callout strip. Card components added to components.css (vars-only; 1200x1500 px frame is layout). Registered in ADAPTERS; CLI builds CardAdapter(theme); png/pdf now the deferred formats (agentxp[png] extra)."
 
   - id: W5-T2
     wave: 5
     description: "Stage-8 tail (p) public card option (non-TTY guarded)"
-    status: not_started
+    status: done
     depends_on: ["W5-T1", "W2-T7"]
     output_files: [".claude/skills/experiment/SKILL.md", ".claude/skills/experiment/STAGES.md"]
     agent_type: builder
     parallel_group: "W5-B"
-    session: null
-    notes: ""
+    session: 6
+    notes: "STAGES.md share tail updated: (h) exec HTML [W4] + (p) public card [W5], each shelling out to `agentxp report <id> --format html|card` (render path only, honours --theme); still isatty-guarded + enter-to-skip. SKILL.md already named the card surface."
 
   - id: W5-T3
     wave: 5
     description: "Card golden tests (5 verdict states + DRAFT ribbon; cross-format equality)"
-    status: not_started
+    status: done
     depends_on: ["W5-T1"]
     output_files: ["tests/render/test_card_golden.py"]
     agent_type: builder
     parallel_group: "W5-C"
-    session: null
-    notes: ""
+    session: 6
+    notes: "12 tests: 5 verdict shapes (word + hero modifier), DRAFT ribbon over hero / absent when calm (body-token ordering vs >SHIP</span>), receipts footer all 3 statuses, fixed 1200x1500 frame, light+dark paper, byte-determinism, self-containment, cross-format lift/CI/verdict equality (card vs html vs md). Plus 2 CLI tests (--format card renders; --audience public->card). Updated test_deferred_format_fails_fast->png/agentxp[png] and test_unknown_format->xlsx."
 
   # ---------------- Wave 6 — Static index navigator ----------------
   - id: W6-T1
@@ -581,3 +581,9 @@ session_log:
     tasks_completed: ["W4-T1", "W4-T2", "W4-T3", "W4-T4", "W4-T5", "W4-T6", "W4-T7", "W4-T8"]
     tasks_failed: []
     notes: "Wave 4 built and reviewed — first branded visual tier ships. W4-T1 vendored brand.json (editorial palette; editorial-light default + editorial-dark; pass/fail #146c2e/#b3261e light, #3fa45f/#e0584e dark; paper #f6f2e9/#14120d; muted #8a8580; ansi as bare SGR; svg_palette role->token). W4-T2 brand.py extended: css_vars(theme)/font_face_css() (base64 woff2, 3 blocks)/ansi()/svg_palette(theme)/color/theme/fonts, lru-cached _load(). W4-T3 self-hosted OFL fonts (Source Serif 4 + Inter + JetBrains Mono Latin-subset woff2 + OFL.txt; user-approved download; no CDN). W4-T4 components.css (vars-only vocabulary; verdict badge ALWAYS carries the WORD, colour is redundant reinforcement; var(--xp-muted) reserved for label-type selectors only) + editorial-light/dark theme files mirroring brand.css_vars (brand.json wins on drift). W4-T5 charts.py: deterministic inline-SVG lift_bar + ci_interval (always; primary metric always present), srm_split (OMITs without per-arm counts), power_curve (OMITs; no curve points stored) — plots ONLY stored numbers, asks brand.svg_palette() for resolved hex like glance asks brand.ansi(); ChartData carrier added to ReportVM + distill (pure copy, never re-derived). W4-T6 HtmlAdapter + experiment-report.html.j2: single self-contained offline page, autoescape=True (SVG/CSS the only |safe), mandatory receipts footer from LIVE render_status, DRAFT stamps loud top banner; CLI --theme {editorial-light,editorial-dark} + html-only --audience exec|skeptic (audit-trail switch); registered in ADAPTERS; html removed from deferred formats. W4-T7 audit_html.py refactored onto brand layer (_CSS -> _style_block() = brand.css_vars()+font_face_css()+var-based rules; chain-ok/fail now var(--xp-pass/fail); preserved _esc/chmod-600/single-file/offline). W4-T8 test_html_golden.py (16 tests: 5 verdict shapes, 3 render statuses, light+dark paper, byte-determinism, self-containment, muted-grey-reserved contrast audit of components.css source, chart-palette-tracks-theme). Review loop caught + fixed a dark-theme chart-palette bug (_chart_svgs ignored self.theme -> light palette on dark paper); threaded theme through and added test_chart_palette_tracks_theme. Full suite 1308 passed / 63 skipped. current_wave -> 5."
+  - session: 6
+    date: "2026-06-01"
+    wave: 5
+    tasks_completed: ["W5-T1", "W5-T2", "W5-T3"]
+    tasks_failed: []
+    notes: "Wave 5 built and reviewed — the public/social card ships as HTML (card-as-PNG stays deferred to the agentxp[png] extra). W5-T1 CardAdapter + social-card.html.j2: a pixel-locked 1200x1500 portrait fed by the SAME ViewBundle; masthead + verdict hero + one hero chart (primary lift_bar) + compact callout strip (CI/sample) + compact receipts footer. Reuses html.py's _inline_css/_VERDICT_MODIFIER/_receipts and brand.svg_palette(theme) so the exec and card tiers cannot drift; autoescape=True, css/hero-svg the only |safe; offline (embedded fonts, inline svg, no JS/CDN). Card component vocabulary added to components.css (vars-only; the 1200x1500 px frame is layout, not colour/font; DRAFT ribbon uses var(--xp-fail)/var(--xp-badge-text)). DRAFT_UNVERIFIED strikes a diagonal ribbon ACROSS the verdict hero (never the footer — the footer is the croppable part of a LinkedIn screenshot). Registered in ADAPTERS; CLI builds CardAdapter(theme=--theme); png/pdf are now the deferred formats. W5-T2 STAGES.md share tail updated to offer (h) exec HTML + (p) public card, each render-path-only (`agentxp report <id> --format html|card`), still isatty-guarded + enter-to-skip. W5-T3 test_card_golden.py (12 tests: 5 verdict shapes, DRAFT-ribbon-over-hero present/absent via body-token ordering, receipts footer all 3 statuses, fixed 1200x1500 frame, light+dark paper, byte-determinism, self-containment, cross-format lift/CI/verdict equality card-vs-html-vs-md) + 2 CLI tests (--format card renders self-contained; --audience public->card). Updated test_deferred_format_fails_fast (card->png, asserts agentxp[png]) and test_unknown_format (pdf->xlsx, since pdf is now deferred). Smoke: card well-formed across both themes x 3 statuses, 1 svg, embedded fonts, no external http, ribbon in DRAFT only, ~185KB. Full suite 1322 passed / 63 skipped. current_wave -> 6."

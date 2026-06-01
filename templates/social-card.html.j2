@@ -1,0 +1,79 @@
+{#
+  social-card.html.j2 — a single pixel-locked 1200×1500 portrait share card.
+
+  Rendered by agentxp/render/adapters/card.py with autoescape=True. Like the
+  report template, every value is an already-escaped VM string EXCEPT `css` and
+  the hero chart `svg`, which are fragments our own code generated (brand layer +
+  charts.py) and are marked |safe. No external assets, no JS — offline-safe.
+
+  DRAFT is a diagonal ribbon struck ACROSS the verdict hero — never a footer note
+  (the footer is the croppable part of a LinkedIn screenshot).
+#}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1200, initial-scale=1">
+<title>{{ vm.experiment_name }} — experiment card</title>
+<style>{{ css|safe }}</style>
+</head>
+<body>
+<section class="xp-card">
+
+  <header class="xp-card-masthead">
+    <span class="xp-card-wordmark">agentxp</span>
+    <span class="xp-eyebrow">Experiment · {{ vm.experiment_id }}</span>
+  </header>
+
+  <h1 class="xp-card-headline">{{ vm.experiment_name }}</h1>
+
+  {# verdict hero — the badge ALWAYS carries the word; DRAFT strikes a ribbon #}
+  <div class="xp-card-hero">
+    {% if is_draft %}
+    <div class="xp-card-ribbon" role="alert">DRAFT — UNVERIFIED</div>
+    {% endif %}
+    <div class="xp-card-verdict xp-card-verdict--{{ verdict_modifier }}">
+      <span class="xp-verdict-word">{{ vm.verdict }}</span>
+    </div>
+    <p class="xp-card-confidence">{{ vm.confidence_label }}</p>
+  </div>
+
+  <p class="xp-card-rationale">{{ vm.rationale_one_line }}</p>
+
+  {% if hero_chart %}
+  <figure class="xp-card-chart">
+    {{ hero_chart|safe }}
+  </figure>
+  {% endif %}
+
+  {# compact callout strip — primary lift / CI / sample, reusing W4 components #}
+  <div class="xp-callout-strip">
+  {% for m in vm.metric_table[:1] %}
+    <div class="xp-stat">
+      <span class="xp-stat-label">{{ m.name }}</span>
+      <span class="xp-stat-value">{{ m.lift_str }}</span>
+    </div>
+    <div class="xp-stat">
+      <span class="xp-stat-label">95% CI</span>
+      <span class="xp-stat-value">{{ m.ci_95 }}</span>
+    </div>
+  {% endfor %}
+  {% if vm.diagnostics.sample_pct is not none %}
+    <div class="xp-stat">
+      <span class="xp-stat-label">Sample</span>
+      <span class="xp-stat-value">{{ vm.diagnostics.sample_pct }}%</span>
+    </div>
+  {% endif %}
+  </div>
+
+  {# compact receipts footer — still mandatory; authenticity travels with it #}
+  <footer class="xp-card-footer">
+    <span class="xp-render-status xp-render-status--{{ receipts.status_class }}">{{ receipts.status }}</span>
+    <span>{{ receipts.replay_command }}</span>
+    {% if receipts.chain_hash_short %}
+    <span>· chain {{ receipts.chain_hash_short }}…</span>
+    {% endif %}
+  </footer>
+
+</section>
+</body>
+</html>
