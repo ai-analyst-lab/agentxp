@@ -29,6 +29,7 @@ def _basic_report(**overrides) -> Report:
         verdict="SHIP",
         confidence_label="highly likely positive",
         rationale_one_line="Completion +3.2pp [+1.4, +5.0] at 95% CI; guardrails clear; late-window 0.87x.",
+        generated_at="2026-05-27T15:42:00Z",
         metric_table=[
             MetricRow(
                 name="completion_rate",

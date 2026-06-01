@@ -14,80 +14,24 @@ writes atomically with chmod 600 via `agentxp.audit.storage._atomic_write_bytes`
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Optional
 
 import jinja2
-from pydantic import BaseModel, ConfigDict
 
 from agentxp.audit.storage import _atomic_write_bytes
 
+# The render view-models now live in viewmodel.py (presentation layer W1-T1).
+# They are re-exported here so existing imports
+# (`from agentxp.render.report import MetricRow, Diagnostics, AuditRow, Report`)
+# keep working. ``Report`` is a back-compat alias for ``ReportVM``.
+from agentxp.render.viewmodel import (
+    AuditRow,
+    Diagnostics,
+    GuardrailViolation,
+    MetricRow,
+    ReportVM,
+)
 
-# ──────────────────────────────────────────────────────────────────────────
-# View models — the Report passed to render_report is a flat projection.
-# This is NOT the canonical agentxp.schemas.report.Report (which models the
-# report.json sidecar). This is the per-render input shape per §21.
-# ──────────────────────────────────────────────────────────────────────────
-
-
-class MetricRow(BaseModel):
-    """One row in the headline-metrics table."""
-    model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
-    name: str
-    direction: Literal["higher_is_better", "lower_is_better"]
-    lift_str: str        # e.g., "+3.2pp" or "-1.4%"
-    ci_95: str           # e.g., "[+1.4, +5.0]"
-    ci_90: str           # e.g., "[+1.8, +4.6]"
-    status: str          # e.g., "SHIP", "violated", "clear"
-
-
-class GuardrailViolation(BaseModel):
-    """One row in the optional guardrail-violations subsection."""
-    model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
-    metric: str
-    detail: str
-
-
-class Diagnostics(BaseModel):
-    """Flat diagnostics block — the 5-flag panel inputs from §21."""
-    model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
-    srm_pass: bool
-    n_observed: int
-    n_required: int
-    sample_pct: int                                     # e.g., 107 for 107%
-    late_ratio: Optional[float] = None                  # None → "unavailable"
-    guardrails_violated: list[GuardrailViolation] = []
-
-
-class AuditRow(BaseModel):
-    """One row in the audit-trail table — stage + commit timestamp + action id."""
-    model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
-    stage: str           # e.g., "Stage 3 — Design"
-    committed_at: str    # ISO-8601 string, already formatted by caller
-    action_id: str       # ULID, full-length; template truncates to 12 chars
-
-
-class Report(BaseModel):
-    """Input to the renderer — distilled from interpreter.out.yaml + audit log.
-
-    The renderer holds no opinions about how this is populated; the caller
-    (the readout agent or a CLI replay path) is responsible for distilling
-    the canonical `agentxp.schemas.report.Report` into this shape.
-    """
-    model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
-    experiment_id: str
-    experiment_name: str
-    verdict: str                       # one of §1.8.17 8 values
-    confidence_label: str              # one of §1.8.10 7 values
-    rationale_one_line: str            # interpreter's three-clause summary
-    metric_table: list[MetricRow]
-    diagnostics: Diagnostics
-    uncertainty_notes: list[str]       # 1-5 caveats
-    audit_trail: list[AuditRow]
+Report = ReportVM
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -116,7 +60,7 @@ def _build_env(template_dir: Path) -> jinja2.Environment:
 
 
 def render_report(
-    report: Report,
+    report: ReportVM,
     template_path: Path | None = None,
 ) -> str:
     """Render report.json → report.md as a string. Returns the rendered markdown.
@@ -131,7 +75,7 @@ def render_report(
 
 
 def write_report(
-    report: Report,
+    report: ReportVM,
     output_path: Path,
     template_path: Path | None = None,
 ) -> Path:
@@ -147,6 +91,7 @@ __all__ = [
     "GuardrailViolation",
     "Diagnostics",
     "AuditRow",
+    "ReportVM",
     "Report",
     "render_report",
     "write_report",
