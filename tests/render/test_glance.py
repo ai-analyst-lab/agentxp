@@ -12,6 +12,7 @@ from __future__ import annotations
 from agentxp.render.adapters.glance import GLANCE_HINT, GlanceAdapter
 from agentxp.render.provenance import Provenance, RenderStatus
 from agentxp.render.viewmodel import (
+    ChartData,
     Diagnostics,
     GuardrailViolation,
     MetricRow,
@@ -41,6 +42,14 @@ def _vm(**overrides) -> ReportVM:
         diagnostics=Diagnostics(srm_pass=True, late_ratio=0.87),
         uncertainty_notes=[],
         audit_trail=[],
+        charts=ChartData(
+            lift_absolute=0.032,
+            ci_95_lower=0.014,
+            ci_95_upper=0.05,
+            ci_90_lower=0.017,
+            ci_90_upper=0.047,
+            direction="higher_is_better",
+        ),
     )
     defaults.update(overrides)
     return ReportVM(**defaults)

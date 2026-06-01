@@ -9,12 +9,23 @@ from pydantic import ValidationError
 
 from agentxp.render.report import (
     AuditRow,
+    ChartData,
     Diagnostics,
     GuardrailViolation,
     MetricRow,
     Report,
     render_report,
     write_report,
+)
+
+
+_CHARTS = ChartData(
+    lift_absolute=0.032,
+    ci_95_lower=0.014,
+    ci_95_upper=0.05,
+    ci_90_lower=0.018,
+    ci_90_upper=0.046,
+    direction="higher_is_better",
 )
 
 
@@ -50,6 +61,7 @@ def _basic_report(**overrides) -> Report:
         ),
         uncertainty_notes=["Late-window ratio close to the 0.7 threshold."],
         audit_trail=[_audit_row()],
+        charts=_CHARTS,
     )
     defaults.update(overrides)
     return Report(**defaults)

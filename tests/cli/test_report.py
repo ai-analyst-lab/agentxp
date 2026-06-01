@@ -109,10 +109,49 @@ def test_out_with_glance_is_user_error(project, tmp_path, capsys):
 
 def test_deferred_format_fails_fast(project, capsys):
     code, out, err = _run(
-        ["exp_001", "--format", "html", "--project", str(project)], capsys
+        ["exp_001", "--format", "card", "--project", str(project)], capsys
     )
     assert code == EXIT_USER_ERROR
-    assert "Wave 4" in err
+    assert "Wave 5" in err
+
+
+def test_html_renders_self_contained_page(project, capsys):
+    code, out, err = _run(
+        ["exp_001", "--format", "html", "--project", str(project)], capsys
+    )
+    assert code == EXIT_OK
+    assert out.startswith("<!doctype html>")
+    assert "SHIP" in out
+    # self-contained: inlined style, embedded font, inline chart svg, no CDN.
+    assert "<style>" in out
+    assert "@font-face" in out
+    assert "<svg" in out
+    assert "http://www.w3.org/2000/svg" in out
+    assert "<script" not in out
+    # receipts footer is mandatory.
+    assert "xp-receipts-footer" in out
+    # exec audience hides the audit trail.
+    assert "Audit trail" not in out
+
+
+def test_html_skeptic_shows_audit_trail(project, capsys):
+    code, out, err = _run(
+        ["exp_001", "--format", "html", "--audience", "skeptic",
+         "--project", str(project)],
+        capsys,
+    )
+    assert code == EXIT_OK
+    assert "Audit trail" in out
+
+
+def test_html_dark_theme_carries_dark_paper(project, capsys):
+    code, out, err = _run(
+        ["exp_001", "--format", "html", "--theme", "editorial-dark",
+         "--project", str(project)],
+        capsys,
+    )
+    assert code == EXIT_OK
+    assert "--xp-paper: #14120d;" in out
 
 
 def test_unknown_format_lists_available(project, capsys):

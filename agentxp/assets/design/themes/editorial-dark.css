@@ -1,0 +1,34 @@
+/* editorial-dark — the dark agentxp presentation theme.
+ *
+ * GENERATED-EQUIVALENT: these values mirror brand.json's "editorial-dark"
+ * theme and are byte-identical to brand.css_vars("editorial-dark"). brand.json
+ * is the single source of truth; this static file exists for non-Python
+ * consumers (Marp, standalone HTML). If they diverge, brand.json wins —
+ * regenerate with: python -c "from agentxp.render import brand;
+ * print(brand.css_vars('editorial-dark'))". Pair with components.css.
+ *
+ * pass/fail are lightened from the canonical #146c2e / #b3261e for legibility
+ * on dark paper; the light theme remains the source of truth for those. */
+
+:root {
+  --xp-paper: #14120d;
+  --xp-paper-raised: #1e1b14;
+  --xp-ink: #f0ead9;
+  --xp-ink-soft: #cfc8b6;
+  --xp-muted: #9a9180;
+  --xp-rule: #2e2a20;
+  --xp-accent: #6fa8dc;
+  --xp-accent-soft: #1f2c3a;
+  --xp-pass: #3fa45f;
+  --xp-warn: #d09a3c;
+  --xp-fail: #e0584e;
+  --xp-badge-text: #14120d;
+  --xp-font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --xp-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --xp-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --xp-type-eyebrow: 0.78rem;
+  --xp-type-body: 1rem;
+  --xp-type-headline: 2.4rem;
+  --xp-type-metric: 1.4rem;
+  --xp-type-label: 0.85rem;
+}

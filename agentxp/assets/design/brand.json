@@ -1,0 +1,89 @@
+{
+  "_meta": {
+    "name": "agentxp editorial brand values",
+    "version": "0.1.0",
+    "description": "Single source of presentation styling. Every renderer resolves colours, type, and the SVG/ANSI palettes through this file - no renderer hard-codes a hex value. Editorial-economist register: cream paper, warm ink, one editorial blue accent, serif headline.",
+    "_derived_from": "Semantic pass/fail greens & reds are COPIED from agentxp's own cli/audit_html.py (#146c2e / #b3261e) so the refactored audit page is pixel-stable. They are NOT the monorepo brand tokens (#2D8659 / #C8102E) and NOT a runtime dependency on the monorepo - this is a vendored copy by design."
+  },
+  "fonts": {
+    "serif": {
+      "family": "Source Serif 4",
+      "file": "SourceSerif4.latin.var.woff2",
+      "weights": [400, 600],
+      "license": "OFL",
+      "fallback": "Georgia, 'Times New Roman', serif"
+    },
+    "sans": {
+      "family": "Inter",
+      "file": "Inter.latin.var.woff2",
+      "weights": [400, 600],
+      "license": "OFL",
+      "fallback": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    },
+    "mono": {
+      "family": "JetBrains Mono",
+      "file": "JetBrainsMono.latin.var.woff2",
+      "weights": [400, 500],
+      "license": "OFL",
+      "fallback": "ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
+    }
+  },
+  "type_scale": {
+    "eyebrow": "0.78rem",
+    "body": "1rem",
+    "headline": "2.4rem",
+    "metric": "1.4rem",
+    "label": "0.85rem"
+  },
+  "default_theme": "editorial-light",
+  "themes": {
+    "editorial-light": {
+      "paper": "#f6f2e9",
+      "paper_raised": "#fffdf8",
+      "ink": "#14110c",
+      "ink_soft": "#3a352b",
+      "muted": "#8a8580",
+      "rule": "#d8d0c0",
+      "accent": "#1a4f8b",
+      "accent_soft": "#dfe8f2",
+      "pass": "#146c2e",
+      "warn": "#8a5a00",
+      "fail": "#b3261e",
+      "badge_text": "#fffdf8"
+    },
+    "editorial-dark": {
+      "paper": "#14120d",
+      "paper_raised": "#1e1b14",
+      "ink": "#f0ead9",
+      "ink_soft": "#cfc8b6",
+      "muted": "#9a9180",
+      "rule": "#2e2a20",
+      "accent": "#6fa8dc",
+      "accent_soft": "#1f2c3a",
+      "pass": "#3fa45f",
+      "warn": "#d09a3c",
+      "fail": "#e0584e",
+      "badge_text": "#14120d",
+      "_derived_from": "pass/fail lightened from the canonical #146c2e / #b3261e for legibility on dark paper; the canonical values remain the light-theme source of truth."
+    }
+  },
+  "_ansi_note": "Bare SGR parameters; brand.ansi() wraps each as ESC[<n>m. JSON cannot portably hold a raw ESC byte.",
+  "ansi": {
+    "reset": "0",
+    "bold": "1",
+    "dim": "2",
+    "pass": "32",
+    "fail": "31",
+    "warn": "33",
+    "muted": "90"
+  },
+  "svg_palette": {
+    "axis": "muted",
+    "rule": "rule",
+    "bar_positive": "pass",
+    "bar_negative": "fail",
+    "interval": "accent",
+    "point": "ink",
+    "label": "ink_soft"
+  }
+}

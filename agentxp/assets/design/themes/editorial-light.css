@@ -1,0 +1,31 @@
+/* editorial-light — the default agentxp presentation theme.
+ *
+ * GENERATED-EQUIVALENT: these values mirror brand.json's "editorial-light"
+ * theme and are byte-identical to brand.css_vars("editorial-light"). brand.json
+ * is the single source of truth; this static file exists for non-Python
+ * consumers (Marp, standalone HTML). If they diverge, brand.json wins —
+ * regenerate with: python -c "from agentxp.render import brand;
+ * print(brand.css_vars('editorial-light'))". Pair with components.css. */
+
+:root {
+  --xp-paper: #f6f2e9;
+  --xp-paper-raised: #fffdf8;
+  --xp-ink: #14110c;
+  --xp-ink-soft: #3a352b;
+  --xp-muted: #8a8580;
+  --xp-rule: #d8d0c0;
+  --xp-accent: #1a4f8b;
+  --xp-accent-soft: #dfe8f2;
+  --xp-pass: #146c2e;
+  --xp-warn: #8a5a00;
+  --xp-fail: #b3261e;
+  --xp-badge-text: #fffdf8;
+  --xp-font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --xp-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --xp-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --xp-type-eyebrow: 0.78rem;
+  --xp-type-body: 1rem;
+  --xp-type-headline: 2.4rem;
+  --xp-type-metric: 1.4rem;
+  --xp-type-label: 0.85rem;
+}

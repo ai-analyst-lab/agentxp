@@ -25,6 +25,7 @@ from agentxp.audit.storage import _atomic_write_bytes
 # keep working. ``Report`` is a back-compat alias for ``ReportVM``.
 from agentxp.render.viewmodel import (
     AuditRow,
+    ChartData,
     Diagnostics,
     GuardrailViolation,
     MetricRow,
@@ -90,6 +91,7 @@ __all__ = [
     "MetricRow",
     "GuardrailViolation",
     "Diagnostics",
+    "ChartData",
     "AuditRow",
     "ReportVM",
     "Report",

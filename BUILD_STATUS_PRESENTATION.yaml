@@ -1,7 +1,7 @@
 project: agentxp Presentation / Shareable-Output Layer
 master_plan: PRESENTATION_LAYER_MASTER_PLAN.md
 protocol: shared/PLANNING_METHODOLOGY.md
-current_wave: 4
+current_wave: 5
 total_waves: 7
 created: 2026-06-01
 
@@ -383,40 +383,40 @@ tasks:
   - id: W4-T1
     wave: 4
     description: "Vendor brand.json (editorial palette, light+dark themes; greens/reds #146c2e/#b3261e)"
-    status: not_started
+    status: done
     depends_on: ["W3-T6"]
     output_files: ["agentxp/assets/design/brand.json"]
     agent_type: builder
     parallel_group: "W4-A"
-    session: null
-    notes: "Gated behind W3 release gate."
+    session: 5
+    notes: "Gated behind W3 release gate. editorial-light default + editorial-dark; ansi as bare SGR; svg_palette role->token refs."
 
   - id: W4-T2
     wave: 4
     description: "Brand layer: extend brand.py (css_vars, ansi, svg_palette, base64 @font-face); no hex in renderers"
-    status: not_started
+    status: done
     depends_on: ["W4-T1", "W2-T4"]
     output_files: ["agentxp/render/brand.py"]
     agent_type: builder
     parallel_group: "W4-B"
-    session: null
-    notes: "Extends the brand.py created in W2-T4."
+    session: 5
+    notes: "Extends the brand.py created in W2-T4. css_vars/font_face_css/ansi/svg_palette/color/theme/fonts; lru_cached load; base64 woff2."
 
   - id: W4-T3
     wave: 4
     description: "Self-host OFL fonts (Source Serif 4 + Inter + JetBrains Mono); Charter dropped; no CDN"
-    status: not_started
+    status: done
     depends_on: ["W3-T6"]
     output_files: ["agentxp/assets/design/fonts/*.woff2", "agentxp/assets/design/fonts/OFL.txt"]
     agent_type: builder
     parallel_group: "W4-A"
-    session: null
-    notes: "Blocker before any visual tier ships."
+    session: 5
+    notes: "Blocker before any visual tier ships. Latin-subset variable woff2 (one file/family, <51KB each); OFL.txt with per-family copyright. User approved download."
 
   - id: W4-T4
     wave: 4
     description: "Component CSS + editorial-light/dark themes (every value a var resolving through brand.json)"
-    status: not_started
+    status: done
     depends_on: ["W4-T1"]
     output_files:
       - "agentxp/assets/design/components.css"
@@ -424,52 +424,52 @@ tasks:
       - "agentxp/assets/design/themes/editorial-dark.css"
     agent_type: builder
     parallel_group: "W4-C"
-    session: null
-    notes: ""
+    session: 5
+    notes: "components.css = vars-only vocabulary; theme files mirror brand.css_vars() output (brand.json wins on drift). Verdict badge always carries the word."
 
   - id: W4-T5
     wave: 4
     description: "Deterministic inline-SVG charts (lift_bar, ci_interval, srm_split, power_curve-if-emitted)"
-    status: not_started
+    status: done
     depends_on: ["W4-T2"]
     output_files: ["agentxp/render/charts.py"]
     agent_type: builder
     parallel_group: "W4-D"
-    session: null
-    notes: "Plots only stored numbers; no stats in presentation."
+    session: 5
+    notes: "Plots only stored numbers; no stats in presentation. srm_split OMITs without arm counts; power_curve OMITs (no curve points stored). ChartData carrier added to VM + distill."
 
   - id: W4-T6
     wave: 4
     description: "Exec HTML adapter + template (autoescape, mandatory receipts footer from live render_status)"
-    status: not_started
+    status: done
     depends_on: ["W4-T2", "W4-T3", "W4-T4", "W4-T5", "W3-T6"]
     output_files: ["agentxp/render/adapters/html.py", "templates/experiment-report.html.j2"]
     agent_type: builder
     parallel_group: "W4-E"
-    session: null
-    notes: ""
+    session: 5
+    notes: "autoescape=True; SVG/CSS the only |safe; theme threads to chart palette. CLI --theme + html-only --audience exec|skeptic (audit-trail switch). Registered in ADAPTERS."
 
   - id: W4-T7
     wave: 4
     description: "Refactor audit_html.py onto brand layer (first visible proof; preserve single-file/offline/chmod-600)"
-    status: not_started
+    status: done
     depends_on: ["W4-T2", "W4-T3", "W4-T4"]
     output_files: ["agentxp/cli/audit_html.py"]
     agent_type: builder
     parallel_group: "W4-E"
-    session: null
-    notes: ""
+    session: 5
+    notes: "_CSS -> _style_block() = brand.css_vars()+font_face_css()+var-based rules; chain-ok/fail now var(--xp-pass/fail). Preserved _esc/chmod-600/single-file."
 
   - id: W4-T8
     wave: 4
     description: "Per-status HTML golden tests (5 verdicts + DRAFT + UNVERIFIABLE, light+dark, contrast audit)"
-    status: not_started
+    status: done
     depends_on: ["W4-T6"]
     output_files: ["tests/render/test_html_golden.py"]
     agent_type: builder
     parallel_group: "W4-F"
-    session: null
-    notes: "Visual-QA gate."
+    session: 5
+    notes: "Visual-QA gate. 16 tests: 5 verdict shapes, 3 statuses, light+dark, byte-determinism, self-containment, muted-reserved contrast audit, chart-palette-tracks-theme."
 
   # ---------------- Wave 5 — Social card (HTML) ----------------
   - id: W5-T1
@@ -575,3 +575,9 @@ session_log:
     tasks_completed: ["W3-T1", "W3-T2", "W3-T3", "W3-T4", "W3-T5", "W3-T6"]
     tasks_failed: []
     notes: "Wave 3 built and reviewed — the release gate for W4+ is GREEN. build_provenance() now runs the full live flow in strict precedence: (0) can't-check gate FIRST (schema v1 / missing chain_hash / missing log.jsonl / missing tree-repro scalar -> UNVERIFIABLE, never DRAFT); (1) recompute canonical_chain_hash; (2) hash_matches; (3) validate_chain(id, _root=parent) wrapped in try/except PerfBudgetExceeded -> UNVERIFIABLE; (4) tree-reproduction; (5) VERIFIED iff log+stored-hash present AND hash matches AND cv.ok AND verdict reproduces. Active failure -> DRAFT_UNVERIFIED with first-failing reason (precedence chain->hash->tree). W3-T2 receipts._reproduce_verdict() rebuilds TreeInput from the 7 persisted scalars + per-guardrail direction, re-runs walk_tree, compares (verdict, terminal_step) as enum+int (NO step_fired string parse); returns None when inputs incomplete -> UNVERIFIABLE. W3-T3 ProvenanceCache memoizes per exp_dir (hash+validate_chain run once/session). W3-T4 DRAFT stamping: glance leading banner, md top admonition + footer 'chain integrity: FAILED'; UNVERIFIABLE stays calm; legitimate override never DRAFT (reproduces because override_justification never overwrites Report.verdict). W3-T5 chain_hash_short (12-char display) + full 64-char embed in footer. W3-T6 release-gate test (tests/render/test_provenance_redpath.py): pins (SHIP, step 7) so a tree.py change fails loudly; tampered-hash -> DRAFT all tiers; tampered-verdict caught ONLY by tree-reproduction (hash still matches); legitimate override stays VERIFIED. Updated 2 W2-era tests to the new contract (happy-path fixture now VERIFIED not UNVERIFIABLE; glance MISMATCH receipt shifts below the DRAFT banner). Full suite 1290 passed / 63 skipped. current_wave -> 4."
+  - session: 5
+    date: "2026-06-01"
+    wave: 4
+    tasks_completed: ["W4-T1", "W4-T2", "W4-T3", "W4-T4", "W4-T5", "W4-T6", "W4-T7", "W4-T8"]
+    tasks_failed: []
+    notes: "Wave 4 built and reviewed — first branded visual tier ships. W4-T1 vendored brand.json (editorial palette; editorial-light default + editorial-dark; pass/fail #146c2e/#b3261e light, #3fa45f/#e0584e dark; paper #f6f2e9/#14120d; muted #8a8580; ansi as bare SGR; svg_palette role->token). W4-T2 brand.py extended: css_vars(theme)/font_face_css() (base64 woff2, 3 blocks)/ansi()/svg_palette(theme)/color/theme/fonts, lru-cached _load(). W4-T3 self-hosted OFL fonts (Source Serif 4 + Inter + JetBrains Mono Latin-subset woff2 + OFL.txt; user-approved download; no CDN). W4-T4 components.css (vars-only vocabulary; verdict badge ALWAYS carries the WORD, colour is redundant reinforcement; var(--xp-muted) reserved for label-type selectors only) + editorial-light/dark theme files mirroring brand.css_vars (brand.json wins on drift). W4-T5 charts.py: deterministic inline-SVG lift_bar + ci_interval (always; primary metric always present), srm_split (OMITs without per-arm counts), power_curve (OMITs; no curve points stored) — plots ONLY stored numbers, asks brand.svg_palette() for resolved hex like glance asks brand.ansi(); ChartData carrier added to ReportVM + distill (pure copy, never re-derived). W4-T6 HtmlAdapter + experiment-report.html.j2: single self-contained offline page, autoescape=True (SVG/CSS the only |safe), mandatory receipts footer from LIVE render_status, DRAFT stamps loud top banner; CLI --theme {editorial-light,editorial-dark} + html-only --audience exec|skeptic (audit-trail switch); registered in ADAPTERS; html removed from deferred formats. W4-T7 audit_html.py refactored onto brand layer (_CSS -> _style_block() = brand.css_vars()+font_face_css()+var-based rules; chain-ok/fail now var(--xp-pass/fail); preserved _esc/chmod-600/single-file/offline). W4-T8 test_html_golden.py (16 tests: 5 verdict shapes, 3 render statuses, light+dark paper, byte-determinism, self-containment, muted-grey-reserved contrast audit of components.css source, chart-palette-tracks-theme). Review loop caught + fixed a dark-theme chart-palette bug (_chart_svgs ignored self.theme -> light palette on dark paper); threaded theme through and added test_chart_palette_tracks_theme. Full suite 1308 passed / 63 skipped. current_wave -> 5."

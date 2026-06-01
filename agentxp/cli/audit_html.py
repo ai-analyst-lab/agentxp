@@ -16,34 +16,49 @@ import json
 import os
 from pathlib import Path
 
+from agentxp.render import brand
+
 __all__ = ["render_html_report", "write_html_report"]
 
 
-# Inline CSS — keeps the report self-contained (no external assets).
-_CSS = """
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-       max-width: 1100px; margin: 2em auto; padding: 0 1em; color: #1a1a1a; }
-h1 { font-size: 1.6em; margin-bottom: 0.2em; }
-h2 { font-size: 1.2em; margin-top: 2em; border-bottom: 1px solid #ddd;
-     padding-bottom: 0.25em; }
+# Component rules for the audit page. NO hex literal lives here — every colour,
+# font, and the chain-ok/chain-fail states resolve through a --xp-* var defined
+# by brand.json (W4-T7: the off-brand dump becomes on-brand). The :root block
+# and @font-face are prepended by _style_block() so the page stays a single,
+# offline, self-contained file.
+_AUDIT_RULES = """
+body { font-family: var(--xp-font-sans);
+       background: var(--xp-paper); color: var(--xp-ink);
+       max-width: 1100px; margin: 2em auto; padding: 0 1em; }
+h1 { font-family: var(--xp-font-serif); font-size: 1.6em; margin-bottom: 0.2em; }
+h2 { font-family: var(--xp-font-serif); font-size: 1.2em; margin-top: 2em;
+     border-bottom: 1px solid var(--xp-rule); padding-bottom: 0.25em; }
 table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.9em; }
-th, td { border-bottom: 1px solid #eee; padding: 6px 10px; text-align: left;
-         vertical-align: top; }
-th { background: #f7f7f7; }
-tr.event-row td { font-family: ui-monospace, "SF Mono", Menlo, monospace;
-                  font-size: 0.85em; }
+th, td { border-bottom: 1px solid var(--xp-rule); padding: 6px 10px;
+         text-align: left; vertical-align: top; }
+th { background: var(--xp-paper-raised); }
+tr.event-row td { font-family: var(--xp-font-mono); font-size: 0.85em; }
 details { margin: 0.4em 0; }
-summary { cursor: pointer; color: #444; }
-pre { background: #f3f3f3; padding: 10px; border-radius: 4px;
-      overflow-x: auto; font-size: 0.85em; white-space: pre-wrap;
-      word-break: break-word; }
+summary { cursor: pointer; color: var(--xp-ink-soft); }
+pre { background: var(--xp-paper-raised); font-family: var(--xp-font-mono);
+      padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 0.85em;
+      white-space: pre-wrap; word-break: break-word; }
 .event-name { font-weight: 600; }
-.actor { color: #555; }
-.ts { color: #777; }
-.chain-ok { color: #146c2e; }
-.chain-fail { color: #b3261e; }
-.muted { color: #888; font-size: 0.9em; }
+.actor { color: var(--xp-ink-soft); }
+.ts { color: var(--xp-muted); }
+.chain-ok { color: var(--xp-pass); }
+.chain-fail { color: var(--xp-fail); }
+.muted { color: var(--xp-muted); font-size: 0.9em; }
 """
+
+
+def _style_block() -> str:
+    """Compose the full inlined stylesheet: brand vars + @font-face + rules.
+
+    Keeps the audit report self-contained (no external assets, offline-safe):
+    the fonts are base64-embedded and every value resolves through brand.json.
+    """
+    return "\n".join([brand.css_vars(), brand.font_face_css(), _AUDIT_RULES])
 
 
 def _esc(value) -> str:
@@ -176,7 +191,7 @@ def render_html_report(
         "<html lang='en'><head>"
         "<meta charset='utf-8'>"
         f"<title>{_esc(title)}</title>"
-        f"<style>{_CSS}</style>"
+        f"<style>{_style_block()}</style>"
         "</head><body>"
         f"<h1>{_esc(title)}</h1>"
         f"<p class='muted'>{_esc(summary_line)}</p>"

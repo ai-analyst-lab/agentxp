@@ -21,6 +21,7 @@ from pathlib import PurePosixPath
 from agentxp.schemas.report import MetricResult, Report
 from agentxp.render.viewmodel import (
     AuditRow,
+    ChartData,
     DesignCard,
     Diagnostics,
     GuardrailViolation,
@@ -126,6 +127,26 @@ def _audit_trail(report: Report) -> list[AuditRow]:
     return rows
 
 
+def _chart_data(report: Report) -> ChartData:
+    """Carry the primary metric's stored numbers through for the SVG charts.
+
+    Pure copy — no arithmetic, no inference. Per-arm counts pass through as-is
+    (Optional), so a report without them yields a ChartData whose srm_split
+    will omit downstream.
+    """
+    p = report.primary
+    return ChartData(
+        lift_absolute=p.lift_absolute,
+        ci_95_lower=p.ci_95_lower,
+        ci_95_upper=p.ci_95_upper,
+        ci_90_lower=p.ci_90_lower,
+        ci_90_upper=p.ci_90_upper,
+        direction=_direction(p.direction),
+        n_arm_control=p.n_arm_control,
+        n_arm_treatment=p.n_arm_treatment,
+    )
+
+
 def _design_card(report: Report) -> DesignCard:
     return DesignCard(
         hypothesis=report.hypothesis,
@@ -170,6 +191,7 @@ def distill(report: Report) -> ReportVM:
         uncertainty_notes=[n.detail for n in report.uncertainty_notes],  # verbatim
         audit_trail=_audit_trail(report),
         design=_design_card(report),
+        charts=_chart_data(report),
     )
 
 

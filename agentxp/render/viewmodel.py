@@ -27,6 +27,7 @@ __all__ = [
     "MetricRow",
     "GuardrailViolation",
     "Diagnostics",
+    "ChartData",
     "AuditRow",
     "DesignCard",
     "IndexRowVM",
@@ -77,6 +78,26 @@ class Diagnostics(BaseModel):
     sample_pct: Optional[int] = None                    # e.g., 107 for 107%
     late_ratio: Optional[float] = None                  # None → "unavailable"
     guardrails_violated: list[GuardrailViolation] = Field(default_factory=list)
+
+
+class ChartData(BaseModel):
+    """Raw stored numbers the SVG charts plot — copied, never re-derived.
+
+    distill() carries the primary metric's stored values through verbatim so
+    ``charts.py`` can plot them without touching the canonical Report. The
+    per-arm counts are Optional: when absent, ``charts.srm_split`` omits rather
+    than fabricating a split.
+    """
+    model_config = ConfigDict(extra="forbid")
+    schema_version: Literal[1] = 1
+    lift_absolute: float
+    ci_95_lower: float
+    ci_95_upper: float
+    ci_90_lower: float
+    ci_90_upper: float
+    direction: Literal["higher_is_better", "lower_is_better", "neither"]
+    n_arm_control: Optional[int] = None
+    n_arm_treatment: Optional[int] = None
 
 
 class AuditRow(BaseModel):
@@ -147,6 +168,7 @@ class ReportVM(BaseModel):
     uncertainty_notes: list[str]       # 1-5 caveats, verbatim
     audit_trail: list[AuditRow]
     design: DesignCard = Field(default_factory=DesignCard)
+    charts: ChartData
 
     def to_index_row(self, render_status: RenderStatus) -> IndexRowVM:
         """Project this VM into an index row, given a resolved render status."""

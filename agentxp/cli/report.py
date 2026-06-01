@@ -34,7 +34,6 @@ __all__ = ["main"]
 
 # Formats recognised but not yet built — used to fail fast with a helpful note.
 _DEFERRED_FORMATS: dict[str, str] = {
-    "html": "Wave 4",
     "card": "Wave 5",
 }
 
@@ -80,6 +79,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Sugar for --format: operator|exec|skeptic|public.",
     )
     parser.add_argument(
+        "--theme",
+        dest="theme",
+        choices=["editorial-light", "editorial-dark"],
+        default="editorial-light",
+        help="Brand theme for the html format (default: editorial-light).",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=None,
@@ -115,8 +121,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    # --format and --audience are mutually exclusive; fail loud with the reason.
-    if args.format is not None and args.audience is not None:
+    # --format and --audience are mutually exclusive — EXCEPT for html, where
+    # --audience exec|skeptic configures the adapter's audit-trail switch rather
+    # than acting as format sugar (exec hides the audit trail, skeptic shows it).
+    _html_audience_combo = (
+        args.format == "html" and args.audience in ("exec", "skeptic")
+    )
+    if args.format is not None and args.audience is not None and not _html_audience_combo:
         print(
             "--format and --audience are mutually exclusive "
             f"(got --format {args.format} and --audience {args.audience})",
@@ -146,6 +157,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         return EXIT_USER_ERROR
 
     adapter = get_adapter(fmt)
+
+    # html carries config (theme + audience audit-trail switch); build a
+    # configured instance rather than the registry default. exec hides the
+    # audit trail, skeptic shows it; default is exec.
+    if fmt == "html":
+        from agentxp.render.adapters.html import HtmlAdapter
+
+        html_audience = args.audience if args.audience == "skeptic" else "exec"
+        adapter = HtmlAdapter(theme=args.theme, audience=html_audience)
 
     # glance is a terminal surface; writing it to a file is a usage error.
     if fmt == "glance" and args.out is not None:

@@ -1,0 +1,187 @@
+/* agentxp presentation components — the shared visual vocabulary.
+ *
+ * Theme-agnostic: every value resolves through a --xp-* custom property
+ * defined by the active theme (themes/editorial-light.css, editorial-dark.css,
+ * or the inlined :root that brand.css_vars() emits). NO hex literal, NO font
+ * stack, NO raw size lives here — that is the "no hex in any renderer" rule,
+ * enforced one level up in brand.json.
+ *
+ * Pairs with brand.font_face_css() for the offline @font-face block. */
+
+.xp-doc {
+  background: var(--xp-paper);
+  color: var(--xp-ink);
+  font-family: var(--xp-font-sans);
+  font-size: var(--xp-type-body);
+  line-height: 1.5;
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+/* ── eyebrow + headline (the editorial register) ─────────────────────────── */
+.xp-eyebrow {
+  font-family: var(--xp-font-sans);
+  font-size: var(--xp-type-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--xp-muted);
+  margin: 0 0 0.4rem;
+}
+
+.xp-headline {
+  font-family: var(--xp-font-serif);
+  font-size: var(--xp-type-headline);
+  font-weight: 600;
+  line-height: 1.12;
+  color: var(--xp-ink);
+  margin: 0 0 1rem;
+}
+
+/* ── verdict badge — ALWAYS carries the word, never colour alone ─────────── */
+/* The colour is redundant reinforcement; the text is the signal. This keeps
+ * the verdict legible to colour-blind readers and in greyscale print. */
+.xp-verdict-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5ch;
+  font-family: var(--xp-font-mono);
+  font-size: var(--xp-type-metric);
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--xp-rule);
+  background: var(--xp-paper-raised);
+  color: var(--xp-ink);
+}
+.xp-verdict-badge .xp-verdict-word { font-weight: 600; letter-spacing: 0.02em; }
+.xp-verdict-badge--ship { border-color: var(--xp-pass); color: var(--xp-pass); }
+.xp-verdict-badge--no-ship { border-color: var(--xp-fail); color: var(--xp-fail); }
+.xp-verdict-badge--hold { border-color: var(--xp-warn); color: var(--xp-warn); }
+
+/* ── headline metrics row ─────────────────────────────────────────────────── */
+.xp-metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+  margin: 1.5rem 0;
+  padding: 1.1rem 0;
+  border-top: 1px solid var(--xp-rule);
+  border-bottom: 1px solid var(--xp-rule);
+}
+.xp-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.xp-metric-label {
+  font-size: var(--xp-type-label);
+  color: var(--xp-muted);
+  letter-spacing: 0.02em;
+}
+.xp-metric-value {
+  font-family: var(--xp-font-mono);
+  font-size: var(--xp-type-metric);
+  font-weight: 500;
+  color: var(--xp-ink);
+}
+.xp-metric-value--pass { color: var(--xp-pass); }
+.xp-metric-value--fail { color: var(--xp-fail); }
+
+/* ── callout strip (the "what I'm not sure about" / diagnostics strip) ────── */
+.xp-callout-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.xp-stat {
+  flex: 1 1 8rem;
+  background: var(--xp-paper-raised);
+  border: 1px solid var(--xp-rule);
+  border-radius: 0.3rem;
+  padding: 0.75rem 0.9rem;
+}
+.xp-stat-label {
+  font-size: var(--xp-type-label);
+  color: var(--xp-muted);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.xp-stat-value {
+  font-family: var(--xp-font-mono);
+  font-size: var(--xp-type-metric);
+  color: var(--xp-ink);
+}
+
+/* ── inline pass/warn badges (reuse the chain green / amber) ──────────────── */
+.xp-badge {
+  display: inline-block;
+  font-family: var(--xp-font-mono);
+  font-size: var(--xp-type-label);
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.25rem;
+  color: var(--xp-badge-text);
+}
+.xp-badge--pass { background: var(--xp-pass); }
+.xp-badge--warn { background: var(--xp-warn); }
+.xp-badge--fail { background: var(--xp-fail); }
+
+/* ── chart frame ──────────────────────────────────────────────────────────── */
+.xp-chart {
+  margin: 1.5rem 0;
+}
+.xp-chart svg { display: block; max-width: 100%; height: auto; }
+.xp-chart-caption {
+  font-size: var(--xp-type-label);
+  color: var(--xp-muted);
+  margin-top: 0.4rem;
+}
+
+/* ── receipts footer — REQUIRED. A report is un-renderable without it. ───── */
+/* This is where authenticity travels with the output: render status, locked
+ * brief ref, verdict-tree path, chain hash, replay command. Never optional. */
+.xp-receipts-footer {
+  margin-top: 3rem;
+  padding-top: 1.1rem;
+  border-top: 2px solid var(--xp-rule);
+  font-family: var(--xp-font-mono);
+  font-size: var(--xp-type-label);
+  color: var(--xp-ink-soft);
+}
+.xp-receipts-footer dt {
+  color: var(--xp-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--xp-type-eyebrow);
+}
+.xp-receipts-footer dd {
+  margin: 0 0 0.6rem;
+  word-break: break-all;
+}
+.xp-render-status {
+  display: inline-block;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 0.25rem;
+}
+.xp-render-status--verified { color: var(--xp-pass); border: 1px solid var(--xp-pass); }
+.xp-render-status--draft {
+  color: var(--xp-badge-text);
+  background: var(--xp-fail);
+}
+.xp-render-status--unverifiable { color: var(--xp-muted); border: 1px solid var(--xp-rule); }
+
+/* ── DRAFT banner — loud, top-of-document, when render_status is DRAFT ────── */
+.xp-draft-banner {
+  background: var(--xp-fail);
+  color: var(--xp-badge-text);
+  font-family: var(--xp-font-mono);
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-radius: 0.3rem;
+  margin-bottom: 1.5rem;
+}
