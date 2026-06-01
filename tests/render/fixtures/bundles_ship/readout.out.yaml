@@ -1,0 +1,15 @@
+schema_version: 1
+exp_id: exp_001
+rendered_at: 2026-06-02T17:55:11Z
+verdict: SHIP
+confidence_label: "highly likely positive"
+verdict_rationale: "Completion +3.2pp [+1.4, +5.0] at 95% CI; latency guardrail clear; late-window 0.87x early — no novelty risk."
+stakeholder_summary: |
+  The redesigned checkout button increased completion from 17.8% to 21.0% — a 3.2pp
+  absolute lift (18% relative). The 95% CI excludes zero on the upside, latency held
+  flat, and the effect was stable across the full run. Two pre-registered segments
+  (web, new users) showed weaker effects; the pooled SHIP verdict is driven by mobile
+  and returning users.
+uncertainty_notes:
+  - "Late-window effect is 0.87x early-window — clear of the 0.7 novelty threshold, but only by 0.17, so the no-novelty call is closer than the verdict implies."
+  - "Two pre-registered segments (web, new users) showed effects under half the pooled lift; the SHIP verdict is driven by mobile and returning users."

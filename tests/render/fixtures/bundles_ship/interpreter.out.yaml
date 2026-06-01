@@ -1,0 +1,10 @@
+schema_version: 1
+exp_id: exp_001
+verdict: SHIP
+confidence_label: "highly likely positive"
+rationale_one_line: "Completion +3.2pp [+1.4, +5.0] at 95% CI; latency guardrail clear at +0.8% (under the 5% halt threshold); late-window 0.87x early — no novelty risk."
+step_fired:
+  - "7: late_ratio 0.87 >= 0.7 — SHIP"
+diagnostics:
+  srm_pass: true
+  srm_override_resolved: false

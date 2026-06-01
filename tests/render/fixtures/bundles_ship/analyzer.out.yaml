@@ -1,0 +1,35 @@
+schema_version: 1
+exp_id: exp_001
+primary:
+  metric_name: checkout_completion_rate
+  direction: higher_is_better
+  baseline: 0.178
+  lift_absolute: 0.032
+  lift_pct: 17.98
+  ci_lower_95: 0.014
+  ci_upper_95: 0.05
+  ci_lower_90: 0.017
+  ci_upper_90: 0.047
+  p_value: 0.004
+  late_ratio: 0.87
+  n_observed_total: 91204
+  n_observed_per_arm:
+    control: 45602
+    treatment: 45602
+  mean_arm_control: 0.178
+  mean_arm_treatment: 0.21
+guardrails:
+  - metric_name: time_to_checkout_p95
+    direction: lower_is_better
+    lift_absolute: 0.008
+    lift_pct: 0.8
+    ci_lower_95: -0.012
+    ci_upper_95: 0.028
+    ci_lower_90: -0.009
+    ci_upper_90: 0.025
+    p_value: 0.42
+    n_observed_per_arm:
+      control: 45602
+      treatment: 45602
+    mean_arm_control: 1.02
+    mean_arm_treatment: 1.028

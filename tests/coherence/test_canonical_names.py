@@ -141,7 +141,7 @@ CANONICAL_TABLE: list[tuple[str, str, str, Any]] = [
     ("SemanticModel.schema_version", "schema_version", "agentxp.schemas.semantic_model", 1),
     ("FactSource.schema_version",    "schema_version", "agentxp.schemas.fact_source",   1),
     ("Assignment.schema_version",    "schema_version", "agentxp.schemas.assignment",    1),
-    ("Report.schema_version",        "schema_version", "agentxp.schemas.report",        1),
+    ("Report.schema_version",        "schema_version", "agentxp.schemas.report",        2),
 
     # ── §1.8.7 Literals
     ("DataPlanV2.status",            "literal_contains", "agentxp.schemas.data_plan",    {"draft", "confirmed", "executed"}),

@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "experiment_id": "exp_001",
+  "generated_at": "2026-06-02T17:55:11Z",
+  "verdict": "SHIP",
+  "verdict_rationale": "Completion +3.2pp [+1.4, +5.0] at 95% CI; latency guardrail clear at +0.8% (under the 5% halt threshold); late-window 0.87x early — no novelty risk.",
+  "step_fired": 7,
+  "decision_rule_id": "default.ship",
+  "decision_rule_source": "agentxp_default",
+  "diagnostics": {
+    "schema_version": 1,
+    "srm_passed": true,
+    "power_sufficient": true,
+    "audit_paths": {
+      "schema_version": 1,
+      "bundles": [
+        "bundles/analyzer.out.yaml",
+        "bundles/interpreter.out.yaml",
+        "bundles/monitor.out.yaml",
+        "bundles/readout.out.yaml"
+      ]
+    }
+  },
+  "primary": {
+    "schema_version": 1,
+    "name": "checkout_completion_rate",
+    "type": "primary",
+    "lift_absolute": 0.032,
+    "lift_relative": 17.98,
+    "ci_95_lower": 0.014,
+    "ci_95_upper": 0.05,
+    "ci_90_lower": 0.017,
+    "ci_90_upper": 0.047,
+    "p_value": 0.004,
+    "confidence_label": "highly likely positive",
+    "audit_paths": {
+      "schema_version": 1,
+      "bundles": ["bundles/analyzer.out.yaml"]
+    },
+    "direction": "higher_is_better",
+    "n_arm_control": 45602,
+    "n_arm_treatment": 45602,
+    "mean_arm_control": 0.178,
+    "mean_arm_treatment": 0.21
+  },
+  "guardrails": [
+    {
+      "schema_version": 1,
+      "name": "time_to_checkout_p95",
+      "type": "guardrail",
+      "lift_absolute": 0.008,
+      "lift_relative": 0.8,
+      "ci_95_lower": -0.012,
+      "ci_95_upper": 0.028,
+      "ci_90_lower": -0.009,
+      "ci_90_upper": 0.025,
+      "p_value": 0.42,
+      "confidence_label": "inconclusive",
+      "audit_paths": {
+        "schema_version": 1,
+        "bundles": ["bundles/analyzer.out.yaml"]
+      },
+      "direction": "lower_is_better",
+      "n_arm_control": 45602,
+      "n_arm_treatment": 45602,
+      "mean_arm_control": 1.02,
+      "mean_arm_treatment": 1.028
+    }
+  ],
+  "negative_controls": [],
+  "segments": [],
+  "edge_case_flags": [],
+  "uncertainty_notes": [
+    {
+      "schema_version": 1,
+      "topic": "novelty",
+      "detail": "Late-window effect is 0.87x early-window — clear of the 0.7 novelty threshold, but only by 0.17, so the no-novelty call is closer than the verdict implies.",
+      "audit_link": null
+    },
+    {
+      "schema_version": 1,
+      "topic": "segment_strength",
+      "detail": "Two pre-registered segments (web, new users) showed effects under half the pooled lift; the SHIP verdict is driven by mobile and returning users.",
+      "audit_link": null
+    }
+  ],
+  "override_justification": null,
+  "audit_paths": {
+    "schema_version": 1,
+    "bundles": [
+      "bundles/analyzer.out.yaml",
+      "bundles/interpreter.out.yaml",
+      "bundles/monitor.out.yaml",
+      "bundles/readout.out.yaml"
+    ]
+  },
+  "prior_turns_compressed_ref": null,
+  "chain_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "locked_brief_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "agentxp_version": "0.1.0",
+  "hypothesis": "Redesigning the checkout button increases completion rate without harming p95 latency.",
+  "power": 0.8,
+  "ci_level": 0.95,
+  "srm_override_resolved": false,
+  "n_observed": 91204,
+  "n_required": 18000,
+  "primary_direction": "higher_is_better",
+  "mde_pct": 2.0,
+  "baseline": 0.178,
+  "late_ratio": 0.87
+}

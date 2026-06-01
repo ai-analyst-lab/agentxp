@@ -108,9 +108,18 @@ class TreeInput:
 class TreeResult:
     """Pure-function output of :func:`walk_tree`. ``step_fired`` records every
     step evaluated (including those that passed without firing) in the
-    ``"{N}: {rule} ({value})"`` format the interpreter prompt uses."""
+    ``"{N}: {rule} ({value})"`` format the interpreter prompt uses.
+
+    ``terminal_step`` is the integer step number (1-8) whose firing produced
+    the verdict — the stable, machine-comparable companion to the human-readable
+    ``step_fired`` trail. Verdict-tree reproduction (presentation layer W3)
+    compares ``(verdict, terminal_step)`` as enum+int and NEVER parses the
+    ``step_fired`` strings (whose format is not a stable contract). Purely
+    additive: it does not touch the verdict logic.
+    """
     verdict: Verdict
     step_fired: list[str]
+    terminal_step: int
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
 
@@ -232,13 +241,18 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
 
     mde_absolute = _mde_absolute(inputs.mde_pct, inputs.baseline)
     diagnostics["mde_absolute"] = mde_absolute
+    # Persist the two inputs to mde_absolute so finalize_report (presentation
+    # layer) can source mde_pct + baseline from the interpreter bundle and W3
+    # can reproduce mde_absolute identically rather than back-deriving it.
+    diagnostics["mde_pct"] = inputs.mde_pct
+    diagnostics["baseline"] = inputs.baseline
 
     # ── Step 1 — SRM gate ────────────────────────────────────────────────
     if not inputs.srm_pass and not inputs.srm_override_resolved:
         step_fired.append("1: SRM gate (fail, no override) — INVALID-SRM")
         diagnostics["srm_pass"] = False
         diagnostics["srm_override_resolved"] = False
-        return TreeResult(verdict="INVALID-SRM", step_fired=step_fired, diagnostics=diagnostics)
+        return TreeResult(verdict="INVALID-SRM", step_fired=step_fired, terminal_step=1, diagnostics=diagnostics)
 
     if not inputs.srm_pass and inputs.srm_override_resolved:
         step_fired.append("1: SRM gate (fail, override resolved)")
@@ -266,6 +280,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
         return TreeResult(
             verdict="NO-SHIP-GUARDRAIL",
             step_fired=step_fired,
+            terminal_step=2,
             diagnostics=diagnostics,
         )
     step_fired.append("2: guardrails clear")
@@ -285,6 +300,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
         return TreeResult(
             verdict="INCONCLUSIVE",
             step_fired=step_fired,
+            terminal_step=3,
             diagnostics=diagnostics,
         )
     step_fired.append(
@@ -314,6 +330,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
         return TreeResult(
             verdict="NO-LIFT",
             step_fired=step_fired,
+            terminal_step=4,
             diagnostics=diagnostics,
         )
     step_fired.append(
@@ -336,6 +353,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
         return TreeResult(
             verdict="DIRECTIONAL-ONLY",
             step_fired=step_fired,
+            terminal_step=5,
             diagnostics=diagnostics,
         )
     step_fired.append("5: no directional-only signal")
@@ -361,6 +379,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
         return TreeResult(
             verdict="LIFT-WITH-CAVEAT",
             step_fired=step_fired,
+            terminal_step=6,
             diagnostics=diagnostics,
         )
 
@@ -377,6 +396,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
             return TreeResult(
                 verdict="SHIP",
                 step_fired=step_fired,
+                terminal_step=7,
                 diagnostics=diagnostics,
             )
         diagnostics["late_ratio"] = inputs.late_ratio
@@ -388,6 +408,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
             return TreeResult(
                 verdict="SHIP",
                 step_fired=step_fired,
+                terminal_step=7,
                 diagnostics=diagnostics,
             )
         # Novelty downgrade
@@ -399,6 +420,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
         return TreeResult(
             verdict="LIFT-WITH-CAVEAT",
             step_fired=step_fired,
+            terminal_step=7,
             diagnostics=diagnostics,
         )
     step_fired.append("7: no SHIP path (no benefit-side 95% CI exclusion or lift below MDE/2)")
@@ -432,7 +454,7 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
         step_fired.append("8: LEARN (analysis incomplete)")
         diagnostics["learn_subcase"] = "analysis_incomplete"
 
-    return TreeResult(verdict="LEARN", step_fired=step_fired, diagnostics=diagnostics)
+    return TreeResult(verdict="LEARN", step_fired=step_fired, terminal_step=8, diagnostics=diagnostics)
 
 
 __all__ = [

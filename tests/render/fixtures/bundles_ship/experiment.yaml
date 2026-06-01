@@ -1,0 +1,10 @@
+id: exp_001
+name: Checkout button redesign
+intent: Increase checkout completion without harming p95 latency.
+hypothesis:
+  text: Redesigning the checkout button increases completion rate without harming p95 latency.
+design:
+  mde_pct: 2.0
+  n_required: 18000
+  power: 0.8
+decision_rule: agentxp_default

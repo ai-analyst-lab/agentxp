@@ -167,7 +167,15 @@ class ChainValidation(BaseModel):
 # ──────────────────────────────────────────────────────────────────────────
 
 class MetricResult(BaseModel):
-    """One metric's result row in the readout (§22, §24)."""
+    """One metric's result row in the readout (§22, §24).
+
+    W_pres widening (schema_version 2): per-arm sample sizes/means and a
+    per-metric ``direction`` are additive optional fields. They are populated
+    by the core ``finalize_report()`` from the committed analyzer bundle; they
+    let the design card and the verdict-tree reproduction (W3) read per-arm and
+    direction data without re-deriving anything. ``direction`` on a guardrail
+    row is the field the tree's harm-side selection reproduces against.
+    """
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal[1] = 1
     name: str
@@ -181,6 +189,12 @@ class MetricResult(BaseModel):
     p_value: float
     confidence_label: ConfidenceLabel
     audit_paths: AuditPaths
+    # ── W_pres additive (schema_version 2) — all optional, defaulted ──
+    direction: Optional[Literal["higher_is_better", "lower_is_better", "neither"]] = None
+    n_arm_control: Optional[int] = None
+    n_arm_treatment: Optional[int] = None
+    mean_arm_control: Optional[float] = None
+    mean_arm_treatment: Optional[float] = None
 
 
 class SegmentResult(BaseModel):
@@ -228,14 +242,28 @@ class Report(BaseModel):
 
     The .md file is a deterministic render of this JSON. Every claim in the
     markdown traces to an `AuditPaths` block here.
+
+    W_pres (schema_version 2): the verifiable provenance fields, the
+    design-card fields, and the 7 verdict-tree-reproduction scalars below are
+    additive and optional. They are written by the deterministic core
+    ``finalize_report()`` (``agentxp/finalize.py``), NOT by the LLM readout
+    agent — the numbers police the agent, not the other way around. Old v1
+    ``report.json`` still validates (pydantic fills the defaults); ``distill()``
+    (W1) is the sole place that branches on ``schema_version``.
+
+    ``step_fired`` is the terminal step of the 8-step tree (the step whose
+    firing produced the verdict). The verdict-tree reproduction (W3) re-runs
+    ``walk_tree`` from the persisted scalars and asserts the re-run
+    ``TreeResult.terminal_step`` equals this field — compared as an int, never
+    by parsing the unstable ``"{N}: ..."`` trail string.
     """
     model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
+    schema_version: Literal[1, 2] = 2
     experiment_id: str
     generated_at: datetime
     verdict: Verdict
     verdict_rationale: str  # one-sentence
-    step_fired: Literal[1, 2, 3, 4, 5, 6, 7, 8]  # 8-step decision tree (§22)
+    step_fired: Literal[1, 2, 3, 4, 5, 6, 7, 8]  # 8-step decision tree (§22) — terminal step
     decision_rule_id: str  # e.g., "default.ship" or user-defined
     decision_rule_source: Literal["agentxp_default", "user_defined"]
 
@@ -252,6 +280,30 @@ class Report(BaseModel):
 
     # Compressed history reference (per §10.8.1)
     prior_turns_compressed_ref: Optional[str] = None  # e.g., "bundles/readout.ctx.yaml#prior_turns_compressed"
+
+    # ── W_pres provenance (schema_version 2) — core-written, NOT agent-written ──
+    chain_hash: Optional[str] = None  # canonical_chain_hash(exp_dir) over log.jsonl, computed by finalize_report()
+    locked_brief_hash: Optional[str] = None  # sha256 of experiment.yaml (write-once lock); "recorded" receipt, NOT in VERIFIED gate
+    agentxp_version: Optional[str] = None  # agentxp.__version__ at finalize time
+
+    # ── W_pres design-card fields (schema_version 2) — optional, defaulted ──
+    hypothesis: Optional[str] = None  # the pre-registered hypothesis prose (display only)
+    power: Optional[float] = None  # design.power
+    ci_level: float = 0.95  # confidence level the headline CI is reported at
+
+    # ── W_pres verdict-tree-reproduction scalars (schema_version 2) ──
+    # The full TreeInput set = these 7 + the 5 CI scalars (already on primary
+    # MetricResult under transposed names) + per-guardrail `direction`. Populated
+    # by finalize_report() from the committed interpreter/analyzer bundles — never
+    # from agent prose. Load-bearing for W3 tree-reproduction. All Optional so a
+    # half-migrated report (missing scalars) resolves to UNVERIFIABLE, not DRAFT.
+    srm_override_resolved: Optional[bool] = None
+    n_observed: Optional[int] = None
+    n_required: Optional[int] = None
+    primary_direction: Optional[Literal["higher_is_better", "lower_is_better", "neither"]] = None
+    mde_pct: Optional[float] = None
+    baseline: Optional[float] = None
+    late_ratio: Optional[float] = None
 
     @field_validator("generated_at")
     @classmethod

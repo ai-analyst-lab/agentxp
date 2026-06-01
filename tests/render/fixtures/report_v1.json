@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "experiment_id": "exp_legacy_001",
+  "generated_at": "2026-05-20T15:42:00Z",
+  "verdict": "SHIP",
+  "verdict_rationale": "Completion +3.2pp [+1.4, +5.0] at 95% CI; latency guardrail clear; effect stable across the run.",
+  "step_fired": 7,
+  "decision_rule_id": "default.ship",
+  "decision_rule_source": "agentxp_default",
+  "diagnostics": {
+    "schema_version": 1,
+    "srm_passed": true,
+    "power_sufficient": true,
+    "audit_paths": {
+      "schema_version": 1,
+      "bundles": [
+        "bundles/analyzer.out.yaml",
+        "bundles/interpreter.out.yaml"
+      ]
+    }
+  },
+  "primary": {
+    "schema_version": 1,
+    "name": "checkout_completion_rate",
+    "type": "primary",
+    "lift_absolute": 0.032,
+    "lift_relative": 17.98,
+    "ci_95_lower": 0.014,
+    "ci_95_upper": 0.05,
+    "ci_90_lower": 0.017,
+    "ci_90_upper": 0.047,
+    "p_value": 0.004,
+    "confidence_label": "highly likely positive",
+    "audit_paths": {
+      "schema_version": 1,
+      "bundles": ["bundles/analyzer.out.yaml"]
+    }
+  },
+  "guardrails": [
+    {
+      "schema_version": 1,
+      "name": "time_to_checkout_p95",
+      "type": "guardrail",
+      "lift_absolute": 0.008,
+      "lift_relative": 0.8,
+      "ci_95_lower": -0.012,
+      "ci_95_upper": 0.028,
+      "ci_90_lower": -0.009,
+      "ci_90_upper": 0.025,
+      "p_value": 0.42,
+      "confidence_label": "inconclusive",
+      "audit_paths": {
+        "schema_version": 1,
+        "bundles": ["bundles/analyzer.out.yaml"]
+      }
+    }
+  ],
+  "negative_controls": [],
+  "segments": [],
+  "edge_case_flags": [],
+  "uncertainty_notes": [
+    {
+      "schema_version": 1,
+      "topic": "novelty",
+      "detail": "Late-window effect is 0.87x early-window — clear of the 0.7 novelty threshold, but only by 0.17.",
+      "audit_link": null
+    }
+  ],
+  "override_justification": null,
+  "audit_paths": {
+    "schema_version": 1,
+    "bundles": [
+      "bundles/analyzer.out.yaml",
+      "bundles/interpreter.out.yaml"
+    ]
+  },
+  "prior_turns_compressed_ref": null
+}
