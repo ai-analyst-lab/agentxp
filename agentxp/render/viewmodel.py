@@ -31,6 +31,7 @@ __all__ = [
     "AuditRow",
     "DesignCard",
     "IndexRowVM",
+    "IndexVM",
     "ReportVM",
     "ViewBundle",
     "Provenance",
@@ -129,16 +130,57 @@ class IndexRowVM(BaseModel):
     """One row in the static experiment-index navigator (W6).
 
     Built from a ReportVM + the resolved render status so the index can show a
-    verdict, a one-line lift, and the verification badge per experiment.
+    verdict, confidence, a one-line lift + CI, and the verification badge per
+    experiment. An experiment that could not be read/validated yields an
+    ERROR row (``error`` set, placeholder display strings, status UNVERIFIABLE)
+    so one bad experiment never aborts the whole index.
     """
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal[1] = 1
     experiment_id: str
     experiment_name: str
     verdict: str
+    confidence_label: str
     lift_str: str
+    ci_95: str
     generated_at: str
     render_status: RenderStatus
+    error: Optional[str] = None
+
+    @classmethod
+    def error_row(cls, experiment_id: str, error: str) -> "IndexRowVM":
+        """A status-only row for an experiment whose report.json can't be read.
+
+        Carries no derived numbers (there is no valid Report to derive from) —
+        just the id, the error marker, and an UNVERIFIABLE badge.
+        """
+        return cls(
+            experiment_id=experiment_id,
+            experiment_name=experiment_id,
+            verdict="—",
+            confidence_label="—",
+            lift_str="—",
+            ci_95="—",
+            generated_at="",
+            render_status=RenderStatus.UNVERIFIABLE,
+            error=error,
+        )
+
+
+class IndexVM(BaseModel):
+    """The cross-experiment navigator projection — a list of rows + tallies.
+
+    Pure projection: ``distill_index`` aggregates already-built rows and counts
+    their statuses. It re-derives nothing; the per-row verdict/lift/CI strings
+    were each formatted once by the single-experiment ``distill()``.
+    """
+    model_config = ConfigDict(extra="forbid")
+    schema_version: Literal[1] = 1
+    rows: list[IndexRowVM]
+    n_total: int
+    n_verified: int
+    n_draft: int
+    n_unverifiable: int
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -171,13 +213,19 @@ class ReportVM(BaseModel):
     charts: ChartData
 
     def to_index_row(self, render_status: RenderStatus) -> IndexRowVM:
-        """Project this VM into an index row, given a resolved render status."""
-        primary_lift = self.metric_table[0].lift_str if self.metric_table else "n/a"
+        """Project this VM into an index row, given a resolved render status.
+
+        Pure projection — reuses the already-formatted primary lift/CI strings
+        rather than reformatting any number.
+        """
+        primary = self.metric_table[0] if self.metric_table else None
         return IndexRowVM(
             experiment_id=self.experiment_id,
             experiment_name=self.experiment_name,
             verdict=self.verdict,
-            lift_str=primary_lift,
+            confidence_label=self.confidence_label,
+            lift_str=primary.lift_str if primary else "n/a",
+            ci_95=primary.ci_95 if primary else "n/a",
             generated_at=self.generated_at,
             render_status=render_status,
         )

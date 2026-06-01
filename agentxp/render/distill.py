@@ -19,12 +19,15 @@ from typing import Optional
 from pathlib import PurePosixPath
 
 from agentxp.schemas.report import MetricResult, Report
+from agentxp.render.provenance import RenderStatus
 from agentxp.render.viewmodel import (
     AuditRow,
     ChartData,
     DesignCard,
     Diagnostics,
     GuardrailViolation,
+    IndexRowVM,
+    IndexVM,
     MetricRow,
     ReportVM,
 )
@@ -195,4 +198,34 @@ def distill(report: Report) -> ReportVM:
     )
 
 
-__all__ = ["distill"]
+# ──────────────────────────────────────────────────────────────────────────
+# distill_index — the pure cross-experiment projection
+# ──────────────────────────────────────────────────────────────────────────
+
+def distill_index(rows: list[IndexRowVM]) -> IndexVM:
+    """Aggregate already-built index rows into an :class:`IndexVM` with tallies.
+
+    PURE: no I/O, no re-derivation. Each row was projected once (via
+    ``ReportVM.to_index_row`` or ``IndexRowVM.error_row``) at the I/O boundary
+    in the index adapter — the only place a render status can be resolved (that
+    needs ``build_provenance``, which is impure). This function never touches a
+    raw ``Report``; it only counts statuses, so the index stays a strict
+    projection over numbers that were each formatted exactly once.
+    """
+    n_verified = sum(1 for r in rows if r.render_status is RenderStatus.VERIFIED)
+    n_draft = sum(
+        1 for r in rows if r.render_status is RenderStatus.DRAFT_UNVERIFIED
+    )
+    n_unverifiable = sum(
+        1 for r in rows if r.render_status is RenderStatus.UNVERIFIABLE
+    )
+    return IndexVM(
+        rows=rows,
+        n_total=len(rows),
+        n_verified=n_verified,
+        n_draft=n_draft,
+        n_unverifiable=n_unverifiable,
+    )
+
+
+__all__ = ["distill", "distill_index"]

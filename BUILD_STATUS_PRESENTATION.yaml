@@ -1,7 +1,7 @@
 project: agentxp Presentation / Shareable-Output Layer
 master_plan: PRESENTATION_LAYER_MASTER_PLAN.md
 protocol: shared/PLANNING_METHODOLOGY.md
-current_wave: 6
+current_wave: 7  # all waves (0-6) complete
 total_waves: 7
 created: 2026-06-01
 
@@ -509,46 +509,46 @@ tasks:
   - id: W6-T1
     wave: 6
     description: "distill_index(list[Report])->IndexVM + IndexRowVM (projection only, never re-derivation)"
-    status: not_started
+    status: done
     depends_on: ["W1-T2"]
     output_files: ["agentxp/render/distill.py", "agentxp/render/viewmodel.py"]
     agent_type: builder
     parallel_group: "W6-A"
-    session: null
-    notes: ""
+    session: 7
+    notes: "Shipped as distill_index(rows: list[IndexRowVM])->IndexVM (pure aggregator) rather than the plan's literal list[Report] — render_status can't be resolved purely (it needs the impure build_provenance), so the index adapter (W6-T2) owns I/O + provenance + per-row isolation, builds the rows, then calls the pure distill_index to count statuses. IndexRowVM extended with confidence_label/ci_95/error + error_row() classmethod (verdict/conf/lift/ci='-', UNVERIFIABLE); IndexVM added (rows + n_total/n_verified/n_draft/n_unverifiable). ReportVM.to_index_row(status) reuses the already-formatted primary lift/CI strings (no reformat)."
 
   - id: W6-T2
     wave: 6
     description: "Index adapter: discover {cwd}/experiments via list.py resolver; per-row isolation (incl. PerfBudgetExceeded->UNVERIFIABLE)"
-    status: not_started
+    status: done
     depends_on: ["W4-T6", "W6-T1"]
     output_files: ["agentxp/render/adapters/index_html.py", "templates/experiment-index.html.j2"]
     agent_type: builder
     parallel_group: "W6-B"
-    session: null
-    notes: "Links out, no iframe; degrades without JS."
+    session: 7
+    notes: "render_index(experiments_root, *, theme) discovers dirs the way cli/list.py does (child dir is an experiment iff it holds state.yaml; sorted for byte-stability) reusing list.py's _resolve_experiments_root in the CLI. _build_row isolates every per-row failure: missing report.json / OSError / bad JSON / ValidationError / distill exception -> IndexRowVM.error_row (status-only, UNVERIFIABLE); build_provenance wrapped in try/except PerfBudgetExceeded (and bare except) -> UNVERIFIABLE — one bad experiment NEVER aborts the page. Then the pure distill_index(rows) tallies statuses. Self-contained single file (inlined brand css + base64 fonts, no CDN); the one <script> is progressive filter/sort (every row server-rendered, complete + usable with JS off). Links OUT via <a href> to {id}/report.html + {id}/audit.html, no iframe. autoescape=True, css the only |safe. .xp-index-* CSS added to components.css (vars-only; muted-grey audit honoured by using --xp-ink-soft, not --xp-muted, on the non-label index selectors). Smoke: HTMLParser-clean, SHIP badge + error row + '2 verified' tally, light+dark paper."
 
   - id: W6-T3
     wave: 6
     description: "--index wiring on report verb (exp_id optional when --index; both/neither -> EXIT_USER_ERROR)"
-    status: not_started
+    status: done
     depends_on: ["W2-T6", "W6-T2"]
     output_files: ["agentxp/cli/report.py"]
     agent_type: builder
     parallel_group: "W6-C"
-    session: null
-    notes: "Same file as Wave-2 report.py tasks — serialize after W2-T6."
+    session: 7
+    notes: "exp_id -> nargs='?' default None; --index flag added. Mutual-exclusivity checked first in main(): --index WITH a positional exp_id -> EXIT_USER_ERROR (named: 'drop the positional exp_id'); neither -> EXIT_USER_ERROR ('nothing to render'). --index routes to _render_index() which reuses list.py's _resolve_experiments_root, defaults --out to {root}/experiments/index.html (the page links out to sibling artifacts, so a relative on-disk location is what makes those links resolve), atomic-writes chmod 600. Per-row isolation lives in the adapter, so the verb never fails over one bad experiment -> EXIT_OK once written."
 
   - id: W6-T4
     wave: 6
     description: "Cross-format equality test (lift/CI/verdict byte-identical across md/html/card/index)"
-    status: not_started
+    status: done
     depends_on: ["W6-T2"]
     output_files: ["tests/render/test_cross_format_equality.py"]
     agent_type: builder
     parallel_group: "W6-D"
-    session: null
-    notes: "Executable proof numbers are formatted exactly once."
+    session: 7
+    notes: "Finalizes one on-disk experiment from the ship fixtures (+ state.yaml so the index walk discovers it), loads report.json once -> distill -> ViewBundle, then asserts the primary lift_str / ci_95 / verdict substrings are byte-identical across MarkdownAdapter, HtmlAdapter, CardAdapter AND render_index. The strings carry no HTML-special chars so autoescape leaves them unchanged. A second test pins that IndexRowVM reuses the distilled VM strings (no reformat). +4 CLI tests in test_report.py for --index (default path, --out override, both-args error, neither-arg error); existing project fixture gained a state.yaml write."
 
 session_log:
   - session: 1
@@ -587,3 +587,9 @@ session_log:
     tasks_completed: ["W5-T1", "W5-T2", "W5-T3"]
     tasks_failed: []
     notes: "Wave 5 built and reviewed — the public/social card ships as HTML (card-as-PNG stays deferred to the agentxp[png] extra). W5-T1 CardAdapter + social-card.html.j2: a pixel-locked 1200x1500 portrait fed by the SAME ViewBundle; masthead + verdict hero + one hero chart (primary lift_bar) + compact callout strip (CI/sample) + compact receipts footer. Reuses html.py's _inline_css/_VERDICT_MODIFIER/_receipts and brand.svg_palette(theme) so the exec and card tiers cannot drift; autoescape=True, css/hero-svg the only |safe; offline (embedded fonts, inline svg, no JS/CDN). Card component vocabulary added to components.css (vars-only; the 1200x1500 px frame is layout, not colour/font; DRAFT ribbon uses var(--xp-fail)/var(--xp-badge-text)). DRAFT_UNVERIFIED strikes a diagonal ribbon ACROSS the verdict hero (never the footer — the footer is the croppable part of a LinkedIn screenshot). Registered in ADAPTERS; CLI builds CardAdapter(theme=--theme); png/pdf are now the deferred formats. W5-T2 STAGES.md share tail updated to offer (h) exec HTML + (p) public card, each render-path-only (`agentxp report <id> --format html|card`), still isatty-guarded + enter-to-skip. W5-T3 test_card_golden.py (12 tests: 5 verdict shapes, DRAFT-ribbon-over-hero present/absent via body-token ordering, receipts footer all 3 statuses, fixed 1200x1500 frame, light+dark paper, byte-determinism, self-containment, cross-format lift/CI/verdict equality card-vs-html-vs-md) + 2 CLI tests (--format card renders self-contained; --audience public->card). Updated test_deferred_format_fails_fast (card->png, asserts agentxp[png]) and test_unknown_format (pdf->xlsx, since pdf is now deferred). Smoke: card well-formed across both themes x 3 statuses, 1 svg, embedded fonts, no external http, ribbon in DRAFT only, ~185KB. Full suite 1322 passed / 63 skipped. current_wave -> 6."
+  - session: 7
+    date: "2026-06-01"
+    wave: 6
+    tasks_completed: ["W6-T1", "W6-T2", "W6-T3", "W6-T4"]
+    tasks_failed: []
+    notes: "Wave 6 built and reviewed — the FINAL wave; the static cross-experiment index navigator ships and the presentation layer is feature-complete (Waves 0-6). W6-T1 shipped distill_index(rows: list[IndexRowVM])->IndexVM (pure aggregator) rather than the plan's literal list[Report]: render_status can't be resolved purely (it needs the impure build_provenance), so the index adapter owns I/O + provenance + per-row isolation, builds the rows, then the pure distill_index counts statuses. IndexRowVM gained confidence_label/ci_95/error + error_row() (status-only, UNVERIFIABLE); IndexVM added (rows + n_total/n_verified/n_draft/n_unverifiable); ReportVM.to_index_row(status) reuses the already-formatted primary lift/CI strings (no reformat). W6-T2 render_index(experiments_root, *, theme) discovers dirs the way cli/list.py does (child is an experiment iff it holds state.yaml; sorted for byte-stability). _build_row isolates EVERY per-row failure: missing report.json / OSError / bad JSON / ValidationError / distill exception -> error_row; build_provenance wrapped (try/except PerfBudgetExceeded + bare except) -> UNVERIFIABLE — one bad experiment NEVER aborts the page. Self-contained single file (inlined brand css + base64 fonts, no CDN); the one <script> is PROGRESSIVE filter/sort (rows server-rendered, complete + usable with JS off); links OUT via <a href> to {id}/report.html + {id}/audit.html (no iframe); autoescape=True, css the only |safe. .xp-index-* CSS added to components.css (vars-only; muted-grey contrast audit honoured by using --xp-ink-soft, not --xp-muted, on the non-label index selectors). W6-T3 report.py: exp_id -> nargs='?'; --index flag; mutual-exclusivity checked first (both -> 'drop the positional exp_id'; neither -> 'nothing to render'); _render_index reuses list.py's _resolve_experiments_root, defaults --out to {root}/experiments/index.html, atomic-writes chmod 600, returns EXIT_OK once written. W6-T4 test_cross_format_equality.py: one finalized experiment, loaded + distilled ONCE, primary lift_str/ci_95/verdict asserted byte-identical across md/html/card/index (autoescape leaves the chars unchanged) + a test pinning IndexRowVM reuses the distilled strings; +4 CLI --index tests (existing project fixture gained a state.yaml write). Review loop caught + fixed the muted-grey audit violation (5 index selectors initially used var(--xp-muted) -> switched to --xp-ink-soft). Smoke: index HTMLParser-clean across light+dark, SHIP badge + error row + tally, CLI both/neither->EXIT_USER_ERROR, --index->EXIT_OK + file written. Full suite 1328 passed / 63 skipped. current_wave -> 7 (all waves complete)."

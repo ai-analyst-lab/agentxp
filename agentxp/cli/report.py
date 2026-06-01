@@ -10,7 +10,8 @@ Surfaces: ``glance`` (3-line terminal default on a TTY), ``md`` (the full
 verdict-first readout, default when piped), ``html`` (exec one-pager, W4) and
 ``card`` (1200×1500 social card, W5). ``png``/``pdf`` are recognised so the verb
 can fail fast with a "ships in the agentxp[png] extra" note rather than an opaque
-error.
+error. With ``--index`` (and no positional exp_id) it renders the static
+cross-experiment navigator (W6) to disk instead of one report.
 
 Source spec: PRESENTATION_LAYER_MASTER_PLAN.md §Wave 2.
 """
@@ -61,7 +62,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "exp_id",
-        help="Experiment id (directory name under {project}/experiments/).",
+        nargs="?",
+        default=None,
+        help="Experiment id (directory name under {project}/experiments/). "
+        "Omit it (and pass --index) to render the cross-experiment navigator.",
+    )
+    parser.add_argument(
+        "--index",
+        action="store_true",
+        help="Render the static cross-experiment index instead of one report. "
+        "Mutually exclusive with a positional exp_id.",
     )
     parser.add_argument(
         "--project",
@@ -120,10 +130,60 @@ def _resolve_format(args: argparse.Namespace, *, isatty: bool) -> str:
     return "glance" if isatty else "md"
 
 
+def _render_index(args: argparse.Namespace) -> int:
+    """Render the cross-experiment navigator to a file (default or --out).
+
+    Reuses ``list.py``'s resolver for the experiments root so discovery matches
+    ``agentxp list`` exactly. Writes to disk by default (the page links out to
+    sibling per-experiment artifacts, so a relative on-disk location is what
+    makes those links resolve); ``--out`` overrides the path. Per-row isolation
+    lives in the adapter, so this never fails over one bad experiment — it
+    returns EXIT_OK once the page is written.
+    """
+    from agentxp.cli.list import _resolve_experiments_root
+    from agentxp.render.adapters.index_html import render_index
+
+    experiments_root = _resolve_experiments_root(args.project)
+    out_path = args.out if args.out is not None else experiments_root / "index.html"
+
+    payload = render_index(experiments_root, theme=args.theme)
+
+    from agentxp.audit.storage import _atomic_write_bytes
+
+    try:
+        _atomic_write_bytes(out_path, payload.encode("utf-8"), mode=0o600)
+    except OSError as e:
+        print(f"failed to write {out_path}: {e}", file=sys.stderr)
+        return EXIT_FATAL
+    if not args.quiet:
+        print(f"wrote: {out_path}")
+    return EXIT_OK
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     """argparse entry. Returns an EXIT_* code (see exit_codes.py)."""
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    # --index and a positional exp_id are mutually exclusive: exactly one names
+    # what to render. Both, or neither, is a usage error with a named reason.
+    if args.index and args.exp_id is not None:
+        print(
+            "--index renders the whole navigator; drop the positional exp_id "
+            f"(got exp_id={args.exp_id!r} with --index)",
+            file=sys.stderr,
+        )
+        return EXIT_USER_ERROR
+    if not args.index and args.exp_id is None:
+        print(
+            "nothing to render: pass an experiment id, or --index for the "
+            "cross-experiment navigator",
+            file=sys.stderr,
+        )
+        return EXIT_USER_ERROR
+
+    if args.index:
+        return _render_index(args)
 
     # --format and --audience are mutually exclusive — EXCEPT for html, where
     # --audience exec|skeptic configures the adapter's audit-trail switch rather

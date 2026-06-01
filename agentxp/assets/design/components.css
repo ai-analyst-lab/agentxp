@@ -291,3 +291,90 @@
   padding: 18px 160px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
 }
+
+/* ── experiment index — the cross-experiment static navigator ─────────────── */
+/* A wide reading surface (a table, not a card), so it sets its own max-width.
+ * Every colour, font, and rule resolves through the brand vars; nothing here
+ * is a literal hex. The status pills reuse .xp-render-status from the footer. */
+.xp-index {
+  max-width: 72rem;
+}
+.xp-index-head {
+  margin-bottom: 1.5rem;
+}
+.xp-index-tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+  font-family: var(--xp-font-mono);
+  font-size: var(--xp-type-label);
+}
+.xp-index-total {
+  color: var(--xp-ink-soft);
+}
+.xp-index-controls {
+  margin-bottom: 1rem;
+}
+.xp-index-filter {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.75rem;
+  font-family: var(--xp-font-sans);
+  font-size: var(--xp-type-body);
+  color: var(--xp-ink);
+  background: var(--xp-paper-raised);
+  border: 1px solid var(--xp-rule);
+  border-radius: 0.3rem;
+}
+.xp-index-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--xp-type-label);
+}
+.xp-index-table th {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 2px solid var(--xp-rule);
+  font-family: var(--xp-font-sans);
+  font-size: var(--xp-type-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--xp-ink-soft);
+}
+.xp-index-table td {
+  padding: 0.6rem;
+  border-bottom: 1px solid var(--xp-rule);
+  vertical-align: baseline;
+  color: var(--xp-ink);
+}
+.xp-index-num {
+  font-family: var(--xp-font-mono);
+}
+.xp-index-name {
+  display: block;
+  font-weight: 600;
+  color: var(--xp-ink);
+}
+.xp-index-id {
+  display: block;
+  font-family: var(--xp-font-mono);
+  font-size: var(--xp-type-eyebrow);
+  color: var(--xp-ink-soft);
+}
+.xp-index-links a {
+  font-family: var(--xp-font-mono);
+  color: var(--xp-ink-soft);
+  margin-right: 0.75rem;
+}
+.xp-index-error {
+  font-family: var(--xp-font-mono);
+  color: var(--xp-fail);
+}
+.xp-index-row--error td {
+  color: var(--xp-ink-soft);
+}
+.xp-index-empty {
+  color: var(--xp-ink-soft);
+}

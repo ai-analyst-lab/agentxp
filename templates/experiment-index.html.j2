@@ -1,0 +1,141 @@
+{#
+  experiment-index.html.j2 — the static cross-experiment navigator.
+
+  Rendered by agentxp/render/adapters/index_html.py with autoescape=True. Every
+  value is an already-escaped string EXCEPT `css`, a fragment our own brand layer
+  generated and marked |safe. No external assets, no CDN.
+
+  The one bit of JS (filter box + sortable headers) is PROGRESSIVE: every row is
+  server-rendered, so disabling JS leaves a complete, readable table. Links go
+  OUT to the per-experiment artifacts — there is no iframe.
+#}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agentxp — experiment index</title>
+<style>{{ css|safe }}</style>
+</head>
+<body>
+<main class="xp-doc xp-index">
+
+  <header class="xp-index-head">
+    <span class="xp-eyebrow">agentxp</span>
+    <h1 class="xp-headline">Experiment index</h1>
+    <p class="xp-index-tally">
+      <span class="xp-render-status xp-render-status--verified">{{ index.n_verified }} verified</span>
+      <span class="xp-render-status xp-render-status--draft">{{ index.n_draft }} draft</span>
+      <span class="xp-render-status xp-render-status--unverifiable">{{ index.n_unverifiable }} unverifiable</span>
+      <span class="xp-index-total">{{ index.n_total }} total</span>
+    </p>
+  </header>
+
+  <div class="xp-index-controls">
+    <input
+      type="search"
+      id="xp-index-filter"
+      class="xp-index-filter"
+      placeholder="Filter by name, id, verdict, or status…"
+      aria-label="Filter experiments">
+  </div>
+
+  {% if rows %}
+  <table class="xp-index-table" id="xp-index-table">
+    <thead>
+      <tr>
+        <th data-sort="text" scope="col">Experiment</th>
+        <th data-sort="text" scope="col">Verdict</th>
+        <th data-sort="text" scope="col">Confidence</th>
+        <th data-sort="text" scope="col">Lift</th>
+        <th data-sort="text" scope="col">95% CI</th>
+        <th data-sort="text" scope="col">Status</th>
+        <th data-sort="text" scope="col">Updated</th>
+        <th scope="col">Links</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="xp-index-row{% if r.error %} xp-index-row--error{% endif %}"
+          data-filter="{{ r.experiment_name }} {{ r.experiment_id }} {{ r.verdict }} {{ r.status }}">
+        <td>
+          <span class="xp-index-name">{{ r.experiment_name }}</span>
+          <span class="xp-index-id">{{ r.experiment_id }}</span>
+        </td>
+        <td>
+          <span class="xp-verdict-badge xp-verdict-badge--{{ r.verdict_modifier }}">
+            <span class="xp-verdict-word">{{ r.verdict }}</span>
+          </span>
+        </td>
+        <td>{{ r.confidence_label }}</td>
+        <td class="xp-index-num">{{ r.lift_str }}</td>
+        <td class="xp-index-num">{{ r.ci_95 }}</td>
+        <td>
+          <span class="xp-render-status xp-render-status--{{ r.status_class }}">{{ r.status }}</span>
+        </td>
+        <td class="xp-index-num">{{ r.generated_at }}</td>
+        <td class="xp-index-links">
+          {% if r.error %}
+          <span class="xp-index-error">{{ r.error }}</span>
+          {% else %}
+          <a href="{{ r.report_href }}">report</a>
+          <a href="{{ r.audit_href }}">audit</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="xp-index-empty">
+    No experiments found. Start one with <code>agentxp /experiment</code>.
+  </p>
+  {% endif %}
+
+</main>
+
+<script>
+/* Progressive enhancement only — the table above is fully server-rendered.
+   With JS disabled, every row stays visible and the index remains usable. */
+(function () {
+  "use strict";
+  var table = document.getElementById("xp-index-table");
+  if (!table) { return; }
+
+  var filter = document.getElementById("xp-index-filter");
+  var tbody = table.tBodies[0];
+
+  if (filter) {
+    filter.addEventListener("input", function () {
+      var q = filter.value.toLowerCase();
+      var rows = tbody.rows;
+      for (var i = 0; i < rows.length; i++) {
+        var hay = (rows[i].getAttribute("data-filter") || "").toLowerCase();
+        rows[i].style.display = hay.indexOf(q) === -1 ? "none" : "";
+      }
+    });
+  }
+
+  var headers = table.tHead.rows[0].cells;
+  for (var c = 0; c < headers.length; c++) {
+    (function (col, th) {
+      if (!th.hasAttribute("data-sort")) { return; }
+      th.style.cursor = "pointer";
+      var asc = true;
+      th.addEventListener("click", function () {
+        var rows = Array.prototype.slice.call(tbody.rows);
+        rows.sort(function (a, b) {
+          var x = (a.cells[col].textContent || "").trim().toLowerCase();
+          var y = (b.cells[col].textContent || "").trim().toLowerCase();
+          if (x < y) { return asc ? -1 : 1; }
+          if (x > y) { return asc ? 1 : -1; }
+          return 0;
+        });
+        asc = !asc;
+        for (var i = 0; i < rows.length; i++) { tbody.appendChild(rows[i]); }
+      });
+    })(c, headers[c]);
+  }
+})();
+</script>
+</body>
+</html>

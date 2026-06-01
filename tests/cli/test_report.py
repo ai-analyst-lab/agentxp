@@ -42,6 +42,9 @@ def project(tmp_path: Path) -> Path:
         + "\n",
         encoding="utf-8",
     )
+    # state.yaml so the index walk (keyed on its presence, like `agentxp list`)
+    # discovers this experiment.
+    (exp / "state.yaml").write_text("experiment_id: exp_001\n", encoding="utf-8")
     finalize_report(exp)
     return tmp_path
 
@@ -229,6 +232,41 @@ def test_tampered_chain_hash_is_mismatch_warning(project, capsys):
     assert code == EXIT_WARNING
     assert "Chain: MISMATCH" in out
     assert "draft_unverified" in out
+
+
+def test_index_writes_navigator_to_default_path(project, capsys):
+    code, out, err = _run(["--index", "--project", str(project)], capsys)
+    assert code == EXIT_OK
+    index_path = project / "experiments" / "index.html"
+    assert index_path.exists()
+    html = index_path.read_text()
+    assert html.startswith("<!doctype html>")
+    assert "Experiment index" in html
+    assert "SHIP" in html  # the one finalized experiment's verdict
+
+
+def test_index_and_exp_id_together_is_user_error(project, capsys):
+    code, out, err = _run(
+        ["exp_001", "--index", "--project", str(project)], capsys
+    )
+    assert code == EXIT_USER_ERROR
+    assert "drop the positional exp_id" in err
+
+
+def test_neither_index_nor_exp_id_is_user_error(project, capsys):
+    code, out, err = _run(["--project", str(project)], capsys)
+    assert code == EXIT_USER_ERROR
+    assert "nothing to render" in err
+
+
+def test_index_out_overrides_default_path(project, tmp_path, capsys):
+    dest = tmp_path / "nav.html"
+    code, out, err = _run(
+        ["--index", "--out", str(dest), "--project", str(project)], capsys
+    )
+    assert code == EXIT_OK
+    assert dest.exists()
+    assert not (project / "experiments" / "index.html").exists()
 
 
 def test_corrupt_report_json_is_fatal(project, capsys):
