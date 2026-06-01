@@ -130,6 +130,46 @@ def _resolve_format(args: argparse.Namespace, *, isatty: bool) -> str:
     return "glance" if isatty else "md"
 
 
+def _render_companion_artifacts(
+    args: argparse.Namespace, experiments_root: Path
+) -> None:
+    """Render the per-experiment artifacts every index row links OUT to.
+
+    The index links each row to ``{dir}/report.html`` and ``{dir}/audit.html``;
+    those are dead links unless something writes them. ``--index`` owns that:
+    for each discovered experiment it shells the existing ``report`` and
+    ``audit`` verbs (render path only, no pipeline re-run) into the canonical
+    on-disk locations, so the navigator's links resolve next to it.
+
+    Per-experiment isolation mirrors the adapter's per-row isolation — a verb
+    that exits non-zero (an experiment whose report.json can't render) simply
+    leaves no artifact, and the matching index row is already an error row with
+    no link. One bad experiment never aborts the companion pass.
+    """
+    from agentxp.cli import audit as audit_cli
+    from agentxp.render.adapters.index_html import _discover
+
+    project_args = (
+        ["--project", str(args.project)] if args.project is not None else []
+    )
+    for exp_dir in _discover(experiments_root):
+        name = exp_dir.name
+        try:
+            main(
+                [name, "--format", "html", "--theme", args.theme,
+                 "--out", str(exp_dir / "report.html"), "--quiet", *project_args]
+            )
+        except Exception:  # noqa: BLE001 — a bad experiment never aborts the pass
+            pass
+        try:
+            audit_cli.main(
+                [name, "--html",
+                 "--out", str(exp_dir / "audit.html"), "--quiet", *project_args]
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _render_index(args: argparse.Namespace) -> int:
     """Render the cross-experiment navigator to a file (default or --out).
 
@@ -139,12 +179,17 @@ def _render_index(args: argparse.Namespace) -> int:
     makes those links resolve); ``--out`` overrides the path. Per-row isolation
     lives in the adapter, so this never fails over one bad experiment — it
     returns EXIT_OK once the page is written.
+
+    Before the page itself, it renders each row's companion artifacts
+    (``report.html`` + ``audit.html``) so the navigator's out-links resolve.
     """
     from agentxp.cli.list import _resolve_experiments_root
     from agentxp.render.adapters.index_html import render_index
 
     experiments_root = _resolve_experiments_root(args.project)
     out_path = args.out if args.out is not None else experiments_root / "index.html"
+
+    _render_companion_artifacts(args, experiments_root)
 
     payload = render_index(experiments_root, theme=args.theme)
 

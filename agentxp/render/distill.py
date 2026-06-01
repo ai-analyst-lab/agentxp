@@ -182,9 +182,9 @@ def distill(report: Report) -> ReportVM:
 
     return ReportVM(
         experiment_id=report.experiment_id,
-        # The canonical Report has no separate display name; use the id until a
-        # name field is added. Kept as a single source so adapters never guess.
-        experiment_name=report.experiment_id,
+        # Human-readable title when the brief recorded one (schema v2 `name`),
+        # else the id. Single source so adapters never guess.
+        experiment_name=report.name or report.experiment_id,
         verdict=str(report.verdict),
         confidence_label=str(report.primary.confidence_label.value),
         rationale_one_line=report.verdict_rationale,  # verbatim agent prose

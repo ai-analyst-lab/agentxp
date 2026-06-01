@@ -132,7 +132,11 @@ def _build_row(exp_dir: Path) -> IndexRowVM:
     except Exception:  # noqa: BLE001 — never crash the index over verification
         status = RenderStatus.UNVERIFIABLE
 
-    return vm.to_index_row(status)
+    # Row identity is the DISCOVERY directory name, not the report's embedded
+    # experiment_id — that is what every CLI verb (`agentxp report/audit <id>`)
+    # resolves against, so it is what the out-links must point at. The embedded
+    # name stays as the human-readable display string (experiment_name).
+    return vm.to_index_row(status).model_copy(update={"experiment_id": exp_dir.name})
 
 
 def _row_view(row: IndexRowVM) -> dict:

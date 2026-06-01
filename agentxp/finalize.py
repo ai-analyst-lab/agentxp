@@ -377,6 +377,7 @@ def finalize_report(exp_dir: Path) -> Path:
         locked_brief_hash=locked_brief_hash,
         agentxp_version=agentxp.__version__,
         # design-card
+        name=brief.get("name"),
         hypothesis=(brief.get("hypothesis") or {}).get("text"),
         power=design.get("power"),
         ci_level=0.95,

@@ -287,6 +287,7 @@ class Report(BaseModel):
     agentxp_version: Optional[str] = None  # agentxp.__version__ at finalize time
 
     # ── W_pres design-card fields (schema_version 2) — optional, defaulted ──
+    name: Optional[str] = None  # human-readable experiment title (experiment.yaml `name`); display only, falls back to experiment_id
     hypothesis: Optional[str] = None  # the pre-registered hypothesis prose (display only)
     power: Optional[float] = None  # design.power
     ci_level: float = 0.95  # confidence level the headline CI is reported at
