@@ -29,8 +29,10 @@ Work the modules in order. Each one has the same four-beat shape:
    as if to a student. If you can't, the module isn't done. Explaining is the
    test, and it's the exact skill a public release demands.
 
-All ten modules (0–9) are written and live next to this file as `NN_slug.md`.
-This README is the durable map; work the modules in order. Modules beyond v0.1
+All eleven modules (0–10) are written and live next to this file as `NN_slug.md`.
+Modules 0–9 teach the *analysis* spine (CSV → verdict → integrity chain); Module 10
+teaches the *presentation / share-out* spine (`report.json` → renderers). This
+README is the durable map; work the modules in order. Modules beyond v0.1
 (Phase 5 spine, chained amendments, live-cred verification, causal inference) get
 written in the same four-beat shape when the code reaches them — see Module 8's
 "Where to go after v0.1."
@@ -84,10 +86,11 @@ experiment" means: `agentxp audit <exp_id>` in the shell.
 | 7 | **Build history & judgment** | How was it built? What got cut, and why? | Defend a keep-vs-cut call from the audit | Reconstruct why amendments/ was KEPT, lifecycle wasn't deleted |
 | 8 | **Release readiness (capstone)** | Can you ship and defend it? | Demo Stage 0→8 to me + survive the skeptic drill | Pass the full hostile-reviewer gauntlet |
 | 9 | **Extend it (build-to-break)** | Can you change it without breaking the spine? | Add an adapter, a verdict, and rename a stage — predict the blast radius first | Route any proposed change to the guardrail that catches it (chain vs coherence vs closure) |
+| 10 | **The presentation layer** | How does a `report.json` become shareable without losing the proof? | Trace one number to six formats; tamper the chain and watch every format stamp DRAFT; add a `txt` adapter | State the pure-renderer axiom, defend the pure/impure split, extend the layer without re-deriving a number |
 
 ---
 
-## The aha index (the seven load-bearing insights)
+## The aha index (the nine load-bearing insights)
 
 If you remember nothing else, remember these. Each is the moment a design choice
 stops feeling arbitrary and starts feeling inevitable. They're marked inline with
@@ -102,6 +105,8 @@ a `> **Aha —**` callout in the module where they land — this index is the ma
 | 5 | A test that stubs the thing it tests always passes and proves nothing. | 7 | Green ≠ correct; "green-but-broken" is a category, not a fluke. |
 | 6 | "Is this code necessary?" is the wrong question; "what entry point reaches it?" is the right one. | 7 | Necessity isn't a property of the code — it's reachability you can grep for. |
 | 7 | Predict the blast radius, *then* run the suite. | 9 | The gap between your prediction and the red output is the exact shape of a coupling you didn't understand. |
+| 8 | A renderer that does arithmetic is a second source of truth in disguise. | 10 | "Be careful with numbers" is a wish; one pure formatter + string-typed view-model fields is a wall. |
+| 9 | Polish and proof must arrive in the same object, or polish will outrun proof. | 10 | You don't keep receipts attached by discipline; you bundle them so an adapter *cannot* emit the verdict while dropping the receipt. |
 
 ---
 
@@ -149,6 +154,7 @@ yourself.
 - [ ] Module 7 — Build history & judgment
 - [ ] Module 8 — Release readiness (capstone)
 - [ ] Module 9 — Extend it (build-to-break)
+- [ ] Module 10 — The presentation layer (share-out without losing the proof)
 - [ ] Appendix — [the one-number trace](trace.md) (read after Module 8)
 
 ---
@@ -182,5 +188,9 @@ curriculum having read all of them:
 - `OVER_ENGINEERING_REVIEW.md` — what was deliberately *not* built, and why.
 - `BUILD_STATUS.yaml` — current build state, what ships `live_unverified`.
 - `.claude/skills/experiment/SKILL.md` + `STAGES.md` — the orchestrator spec.
+- `PRESENTATION_LAYER_MASTER_PLAN.md` + `BUILD_STATUS_PRESENTATION.yaml` — the
+  multi-persona master plan and the Wave 0–8 build log for the share-out spine
+  (Module 10): the pure-renderer axiom, `distill()`/`build_provenance()` split,
+  the adapter Protocol, and the format/audience/tier matrix.
 - `experimentation-platform/OPENXP_V01_PLAN.md` (in the monorepo) — the locked
   plan: §3 journey, §5 agents, §10 orchestrator API, §22 interpreter tree.
