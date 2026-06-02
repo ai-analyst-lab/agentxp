@@ -11,15 +11,14 @@ Three-state status (one-directional — any "can't check" demotes, never promote
 
   - **VERIFIED** (green): requires ALL of — ``log.jsonl`` present, stored
     ``chain_hash`` present, recomputed hash == stored, ``validate_chain`` ok,
-    and the verdict tree reproduces. Achievable only once the full live flow
-    lands in W3.
+    and the verdict tree reproduces.
   - **DRAFT_UNVERIFIED** (red): an ACTIVE failure — a hash mismatch or a
     tree-reproduction failure. An accusation; reserved for real contradictions.
   - **UNVERIFIABLE** (neutral gray): "can't check" — schema_version 1, or
     ``chain_hash``/``log.jsonl`` absent, or a required tree-reproduction scalar
     is missing (half-migrated v2). NOT an accusation.
 
-The full live flow (W3) runs in strict precedence: (0) the "can't-check" gate;
+The live flow runs in strict precedence: (0) the "can't-check" gate;
 (1) recompute ``canonical_chain_hash``; (2) compare to the stored hash;
 (3) ``validate_chain`` (perf-budget blow-out degrades to UNVERIFIABLE, never an
 accusation); (4) verdict-tree reproduction (``receipts._reproduce_verdict``);
@@ -82,7 +81,8 @@ class Provenance(BaseModel):
     agentxp_version: Optional[str] = None
     report_schema_version: int = 2
 
-    # ── verified receipts (recomputed from disk — None until W2/W3 run them) ──
+    # ── verified receipts (recomputed from disk by build_provenance; None only
+    #    when the can't-check gate trips before they are computed) ──
     chain_hash_live: Optional[str] = None
     hash_matches: Optional[bool] = None
     chain_validation_ok: Optional[bool] = None
@@ -93,13 +93,13 @@ class Provenance(BaseModel):
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# Can't-check gate — the precedence-zero step, live from Wave 1
+# Can't-check gate — the precedence-zero step
 # ──────────────────────────────────────────────────────────────────────────
 
 def _cant_check_reason(report: Report, exp_dir: Path) -> Optional[str]:
     """Return a reason string iff the report CANNOT be verified, else None.
 
-    Runs BEFORE any reproduction is attempted (W3 precedence step 0). A report
+    Runs BEFORE any reproduction is attempted (precedence step 0). A report
     that trips this gate resolves to UNVERIFIABLE — never DRAFT_UNVERIFIED — so
     a missing input is never surfaced as an accusation of tampering.
     """
@@ -121,15 +121,15 @@ def _cant_check_reason(report: Report, exp_dir: Path) -> Optional[str]:
 def build_provenance(report: Report, exp_dir: Path) -> Provenance:
     """Recompute authenticity receipts for ``report`` rooted at ``exp_dir``.
 
-    Wave 1 behavior: populate the recorded receipts, run the can't-check gate,
-    and resolve UNVERIFIABLE either for a gate trip or for the not-yet-run live
-    flow. W2 adds the minimal hash recompute; W3 adds full ``validate_chain`` +
-    tree reproduction and the VERIFIED / DRAFT_UNVERIFIED resolution.
+    Runs the full live flow: populate the recorded receipts, run the can't-check
+    gate (returns UNVERIFIABLE on a trip), then recompute the chain hash, run
+    ``validate_chain``, reproduce the verdict tree, and resolve VERIFIED /
+    DRAFT_UNVERIFIED / UNVERIFIABLE per the strict precedence above.
 
     Call-shape note: ``validate_chain`` takes ``(experiment_id, *, _root=...)``,
-    not an ``exp_dir`` — so callers split ``exp_dir`` into
-    ``experiment_id = exp_dir.name`` and ``root = exp_dir.parent``. W1 records
-    this split in ``experiment_id`` / ``replay_command``; W3 issues the call.
+    not an ``exp_dir`` — so this splits ``exp_dir`` into
+    ``experiment_id = exp_dir.name`` and ``root = exp_dir.parent`` and issues the
+    call with that split.
     """
     exp_dir = Path(exp_dir)
     experiment_id = exp_dir.name
