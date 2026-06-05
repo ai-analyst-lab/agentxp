@@ -1,0 +1,24 @@
+schema_version: 2
+experiment_id: exp_fb984821
+created_at: '2026-06-05T18:40:29.717923Z'
+updated_at: '2026-06-05T18:40:29.717923Z'
+status: draft
+source_type: duckdb
+source_path: sample-data/agentxp_demo.duckdb
+warehouse_profile: null
+registered_as: agentxp_demo
+fingerprint:
+  schema_version: 1
+  rows: 1302753
+  cols: 27
+  schema_sha256: f641041d18742cbe98c8864b8af455a882c869d89981d3db0b9d2d40bcc73a22
+  profiled_at: '2026-06-05T18:40:29.717923Z'
+fact_source_bindings: []
+assignment_binding:
+  schema_version: 1
+  assignment: assignments
+  inline: false
+  variant_column: null
+ready_for_analysis: false
+pruned: false
+optional_useful_events: []

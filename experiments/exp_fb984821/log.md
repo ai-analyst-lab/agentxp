@@ -7,3 +7,4 @@
 - `2026-06-05T18:36:32.637346+00:00` — designer drafted brief (primary=conversion_rate, MDE=7% rel, n_required=59436, 3 guardrails)
 - `2026-06-05T18:38:17.902191+00:00` — designer revised brief — tightened cohort to declare assignment trigger explicitly (per critic warn)
 - `2026-06-05T18:39:17.323444+00:00` — brief — mechanical fix: cohort SQL references page_event.event_at (not event_ts; per critic, matches page_event semantic model)
+- `2026-06-05T18:40:35.336895+00:00` — data plan drafted (source=duckdb sample-data/agentxp_demo.duckdb; assignment_binding=assignments inline=false; fingerprint computed)
