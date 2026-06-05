@@ -13,3 +13,4 @@
 - `2026-06-05T20:09:00+00:00` — power-feasibility check: n_required=115,518 ≤ units_available=137,500; headroom 21,982 users (≈2.4 days of accrual at 9,167/day). PASS — seal not refused.
 - `2026-06-05T20:13:00+00:00` — brief SEALED via seal_brief() — R11 wall crossed. design_chain_hash=28386f7e50030f85... metric_snapshot covers conversion_rate, revenue_per_user, page_load_time, cart_abandonment_rate. Three-part integrity lock verified via verify_or_raise().
 - `2026-06-05T20:14:00+00:00` — design-brief share-tail rendered (VERIFIED) at readouts/design_brief/2026-06-05T195315/exec.md. Design verb closed.
+- `2026-06-05T20:16:00+00:00` — share-tails re-rendered in html + pdf: design_brief/2026-06-05T195524/exec.{html,pdf} (VERIFIED), intent/2026-06-05T195526/exec.{html,pdf} (DRAFT_UNVERIFIED)
