@@ -1,0 +1,100 @@
+schema_version: 1
+brief_content:
+  schema_version: 1
+  hypothesis: 'Relocating the Buy Now button on the product detail page from a
+
+    below-fold to an above-fold position, holding all other page elements
+
+    constant, raises the per-user probability of placing at least one order
+
+    during the exposure window, with assignment unitised at user_id and the
+
+    cohort defined as users with one or more first-exposure events on the
+
+    product detail page.
+
+    '
+  primary_metric: conversion_rate
+  primary_metric_type: proportion
+  primary_decision_rule: "Ship if the two-sided 95% confidence interval on the treatment-minus-control\n\
+    difference in conversion_rate excludes zero on the higher_is_better side \u2014\
+    \ni.e., ci_low > 0 \u2014 and no guardrail breaches its non-inferiority margin.\n\
+    A treatment effect below the 5.0% relative MDE (absolute difference < 0.005\n\
+    on a 0.10 baseline) is permitted to fail this rule even if the point\nestimate\
+    \ is positive, because the trial is not powered to resolve smaller\neffects at\
+    \ \u03B1 = 0.05 with 80% power.\n"
+  mde_text: 5.0% relative (absolute 0.005 on a 0.10 baseline)
+  mde_pct: 5.0
+  baseline: 0.1
+  n_required: 115518
+  guardrails:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    nim_relative: -0.01
+  - metric_name: page_load_time
+    direction: lower_is_better
+    nim_relative: 0.05
+  - metric_name: cart_abandonment_rate
+    direction: lower_is_better
+    nim_relative: 0.05
+  cohorts_summary:
+  - all assigned users with a product_view first-exposure event in the window
+  cohorts:
+  - name: all_assigned
+    definition: 'Users in the assignment semantic model with experiment_id =
+
+      ''exp_6dd72d0b'' and arm in (''control'', ''treatment''); first exposure
+
+      defined as the user''s earliest page_event with event_name =
+
+      ''product_view'' at or after assignment.first_exposure_at. Metric
+
+      attribution uses event_at >= assignment.first_exposure_at for all
+
+      page_event-sourced metrics and ordered_at >= assignment.first_exposure_at
+
+      for order-sourced metrics, consistent with the catalog''s first-exposure
+
+      attribution convention.
+
+      '
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_ratio_text: 50 / 50
+  primary_direction: higher_is_better
+  late_ratio: null
+design_chain_hash: 28386f7e50030f856c8b50c8318adbe238a94dc5fc2ea3f835d41cbe4355a39e
+metric_snapshot:
+  conversion_rate: f775e246e2992c91fa7a04f5d22bb93d2cb9ed5078144479b7792e6cdf9a5fe1
+  revenue_per_user: c4742f81560b2836b851f2c17bdd1bd3cb102fdf14a69a04cd9170b3cf9d69ae
+  page_load_time: f1914747b5fdf7aac000b3991e59262b5871c3fe85bfc18a82e8bfc7084563e4
+  cart_abandonment_rate: 6498a159e387655f28f9949108bee2f9954e7078afa745f6f0430c2c5eb36db5
+expected_shape:
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_count_ratio:
+    control: 0.5
+    treatment: 0.5
+  cohort_definitions:
+  - 'all_assigned: Users in the assignment semantic model with experiment_id =
+
+    ''exp_6dd72d0b'' and arm in (''control'', ''treatment''); first exposure
+
+    defined as the user''s earliest page_event with event_name =
+
+    ''product_view'' at or after assignment.first_exposure_at. Metric
+
+    attribution uses event_at >= assignment.first_exposure_at for all
+
+    page_event-sourced metrics and ordered_at >= assignment.first_exposure_at
+
+    for order-sourced metrics, consistent with the catalog''s first-exposure
+
+    attribution convention.'
+sealed_at: '2026-06-05T19:52:39.167221Z'
+sealed_by: shane@aieval.ai
+agentxp_version: 0.1.0
