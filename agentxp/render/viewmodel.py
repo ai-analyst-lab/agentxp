@@ -308,22 +308,63 @@ class DesignBriefVM(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
 
+    # ── Identity ──
     experiment_id: str
-    hypothesis_text: str
+    display_name: str = ""           # editorial headline ("Buy now above the fold")
+    owner_team: str = ""             # e.g. "Growth · Checkout"
+
+    # ── Hypothesis / mechanism prose ──
+    hypothesis_text: str             # canonical hypothesis paragraph
+    mechanism_prose: str = ""        # "why we think this works"
+    historical_baseline_context: str = ""  # optional context line
+
+    # ── Primary metric + decision rule ──
     primary_metric_name: str
-    primary_decision_rule: str  # rendered string
-    mde_text: str  # e.g. "+2.0% relative"
-    power_text: str  # e.g. "80% at α=0.05, n_required=24,572"
-    guardrails_summary: list[str]  # one line per guardrail
-    cohorts_summary: list[str]
+    primary_metric_type: str = "proportion"   # proportion | mean
+    primary_direction: str = "higher_is_better"
+    primary_decision_rule: str       # full prose
+    decision_rule_short: str = ""    # one-line summary for the TL;DR
+    secondary_metric_names: list[str] = Field(default_factory=list)
+
+    # ── Power / sample ──
+    mde_text: str
+    baseline: float = 0.0
+    power_text: str                  # one-line summary
+    n_per_group: int = 0
+    n_total: int = 0
+    duration_text: str = ""          # "~7.7 days at 7,735/day accrual"
+
+    # ── Guardrails + cohorts ──
+    guardrails: list[dict] = Field(default_factory=list)  # [{metric_name, direction, nim_relative}, ...]
+    guardrails_summary: list[str] = Field(default_factory=list)
+    cohorts: list[str] = Field(default_factory=list)      # full prose entries
+    cohorts_summary: list[str] = Field(default_factory=list)
     assignment_unit: Literal["user_id", "session_id", "device_id", "account_id"]
-    expected_arm_ratio_text: str  # e.g. "50/50 control / treatment"
-    # Integrity-lock display (first 12 chars for receipt strip)
+    arms: list[str] = Field(default_factory=list)
+    expected_arm_ratio_text: str
+
+    # ── Section prose (template-driven, derived in distill) ──
+    at_a_glance_prose: str = ""
+    metrics_section_prose: str = ""
+    power_section_prose: str = ""
+    assignment_section_prose: str = ""
+
+    # ── Power curve (inline SVG polyline string + axis tick labels) ──
+    power_curve_points: str = ""                                  # svg polyline 'x,y x,y …'
+    power_x_ticks: list[dict] = Field(default_factory=list)       # [{x, label}, ...]
+    power_y_ticks: list[dict] = Field(default_factory=list)       # [{y, label}, ...]
+    design_x: float = 0.0                                         # design-point svg x
+    design_y: float = 0.0                                         # design-point svg y
+
+    # ── Integrity lock ──
+    design_chain_hash: str = ""
     design_chain_hash_short: str
-    metric_snapshot_count: int  # how many metric YAMLs were hashed
+    metric_snapshot: dict = Field(default_factory=dict)
+    metric_snapshot_count: int
     sealed_at: str
+    sealed_by: str = ""
 
 
 class MidRunVM(BaseModel):

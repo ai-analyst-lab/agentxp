@@ -1,0 +1,69 @@
+{% include '_base_styles.html.j2' %}
+<body>
+<div class="doc">
+  <div class="doc-rule-top"></div>
+  <div class="doc-rule-mid"></div>
+
+  <div class="eyebrow">{{ experiment_id }} · SRM check{% if audience != 'exec' %} · {{ audience | upper }}{% endif %}</div>
+  <div class="eyebrow-meta">{{ owner_team }} · {{ analyzed_at_text }} · χ² p = {{ "%.4f" | format(srm.p_value) }}</div>
+
+  <h1 class="headline verdict-{{ srm_color_key }}">{{ srm_headline }}</h1>
+  <p class="lede">{{ srm_lede }}</p>
+
+  <div class="tldr">
+    <div class="tldr-label">What this gate does</div>
+    <div class="tldr-decision">{{ srm_explainer_decision }}</div>
+    <div class="tldr-because">A sample-ratio mismatch invalidates everything downstream — observed lift could
+    just be a different population in each arm. The gate fires before any metric is read (R2).</div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-main">
+      <div class="lab">Observed split</div>
+      <div class="val {{ srm_val_class }}">{{ srm.observed_counts[0] }} / {{ srm.observed_counts[1] }}</div>
+      <div class="unit">expected {{ srm.expected_counts[0] }} / {{ srm.expected_counts[1] }}</div>
+    </div>
+    <div class="hero-side">
+      <div class="item"><div class="lab">χ² statistic</div><div class="val">{{ "%.2f" | format(srm.chi2_stat) }}</div></div>
+      <div class="item"><div class="lab">P-value</div><div class="val">{{ "%.4f" | format(srm.p_value) }}</div></div>
+      <div class="item"><div class="lab">Threshold</div><div class="val">{{ "%.4f" | format(srm.threshold) }}</div></div>
+      <div class="item"><div class="lab">Verdict</div><div class="val">{{ srm.verdict }}</div></div>
+    </div>
+  </div>
+
+  {% if audience in ('operator', 'engineer') %}
+  <div class="section">
+    <div class="section-eyebrow">Reading this check</div>
+    <div class="section-title">A small p-value here invalidates the rest of the analysis.</div>
+    <div class="section-prose">{{ srm_reading_prose }}</div>
+  </div>
+  {% endif %}
+
+  {% if audience == 'engineer' %}
+  <div class="section">
+    <div class="section-eyebrow">Computation trace</div>
+    <div class="section-title">srm_check is the only path to this number.</div>
+    <div class="section-prose">All SRM evaluations run through <code>agentxp.stats.srm.srm_check</code>;
+    the function returns the trace below verbatim. Any change to the threshold or formula must come
+    from a code change, not an ad-hoc call site (R4).</div>
+    <div class="prov">
+      <div><span class="pk">test</span><span class="pv">{{ srm.test }}</span></div>
+      <div><span class="pk">observed</span><span class="pv">{{ srm.observed_counts }}</span></div>
+      <div><span class="pk">expected</span><span class="pv">{{ srm.expected_counts }}</span></div>
+      <div><span class="pk">chi2_stat</span><span class="pv">{{ "%.4f" | format(srm.chi2_stat) }}</span></div>
+      <div><span class="pk">p_value</span><span class="pv">{{ "%.6f" | format(srm.p_value) }}</span></div>
+      <div><span class="pk">threshold</span><span class="pv">{{ srm.threshold }}</span></div>
+      <div><span class="pk">df</span><span class="pv">1</span></div>
+      <div><span class="pk">verdict</span><span class="pv">{{ srm.verdict }}</span></div>
+      <div><span class="pk">formula</span><span class="pv">chi^2 = sum((obs - exp)^2 / exp) · p from chi2(df=k-1)</span></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    <span class="mk">srm.json</span>
+    <span>{{ srm.verdict }} · p = {{ "%.4f" | format(srm.p_value) }} · {{ render_status }}</span>
+  </div>
+</div>
+</body>
+</html>

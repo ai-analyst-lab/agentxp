@@ -51,7 +51,7 @@ class RenderCompletedEvent(_BaseEvent):
     event: Literal["RenderCompleted"] = "RenderCompleted"
     readout_type: Literal["intent", "design_brief", "monitor_check", "verdict", "audit"]
     audience: Literal["exec", "operator", "engineer"]
-    format: Literal["html", "md", "png", "json"]
+    format: Literal["html", "md", "png", "json", "pdf"]
     path: str  # relative to experiments/<id>/
     vm_sha256: Sha256Hex  # hash of the rendered VM contents
     provenance_render_status: Literal["VERIFIED", "DRAFT_UNVERIFIED", "UNVERIFIABLE"]

@@ -269,39 +269,186 @@ def distill_intent(
     )
 
 
+def _power_curve_svg(n_per_group: int, mde_pct: float, baseline: float) -> dict:
+    """Build an inline SVG polyline + tick labels for the power-vs-MDE curve.
+
+    Approximation: at α=0.05, power=0.80, two-proportion,
+        n ≈ 16 · p · (1−p) / (baseline · mde_rel)²
+    Sweep mde over [0.25×, 4×] of the design MDE.
+    """
+    svg_x0, svg_x1 = 80, 600
+    svg_y0, svg_y1 = 20, 160
+    plot_w, plot_h = svg_x1 - svg_x0, svg_y1 - svg_y0
+    mde_rel = max(mde_pct / 100.0, 1e-6)
+    mde_min = max(0.005, mde_rel * 0.25)
+    mde_max = mde_rel * 4.0
+
+    def n_for(m: float) -> float:
+        if m <= 0:
+            return 1e9
+        return 16.0 * baseline * (1.0 - baseline) / (baseline * m) ** 2
+
+    y_max_n = max(n_per_group * 4, n_for(mde_min)) or 1.0
+
+    def x_for(m: float) -> float:
+        return svg_x0 + (m - mde_min) / (mde_max - mde_min) * plot_w
+
+    def y_for(n: float) -> float:
+        return svg_y1 - min(1.0, n / y_max_n) * plot_h
+
+    pts = [
+        f"{x_for(mde_min + i * (mde_max - mde_min) / 39):.1f},"
+        f"{y_for(n_for(mde_min + i * (mde_max - mde_min) / 39)):.1f}"
+        for i in range(40)
+    ]
+    y_ticks = [
+        {"y": svg_y0 + i * (plot_h / 4), "label": f"{int(y_max_n * (3 - i) / 4):,}"}
+        for i in range(4)
+    ]
+    x_ticks = [
+        {"x": x_for(mde_min + i * (mde_max - mde_min) / 4),
+         "label": f"{(mde_min + i * (mde_max - mde_min) / 4) * 100:.1f}%"}
+        for i in range(5)
+    ]
+    return {
+        "curve_points": " ".join(pts),
+        "y_ticks": y_ticks,
+        "x_ticks": x_ticks,
+        "design_x": x_for(mde_rel),
+        "design_y": y_for(n_per_group),
+    }
+
+
 def distill_design_brief(
     *,
     experiment_id: str,
     sealed_brief_payload: dict,
     integrity_lock: dict,
+    scenario_meta: Optional[dict] = None,
 ) -> DesignBriefVM:
     """T41 — pure distill for the design-brief share-tail moment.
 
     Renders the sealed brief + integrity lock receipt. Fires after the
     brief seals (the design verb's terminal share-tail). No analysis
     output exists at this moment by R11 (the wall has not been crossed).
+
+    ``scenario_meta`` carries editorial fields the brief itself does not
+    pre-register (display_name, owner_team, mechanism_prose, decision_rule
+    short summary, historical_baseline_context, secondary_metric_names).
+    All optional; the template tolerates empties.
     """
     brief = sealed_brief_payload
+    meta = scenario_meta or {}
     expected = brief.get("expected_shape", {}) or integrity_lock.get(
         "expected_shape", {}
     )
     chain_hash = integrity_lock.get("design_chain_hash", "")
     metric_snapshot = integrity_lock.get("metric_snapshot", {}) or {}
 
+    # Derived numerics — defensive against missing fields (tests pass partial briefs).
+    baseline = float(brief.get("baseline", 0.0) or 0.0)
+    mde_pct = float(brief.get("mde_pct", 0.0) or 0.0)
+    n_total = int(brief.get("n_required", 0) or 0)
+    n_per_group = max(n_total // 2, 0)
+    arms = list(brief.get("arms", []) or [])
+
+    # Guardrails — both structured + summary lines for the table block.
+    guardrails = list(brief.get("guardrails", []) or [])
+    guardrails_summary = brief.get("guardrails_summary") or [
+        f"{g['metric_name']} ({g.get('direction', '?')}) — "
+        f"nim_relative = {g.get('nim_relative', 0):+}"
+        for g in guardrails
+    ]
+
+    # Power text + duration text — built once here so the template can read flat strings.
+    power_text = brief.get("power_text") or (
+        f"80% power at α=0.05, two-sided; baseline {baseline:.2f}, "
+        f"MDE {brief.get('mde_text', '')}, n_required = {n_total:,}"
+        if n_total
+        else ""
+    )
+    duration_text = meta.get("duration_text", "")
+
+    # Section prose — falls back to neutral defaults if the orchestrator did
+    # not supply scenario-specific copy.
+    primary_metric_name = brief.get("primary_metric", "")
+    guardrail_names = ", ".join(g.get("metric_name", "") for g in guardrails)
+    at_a_glance_prose = meta.get("at_a_glance_prose") or (
+        f"Pre-registered before any analysis. Decision is binary against "
+        f"{primary_metric_name}: a {brief.get('mde_text', '')} relative lift "
+        f"over a {baseline * 100:.1f}% baseline requires {n_per_group:,} per "
+        f"arm at the standard α / power settings. "
+        f"Guardrails: {guardrail_names}." if primary_metric_name else ""
+    )
+    metrics_section_prose = meta.get("metrics_section_prose") or (
+        f"Primary is {primary_metric_name}; secondaries inform interpretation "
+        f"but do not influence the verdict. Guardrails block ship if their CI "
+        f"crosses the pre-registered non-inferiority margin in the adverse "
+        f"direction."
+    )
+    power_section_prose = meta.get("power_section_prose") or (
+        f"To resolve a {brief.get('mde_text', '')} relative effect against a "
+        f"{baseline * 100:.1f}% baseline, the design requires {n_per_group:,} "
+        f"per arm. Tighter detection thresholds climb the curve to the left."
+        if n_per_group else ""
+    )
+    assignment_section_prose = meta.get("assignment_section_prose") or (
+        (
+            f"Each user is randomly assigned at first exposure to "
+            f"{arms[0]} or {arms[1]} in a {brief.get('expected_arm_ratio_text', '')} "
+            f"split. Events before first_exposure_at are not attributed to "
+            f"the experiment."
+        ) if len(arms) >= 2 else ""
+    )
+
+    # Power curve — only meaningful when we have the inputs.
+    if n_per_group and mde_pct and baseline:
+        pc = _power_curve_svg(n_per_group, mde_pct, baseline)
+    else:
+        pc = {"curve_points": "", "y_ticks": [], "x_ticks": [],
+              "design_x": 0.0, "design_y": 0.0}
+
     return DesignBriefVM(
         experiment_id=experiment_id,
+        display_name=meta.get("display_name", ""),
+        owner_team=meta.get("owner_team", ""),
         hypothesis_text=brief.get("hypothesis", ""),
-        primary_metric_name=brief.get("primary_metric", ""),
+        mechanism_prose=meta.get("mechanism_prose", ""),
+        historical_baseline_context=meta.get("historical_baseline_context", ""),
+        primary_metric_name=primary_metric_name,
+        primary_metric_type=brief.get("primary_metric_type", "proportion"),
+        primary_direction=brief.get("primary_direction", "higher_is_better"),
         primary_decision_rule=brief.get("primary_decision_rule", ""),
+        decision_rule_short=meta.get("decision_rule_short", ""),
+        secondary_metric_names=meta.get("secondary_metric_names", []),
         mde_text=brief.get("mde_text", ""),
-        power_text=brief.get("power_text", ""),
-        guardrails_summary=brief.get("guardrails_summary", []),
+        baseline=baseline,
+        power_text=power_text,
+        n_per_group=n_per_group,
+        n_total=n_total,
+        duration_text=duration_text,
+        guardrails=guardrails,
+        guardrails_summary=guardrails_summary,
+        cohorts=list(brief.get("cohorts", []) or []),
         cohorts_summary=brief.get("cohorts_summary", []),
         assignment_unit=expected.get("assignment_unit", "user_id"),
+        arms=arms,
         expected_arm_ratio_text=brief.get("expected_arm_ratio_text", ""),
+        at_a_glance_prose=at_a_glance_prose,
+        metrics_section_prose=metrics_section_prose,
+        power_section_prose=power_section_prose,
+        assignment_section_prose=assignment_section_prose,
+        power_curve_points=pc["curve_points"],
+        power_x_ticks=pc["x_ticks"],
+        power_y_ticks=pc["y_ticks"],
+        design_x=pc["design_x"],
+        design_y=pc["design_y"],
+        design_chain_hash=chain_hash,
         design_chain_hash_short=(chain_hash[:12] + "…") if chain_hash else "",
+        metric_snapshot=metric_snapshot,
         metric_snapshot_count=len(metric_snapshot),
         sealed_at=integrity_lock.get("sealed_at", ""),
+        sealed_by=integrity_lock.get("sealed_by", ""),
     )
 
 

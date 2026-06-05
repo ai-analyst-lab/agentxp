@@ -1,0 +1,35 @@
+{% include '_base_styles.html.j2' %}
+<body>
+<div class="doc">
+  <div class="doc-rule-top"></div>
+  <div class="doc-rule-mid"></div>
+
+  <div class="eyebrow">{{ experiment_id }} · Pre-registered intent{% if audience != 'exec' %} · {{ audience | upper }}{% endif %}</div>
+  <div class="eyebrow-meta">captured {{ captured_at }} · by {{ captured_by }}</div>
+
+  <h1 class="headline">Intent for {{ experiment_id }}</h1>
+  <p class="lede">The statement below is the experiment's pre-registered intent. It was captured at the start of the design verb, before any metric value tied to assignment was read.</p>
+
+  <div class="section">
+    <div class="section-eyebrow">What we want to test</div>
+    <div class="section-title">Intent</div>
+    <div class="section-prose" style="font-style: normal; font-size: 15px; color: #1A1A1A; max-width: 64ch; white-space: pre-wrap;">{{ intent_text }}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Discipline</div>
+    <div class="section-title">What comes next</div>
+    <div class="section-prose">
+      The intent is the first artifact in the design verb. The orchestrator will dispatch the understander to draft semantic models and metrics (only if missing), then the designer to draft a hypothesis, brief, and data plan, with the critic firing at every commit-worthy step. The brief seals only after a power-feasibility check passes and the user confirms.
+    </div>
+    <div class="section-prose">
+      The intent statement here carries no analysis output and no quantitative outcome claim. By R11 the design verb cannot reach an outcome-bearing column; this share-tail is the user's pre-registered statement of what the experiment is intended to learn, exactly as captured.
+    </div>
+  </div>
+
+  <div class="receipt" style="margin-top: 48px; font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace; font-size: 10px; color: #8A8580; text-transform: uppercase; letter-spacing: 0.12em;">
+    {{ experiment_id }} · intent · audience {{ audience }} · captured {{ captured_at }} · captured_by {{ captured_by }} · render_status DRAFT_UNVERIFIED
+  </div>
+</div>
+</body>
+</html>

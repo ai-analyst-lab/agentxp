@@ -29,7 +29,7 @@ Thumbs.db
 *.bak
 
 # Experiment outputs (user-generated)
-experiments/
+experiments/*
 
 # Sample data — demo warehouse fixtures, lock files, EXPECTED_VERDICTS.
 # Workshop / dev only; never in the public repo.
@@ -50,8 +50,11 @@ archive/
 .pytest_cache/
 
 
-# Experiment artifacts (per-run; not source-of-truth)
-experiments/
+# Experiment artifacts (per-run; not source-of-truth) — ignore every exp
+# directory by default; whitelist specific ones so commit_artifact's git
+# step (CLAUDE.md §7) can land.
+experiments/*
+!experiments/exp_fb984821/
 
 # Scratch — walk scripts, ad-hoc tools
 scratch/

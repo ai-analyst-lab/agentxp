@@ -255,7 +255,7 @@ def render_share_tail(
     vm_sha256: str,
     provenance_render_status: Literal["VERIFIED", "DRAFT_UNVERIFIED", "UNVERIFIABLE"],
     audience: Literal["exec", "operator", "engineer"] = "exec",
-    fmt: Literal["html", "md", "png", "json"] = "md",
+    fmt: Literal["html", "md", "png", "json", "pdf"] = "md",
     entry_id: Optional[str] = None,
     timestamp: Optional[datetime] = None,
 ) -> Path:
@@ -268,6 +268,12 @@ def render_share_tail(
     readout was written to. The slot is the timestamp's date (so multiple
     re-renders of the same type land at sibling paths and the catalog
     tracks supersession).
+
+    ``html`` and ``pdf`` route through ``agentxp.render.share_tail_html``,
+    which renders the Jinja templates in ``agentxp/render/templates/``.
+    PDF requires Playwright; if it's unavailable the call falls back to
+    writing the HTML alongside an ``.unrendered.txt`` marker and the
+    returned path points at the HTML.
     """
     if readout_type not in _SHARE_TAIL_KINDS:
         raise ToolRefusal(
@@ -281,23 +287,46 @@ def render_share_tail(
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{audience}.{fmt}"
 
-    # For now we serialize the VM as JSON for any non-html/md format and
-    # as a minimal Markdown for md. T93 (the readouts CLI) builds the
-    # rich HTML / PDF adapters on top of this.
     if fmt == "json":
         out_path.write_text(vm.model_dump_json(indent=2))
     elif fmt == "md":
-        # Minimum-viable Markdown: dump VM as a fenced JSON block. The
-        # real Markdown adapter consumes the VM and renders sections per
-        # templates/experiment-report.md. Until that wiring lands, this
-        # produces a readable artifact that audit replay can consume.
+        # Minimum-viable Markdown: dump VM as a fenced JSON block.
         out_path.write_text(
             f"# {readout_type} — {experiment_id}\n\n"
             f"```json\n{vm.model_dump_json(indent=2)}\n```\n"
         )
+    elif fmt in ("html", "pdf"):
+        from agentxp.render import share_tail_html
+
+        renderers = {
+            "intent": share_tail_html.render_intent_html,
+            "design_brief": share_tail_html.render_design_brief_html,
+            "verdict": share_tail_html.render_verdict_html,
+            "monitor_check": share_tail_html.render_mid_run_html,
+        }
+        renderer = renderers.get(readout_type)
+        if renderer is None:
+            raise ToolRefusal(
+                f"no html renderer wired for readout_type={readout_type!r}; "
+                f"share_tail_html exposes: {sorted(renderers)}"
+            )
+        html = renderer(vm=vm, audience=audience)
+        if fmt == "html":
+            out_path.write_text(html)
+        else:  # pdf
+            html_path = out_path.with_suffix(".html")
+            html_path.write_text(html)
+            pdf_ok = share_tail_html.html_to_pdf(html, out_path)
+            if not pdf_ok:
+                # Playwright unavailable — surface the html, mark the gap.
+                (out_dir / f"{audience}.pdf.unrendered.txt").write_text(
+                    "playwright not available; pdf not rendered. "
+                    "Install with: pip install playwright && playwright install chromium\n"
+                )
+                out_path = html_path
     else:
-        # html / png — adapter not wired here (T93). Write JSON sidecar
-        # so the catalog still has a valid file to reference.
+        # png + any future format — write JSON sidecar so the catalog has
+        # something to reference until that adapter lands.
         json_path = out_path.with_suffix(".json")
         json_path.write_text(vm.model_dump_json(indent=2))
         out_path = json_path

@@ -1,0 +1,215 @@
+{% include '_base_styles.html.j2' %}
+<body>
+<div class="doc">
+  <div class="doc-rule-top"></div>
+  <div class="doc-rule-mid"></div>
+
+  <div class="eyebrow">{{ experiment_id }} · Verdict report{% if audience != 'exec' %} · {{ audience | upper }}{% endif %}</div>
+  <div class="eyebrow-meta">{{ owner_team }} · {{ analyzed_at_text }} · {{ n_total_text }} units · {{ duration_text }}</div>
+
+  {# ─────────────────────────────────────────────────────────
+     The verdict IS the headline. Color-coded.
+     ───────────────────────────────────────────────────────── #}
+  <h1 class="headline verdict-{{ verdict_color_key }}">{{ verdict_display }}</h1>
+  <p class="lede">{{ verdict_lede }}</p>
+
+  {# ─────────────────────────────────────────────────────────
+     TL;DR card — what to do, why
+     ───────────────────────────────────────────────────────── #}
+  <div class="tldr">
+    <div class="tldr-label">TL;DR</div>
+    <div class="tldr-decision">
+      <span class="verdict-chip badge {{ verdict_badge_class }}">{{ verdict_display }}</span>
+      {{ tldr_decision_text }}
+    </div>
+    <div class="tldr-because">{{ tldr_because_text }}</div>
+  </div>
+
+  {# ─────────────────────────────────────────────────────────
+     Hero figure — ONE dominant number
+     ───────────────────────────────────────────────────────── #}
+  <div class="hero">
+    <div class="hero-main">
+      <div class="lab">{{ hero_label }}</div>
+      <div class="val {{ hero_val_class }}">{{ hero_value_text }}</div>
+      <div class="unit">{{ hero_unit_text }}</div>
+    </div>
+    <div class="hero-side">
+      {% for s in hero_side_stats %}
+      <div class="item"><div class="lab">{{ s.label }}</div><div class="val">{{ s.value }}</div></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ─────────────────────────────────────────────────────────
+     EXEC stops here — short narrative recap + footer
+     ───────────────────────────────────────────────────────── #}
+  {% if audience == 'exec' %}
+  <div class="section">
+    <div class="section-eyebrow">What we'd do next</div>
+    <div class="section-prose">{{ exec_next_prose }}</div>
+  </div>
+  {% endif %}
+
+  {# ─────────────────────────────────────────────────────────
+     OPERATOR + ENGINEER — primary metric chart
+     ───────────────────────────────────────────────────────── #}
+  {% if audience in ('operator', 'engineer') %}
+  <div class="section">
+    <div class="section-eyebrow">Primary metric · {{ primary_metric_name }}</div>
+    <div class="section-title">Treatment {{ "%.2f" | format(treatment_rate_pct) }}% vs Control {{ "%.2f" | format(control_rate_pct) }}%</div>
+    <div class="section-prose">{{ primary_chart_prose }}</div>
+
+    <div class="chart">
+      <svg viewBox="0 0 640 150" width="100%" height="150" xmlns="http://www.w3.org/2000/svg">
+        <line x1="120" y1="118" x2="600" y2="118" stroke="#1A1A1A" stroke-width="1"/>
+        {% for tick in primary_ticks %}
+        <line x1="{{ tick.x }}" y1="116" x2="{{ tick.x }}" y2="120" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="{{ tick.x }}" y="136" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">{{ tick.label }}</text>
+        {% endfor %}
+
+        <rect x="120" y="18" width="{{ control_bar_width }}" height="34" fill="#B8B5AC"/>
+        <text x="112" y="39" text-anchor="end" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="11" fill="#1A1A1A" font-weight="700">CONTROL</text>
+        <text x="{{ control_bar_label_x }}" y="39" font-family="'Charter','Iowan Old Style','Georgia',serif" font-size="17" fill="#1A1A1A" font-weight="700">{{ "%.2f" | format(control_rate_pct) }}%</text>
+
+        <rect x="120" y="60" width="{{ treatment_bar_width }}" height="34" fill="#006BA2"/>
+        {% if lift_delta_width > 0 %}
+        <rect x="{{ control_bar_end_x }}" y="60" width="{{ lift_delta_width }}" height="34" fill="#003D5C"/>
+        {% endif %}
+        <text x="112" y="81" text-anchor="end" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="11" fill="#006BA2" font-weight="700">TREATMENT</text>
+        <text x="{{ treatment_bar_label_x }}" y="81" font-family="'Charter','Iowan Old Style','Georgia',serif" font-size="17" fill="#1A1A1A" font-weight="700">{{ "%.2f" | format(treatment_rate_pct) }}%</text>
+
+        <line x1="{{ control_bar_end_x }}" y1="18" x2="{{ control_bar_end_x }}" y2="112" stroke="#1A1A1A" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="{{ treatment_bar_end_x }}" y1="60" x2="{{ treatment_bar_end_x }}" y2="112" stroke="#006BA2" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="{{ control_bar_end_x }}" y1="108" x2="{{ treatment_bar_end_x }}" y2="108" stroke="#006BA2" stroke-width="1.5"/>
+        <text x="{{ ((control_bar_end_x + treatment_bar_end_x) / 2) | round | int }}" y="104" text-anchor="middle" font-family="'Charter','Iowan Old Style','Georgia',serif" font-style="italic" font-size="12" fill="#006BA2" font-weight="700">{{ lift_absolute_text }} absolute</text>
+      </svg>
+      <div class="chart-caption">{{ primary_chart_caption }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ─────────────────────────────────────────────────────────
+     Confidence interval forest plot (operator + engineer)
+     ───────────────────────────────────────────────────────── #}
+  {% if audience in ('operator', 'engineer') %}
+  <div class="section">
+    <div class="section-eyebrow">Confidence interval on lift</div>
+    <div class="section-title">{{ ci_section_title }}</div>
+    <div class="section-prose">{{ ci_section_prose }}</div>
+
+    <div class="chart">
+      <svg viewBox="0 0 640 90" width="100%" height="90" xmlns="http://www.w3.org/2000/svg">
+        <line x1="80" y1="60" x2="600" y2="60" stroke="#1A1A1A" stroke-width="1"/>
+        {% for tick in ci_ticks %}
+        <line x1="{{ tick.x }}" y1="58" x2="{{ tick.x }}" y2="62" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="{{ tick.x }}" y="78" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">{{ tick.label }}</text>
+        {% endfor %}
+        <line x1="{{ ci_zero_x }}" y1="14" x2="{{ ci_zero_x }}" y2="60" stroke="#1A1A1A" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="{{ ci_zero_x }}" y="10" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="9" fill="#5A5A55" letter-spacing="0.1em">ZERO</text>
+
+        {# CI bar #}
+        <line x1="{{ ci_lower_x }}" y1="36" x2="{{ ci_upper_x }}" y2="36" stroke="{{ ci_color }}" stroke-width="3"/>
+        <line x1="{{ ci_lower_x }}" y1="28" x2="{{ ci_lower_x }}" y2="44" stroke="{{ ci_color }}" stroke-width="2"/>
+        <line x1="{{ ci_upper_x }}" y1="28" x2="{{ ci_upper_x }}" y2="44" stroke="{{ ci_color }}" stroke-width="2"/>
+        <circle cx="{{ ci_center_x }}" cy="36" r="5" fill="{{ ci_color }}" stroke="#F5F4EE" stroke-width="2"/>
+        <text x="{{ ci_center_x }}" y="22" text-anchor="middle" font-family="'Charter','Iowan Old Style','Georgia',serif" font-size="12" fill="{{ ci_color }}" font-weight="700">{{ lift_absolute_text }}</text>
+      </svg>
+      <div class="chart-caption">{{ ci_chart_caption }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ─────────────────────────────────────────────────────────
+     Guardrails (always — but visual)
+     ───────────────────────────────────────────────────────── #}
+  <div class="section">
+    <div class="section-eyebrow">Guardrails</div>
+    <div class="section-title">{{ guard_section_title }}</div>
+    <div class="section-prose">{{ guard_section_prose }}</div>
+
+    {% for g in guardrails_eval %}
+    <div class="guard">
+      <div class="guard-name">
+        <div class="n">{{ g.metric_name }}</div>
+        <div class="meta">threshold {{ g.threshold_text }} · {{ g.direction_text }}</div>
+      </div>
+      <div class="guard-detail">
+        <div class="ci-bar">
+          <div class="zero"></div>
+          <div class="ci {{ g.bar_class }}" style="left: {{ g.bar_left_pct }}%; right: {{ g.bar_right_pct }}%;"></div>
+        </div>
+        <div class="stat-line">90% CI {{ g.ci_text }} · realized {{ g.lift_text }} · <span class="badge {{ g.badge_class }}" style="padding:2px 6px;font-size:9px;">{{ g.badge_text }}</span></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ─────────────────────────────────────────────────────────
+     OPERATOR + ENGINEER — segment breakdown
+     ───────────────────────────────────────────────────────── #}
+  {% if audience in ('operator', 'engineer') and segments %}
+  <div class="section">
+    <div class="section-eyebrow">By segment</div>
+    <div class="section-title">{{ segment_section_title }}</div>
+    <div class="section-prose">{{ segment_section_prose }}</div>
+
+    <div class="trail">
+      {% for s in segments %}
+      <div class="trail-row">
+        <div class="num">{{ loop.index }}</div>
+        <div class="what">{{ s.name }} · n = {{ s.n_text }}</div>
+        <div class="stat">{{ s.lift_text }} · 95% CI {{ s.ci_text }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ─────────────────────────────────────────────────────────
+     ENGINEER ONLY — decision-tree trail + provenance
+     ───────────────────────────────────────────────────────── #}
+  {% if audience == 'engineer' %}
+  <div class="section">
+    <div class="section-eyebrow">Decision tree · how the verdict was reached</div>
+    <div class="section-title">Walked {{ trail | length }} steps; step {{ terminal_step }} fired the verdict.</div>
+    <div class="section-prose">{{ trail_section_prose }}</div>
+    <div class="trail">
+      {% for step in trail %}
+      <div class="trail-row{% if step.fired %} fired{% endif %}">
+        <div class="num">{{ step.num }}</div>
+        <div class="what">{{ step.name }}{% if step.fired %} · <strong>FIRED</strong>{% endif %}</div>
+        <div class="stat">{{ step.stat_text }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Provenance · auditable chain</div>
+    <div class="section-title">Reproducible from sealed brief + warehouse fixture.</div>
+    <div class="section-prose">Every quantitative claim above resolves to a row in the
+    warehouse, a function in <code>agentxp.stats.*</code>, or a step in
+    <code>agentxp.interpret.tree</code>. The chain hash below covers the brief,
+    every stat result, and the verdict tree's terminal step.</div>
+    <div class="prov">
+      <div><span class="pk">experiment_id</span><span class="pv">{{ experiment_id }}</span></div>
+      <div><span class="pk">chain_hash</span><span class="pv">{{ chain_hash }}</span></div>
+      <div><span class="pk">render_status</span><span class="pv">{{ render_status }}</span></div>
+      <div><span class="pk">agentxp_version</span><span class="pv">{{ agentxp_version }}</span></div>
+      <div><span class="pk">generated_at</span><span class="pv">{{ generated_at }}</span></div>
+      <div><span class="pk">primary_metric</span><span class="pv">{{ primary_metric_name }} · proportion_test</span></div>
+      <div><span class="pk">srm_test</span><span class="pv">srm_chi_squared · threshold 0.0005</span></div>
+      <div><span class="pk">tree_module</span><span class="pv">agentxp.interpret.tree.walk_tree</span></div>
+      <div><span class="pk">reproduce</span><span class="pv">python scratch/walk_experiment.py {{ experiment_id }}</span></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    <span class="mk">report.md · report.json</span>
+    <span>{{ verdict_display }} · step {{ terminal_step }} · {{ render_status }}</span>
+  </div>
+</div>
+</body>
+</html>
