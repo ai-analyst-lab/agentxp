@@ -1,0 +1,1120 @@
+project: agentxp-v0.1-combined-build
+master_plan: AGENTXP_V01_COMBINED_BUILD_PLAN.md
+source_plans:
+  - AGENTXP_V01_CLEANUP_MASTER_PLAN.md
+  - PRESENTATION_SPINE_MASTER_PLAN.md
+protocol: shared/PLANNING_METHODOLOGY.md
+current_wave: 0
+total_waves: 6
+total_tasks: 83
+created: 2026-06-04
+shanes_binding_decisions:
+  - "Wave 4 ships as one atomic PR"
+  - "Warehouse seed reproduces E_F12345 = 314/384/+22.3% byte-for-byte"
+  - "State migration is explicit `agentxp migrate-state` verb"
+  - "Sample-data CSVs clean-deleted in Wave 4"
+  - "Power-feasibility threshold: strict 1.0× (no headroom)"
+  - "`commit-stage` ships as `python3 -m agentxp.recovery commit-stage`"
+  - "Verdict position on HTML report: TOP (F-pattern); card stays verdict-as-hero upper third"
+  - "Mid-run teaching prose tone: matter-of-fact"
+
+tasks:
+  # ─────────────────────────────────────────────────────────────────
+  # Wave 0 — Schema + hygiene foundations (25 tasks, ships dark)
+  # ─────────────────────────────────────────────────────────────────
+  - id: C-W0.1
+    wave: 0
+    description: "Sha256Hex type alias + repo-wide hash-field refactor (audit B3)"
+    source_spec: "CLEANUP §3.0 W0.1"
+    status: not_started
+    depends_on: []
+    output_files:
+      - agentxp/schemas/_types.py
+      - tests/schemas/test_sha256_hex_validation.py
+      - tests/schemas/test_hash_field_closure.py
+    agent_type: builder
+    parallel_group: W0-A
+    session: null
+    notes: ""
+
+  - id: C-W0.2
+    wave: 0
+    description: "SURFACE_V01_ENABLED feature flag"
+    source_spec: "CLEANUP §3.0 W0.2"
+    status: not_started
+    depends_on: []
+    output_files: [agentxp/_flags.py]
+    agent_type: builder
+    parallel_group: W0-A
+    session: null
+    notes: ""
+
+  - id: C-W0.3
+    wave: 0
+    description: "EventMetadataSubtype Literal extension (14 subtypes)"
+    source_spec: "CLEANUP §3.0 W0.3"
+    status: not_started
+    depends_on: [C-W0.1]
+    output_files:
+      - agentxp/audit/events.py
+      - tests/audit/test_event_subtype_completeness.py
+    agent_type: builder
+    parallel_group: W0-B
+    session: null
+    notes: ""
+
+  - id: C-W0.4
+    wave: 0
+    description: "Chain Invariant 6 — paired-events-per-bundle"
+    source_spec: "CLEANUP §3.0 W0.4"
+    status: not_started
+    depends_on: [C-W0.3]
+    output_files:
+      - agentxp/audit/chain.py
+      - tests/audit/test_invariant_3b_bundle_anchoring.py
+      - tests/audit/test_validate_chain_closure.py
+    agent_type: builder
+    parallel_group: W0-C
+    session: null
+    notes: ""
+
+  - id: C-W0.5
+    wave: 0
+    description: "StateYaml v3→v4 migration + agentxp migrate-state verb"
+    source_spec: "CLEANUP §3.0 W0.5"
+    status: not_started
+    depends_on: [C-W0.1, C-W0.3]
+    output_files:
+      - agentxp/schemas/state.py
+      - agentxp/cli/migrate_state.py
+      - agentxp/orchestrator/migrate.py
+      - tests/cli/test_migrate_state_v3_v4.py
+    agent_type: builder
+    parallel_group: W0-B
+    session: null
+    notes: "Shane decision 3 — explicit verb, no auto-mutation"
+
+  - id: C-W0.6
+    wave: 0
+    description: "Repo-wide exp_id → experiment_id sweep + AST CI lint (G3)"
+    source_spec: "CLEANUP §3.0 W0.6"
+    status: not_started
+    depends_on: []
+    output_files:
+      - tests/lint/test_no_exp_id_kwarg.py
+    agent_type: builder
+    parallel_group: W0-A
+    session: null
+    notes: ""
+
+  - id: C-W0.7
+    wave: 0
+    description: "LastActionMetadata explicit submodel (G4)"
+    source_spec: "CLEANUP §3.0 W0.7"
+    status: not_started
+    depends_on: [C-W0.5]
+    output_files: [agentxp/schemas/state.py]
+    agent_type: builder
+    parallel_group: W0-C
+    session: null
+    notes: ""
+
+  - id: C-W0.8
+    wave: 0
+    description: "Add python-ulid>=2.2,<3.0 dependency"
+    source_spec: "CLEANUP §3.0 W0.8"
+    status: not_started
+    depends_on: []
+    output_files: [pyproject.toml]
+    agent_type: builder
+    parallel_group: W0-A
+    session: null
+    notes: ""
+
+  - id: C-W0.9
+    wave: 0
+    description: "Drop orphan v1 metric YAMLs at project root"
+    source_spec: "CLEANUP §3.0 W0.9"
+    status: not_started
+    depends_on: []
+    output_files: [metrics/]
+    agent_type: builder
+    parallel_group: W0-A
+    session: null
+    notes: ""
+
+  - id: C-W0.10
+    wave: 0
+    description: "VoiceRule.enforcement Literal halt|warn (B10)"
+    source_spec: "CLEANUP §3.0 W0.10"
+    status: not_started
+    depends_on: [C-W0.1]
+    output_files: [agentxp/voice/rules.py]
+    agent_type: builder
+    parallel_group: W0-B
+    session: null
+    notes: ""
+
+  - id: C-W0.11
+    wave: 0
+    description: "VerdictKind 8→9: add UNVERIFIABLE (B5)"
+    source_spec: "CLEANUP §3.0 W0.11"
+    status: not_started
+    depends_on: []
+    output_files:
+      - agentxp/interpret/verdict.py
+      - tests/interpret/test_verdict_kind_closure.py
+    agent_type: builder
+    parallel_group: W0-A
+    session: null
+    notes: ""
+
+  - id: C-W0.12
+    wave: 0
+    description: "FactSource discriminated subclass split + kind: fact|dim"
+    source_spec: "CLEANUP §3.0 W0.12"
+    status: not_started
+    depends_on: [C-W0.1]
+    output_files: [agentxp/schemas/semantic_model.py]
+    agent_type: builder
+    parallel_group: W0-B
+    session: null
+    notes: "B4 schema lie fix — discriminated"
+
+  - id: C-W0.13
+    wave: 0
+    description: "Schema cleanups (drop predicted_direction, three-slot MDE XOR, ConfidenceLabel, status-gated data_plan, predicted_magnitude_*, BriefV3 base)"
+    source_spec: "CLEANUP §3.0 W0.13"
+    status: not_started
+    depends_on: [C-W0.1]
+    output_files:
+      - agentxp/schemas/brief.py
+      - agentxp/schemas/report.py
+      - agentxp/schemas/data_plan.py
+    agent_type: builder
+    parallel_group: W0-B
+    session: null
+    notes: "Covers I1, I2, I3, I4, I5 from audit"
+
+  - id: C-W0.14
+    wave: 0
+    description: "OrchestratorStore.bootstrap_experiment + allocate_experiment_id (G5)"
+    source_spec: "CLEANUP §3.0 W0.14"
+    status: not_started
+    depends_on: [C-W0.5]
+    output_files: [agentxp/orchestrator/store.py]
+    agent_type: builder
+    parallel_group: W0-C
+    session: null
+    notes: ""
+
+  - id: C-W0.15
+    wave: 0
+    description: "agentxp.recovery namespace + commit-stage + unlock --reason + .state.lock lifecycle (S5)"
+    source_spec: "CLEANUP §3.0 W0.15"
+    status: not_started
+    depends_on: [C-W0.5]
+    output_files:
+      - agentxp/recovery/__init__.py
+      - agentxp/recovery/commit_stage.py
+      - agentxp/cli/unlock.py
+    agent_type: builder
+    parallel_group: W0-C
+    session: null
+    notes: "Shane decision 6 — recovery namespace, not top-level verb"
+
+  - id: C-W0.16
+    wave: 0
+    description: "agentxp prune verb (S1)"
+    source_spec: "CLEANUP §3.0 W0.16"
+    status: not_started
+    depends_on: []
+    output_files: [agentxp/cli/prune.py]
+    agent_type: builder
+    parallel_group: W0-A
+    session: null
+    notes: ""
+
+  - id: C-W0.17
+    wave: 0
+    description: "agentxp new verb (S7)"
+    source_spec: "CLEANUP §3.0 W0.17"
+    status: not_started
+    depends_on: [C-W0.14]
+    output_files: [agentxp/cli/new.py]
+    agent_type: builder
+    parallel_group: W0-C
+    session: null
+    notes: ""
+
+  - id: P-W0.1
+    wave: 0
+    description: "Sha256Hex reuse in catalog schemas"
+    source_spec: "PRES §3.0 P0.1"
+    status: not_started
+    depends_on: [C-W0.1]
+    output_files: [agentxp/schemas/catalog.py]
+    agent_type: builder
+    parallel_group: W0-B
+    session: null
+    notes: ""
+
+  - id: P-W0.2
+    wave: 0
+    description: "Per-type ViewModels (IntentVM, DesignBriefVM, MidRunVM, VerdictVM)"
+    source_spec: "PRES §3.0 P0.2"
+    status: not_started
+    depends_on: [C-W0.13]
+    output_files: [agentxp/render/viewmodel.py]
+    agent_type: builder
+    parallel_group: W0-C
+    session: null
+    notes: "MidRunVM is the peek-prevention wall — extra='forbid', no lift/CI/p-value fields"
+
+  - id: P-W0.3
+    wave: 0
+    description: "Per-type ViewBundle subtypes"
+    source_spec: "PRES §3.0 P0.3"
+    status: not_started
+    depends_on: [P-W0.2]
+    output_files: [agentxp/render/viewmodel.py]
+    agent_type: builder
+    parallel_group: W0-D
+    session: null
+    notes: ""
+
+  - id: P-W0.4
+    wave: 0
+    description: "ChartData schema_version 2 (per-arm means + SEs)"
+    source_spec: "PRES §3.0 P0.4"
+    status: not_started
+    depends_on: [P-W0.2]
+    output_files: [agentxp/render/viewmodel.py]
+    agent_type: builder
+    parallel_group: W0-D
+    session: null
+    notes: ""
+
+  - id: P-W0.5
+    wave: 0
+    description: "BriefV3 extensions (power_stats, power_curve, allocation, decision_rules)"
+    source_spec: "PRES §3.0 P0.5"
+    status: not_started
+    depends_on: [C-W0.13]
+    output_files: [agentxp/schemas/brief.py]
+    agent_type: builder
+    parallel_group: W0-C
+    session: null
+    notes: ""
+
+  - id: P-W0.6
+    wave: 0
+    description: "ReadoutKind enum + closure test"
+    source_spec: "PRES §3.0 P0.6"
+    status: not_started
+    depends_on: []
+    output_files:
+      - agentxp/render/readout_kind.py
+      - tests/render/test_readout_kind_closure.py
+    agent_type: builder
+    parallel_group: W0-A
+    session: null
+    notes: ""
+
+  - id: P-W0.7
+    wave: 0
+    description: "Catalog event schemas (5 event kinds with hash chain — Invariant 7)"
+    source_spec: "PRES §3.0 P0.7"
+    status: not_started
+    depends_on: [P-W0.1, P-W0.6]
+    output_files: [agentxp/schemas/catalog.py]
+    agent_type: builder
+    parallel_group: W0-D
+    session: null
+    notes: ""
+
+  - id: P-W0.8
+    wave: 0
+    description: "_VERDICT_MODIFIER UNVERIFIABLE entry + brand stripe tokens + CSS"
+    source_spec: "PRES §3.0 P0.8"
+    status: not_started
+    depends_on: [C-W0.11]
+    output_files:
+      - agentxp/render/adapters/html.py
+      - agentxp/render/brand.py
+      - agentxp/assets/design/components.css
+    agent_type: builder
+    parallel_group: W0-B
+    session: null
+    notes: ""
+
+  # ─────────────────────────────────────────────────────────────────
+  # Wave 1 — SQL chokepoint + result_hash (8 tasks, ships dark)
+  # ─────────────────────────────────────────────────────────────────
+  - id: C-W1.1
+    wave: 1
+    description: "OrchestratorStore.dispatch_sql wrapper around existing worker"
+    source_spec: "CLEANUP §3.1 W1.1"
+    status: not_started
+    depends_on: [C-W0.3]
+    output_files: [agentxp/orchestrator/store.py]
+    agent_type: builder
+    parallel_group: W1-B
+    session: null
+    notes: ""
+
+  - id: C-W1.2
+    wave: 1
+    description: "canonical_result_hash content-faithfulness fix (audit bug — currently row_count|bytes_scanned)"
+    source_spec: "CLEANUP §3.1 W1.2"
+    status: not_started
+    depends_on: []
+    output_files:
+      - agentxp/sql/hashing.py
+      - tests/sql/test_result_hash_order_invariance.py
+    agent_type: builder
+    parallel_group: W1-A
+    session: null
+    notes: "Silently broken in shipped code per orchestrator-engineer Round 1"
+
+  - id: C-W1.3
+    wave: 1
+    description: "DuckDB adapter for dispatch_sql"
+    source_spec: "CLEANUP §3.1 W1.3"
+    status: not_started
+    depends_on: [C-W1.1]
+    output_files: [agentxp/sql/duckdb_adapter.py]
+    agent_type: builder
+    parallel_group: W1-C
+    session: null
+    notes: ""
+
+  - id: C-W1.4
+    wave: 1
+    description: "Parquet emission for query results"
+    source_spec: "CLEANUP §3.1 W1.4"
+    status: not_started
+    depends_on: [C-W1.3]
+    output_files: [agentxp/sql/parquet_emit.py]
+    agent_type: builder
+    parallel_group: W1-D
+    session: null
+    notes: ""
+
+  - id: C-W1.5
+    wave: 1
+    description: "SupportedTestType Literal + closure test (audit B6 silent p95→mean fix)"
+    source_spec: "CLEANUP §3.1 W1.5"
+    status: not_started
+    depends_on: []
+    output_files:
+      - agentxp/analyze/tests.py
+      - tests/analyze/test_supported_test_type_closure.py
+    agent_type: builder
+    parallel_group: W1-A
+    session: null
+    notes: "Unsupported types raise instead of substituting"
+
+  - id: C-W1.6
+    wave: 1
+    description: "Verdict tree UNVERIFIABLE-on-null path (audit B5)"
+    source_spec: "CLEANUP §3.1 W1.6 + PRES §3.1 P1.2 (merged)"
+    status: not_started
+    depends_on: [C-W0.11]
+    output_files:
+      - agentxp/interpret/tree.py
+      - tests/interpret/test_tree_unverifiable_path.py
+    agent_type: builder
+    parallel_group: W1-A
+    session: null
+    notes: "Single task covering both cleanup and presentation arc reference"
+
+  - id: P-W1.1
+    wave: 1
+    description: "compute_n_required_curve in agentxp.stats.power"
+    source_spec: "PRES §3.1 P1.1"
+    status: not_started
+    depends_on: []
+    output_files:
+      - agentxp/stats/power.py
+      - tests/stats/test_compute_n_required_curve.py
+    agent_type: builder
+    parallel_group: W1-A
+    session: null
+    notes: ""
+
+  # ─────────────────────────────────────────────────────────────────
+  # Wave 2 — Warehouse fixture (11 tasks, ships dark)
+  # ─────────────────────────────────────────────────────────────────
+  - id: C-W2.1
+    wave: 2
+    description: "Generate sample-data/agentxp_demo.duckdb (6 tables, 8 experiments) with E_F12345 byte-for-byte seed contract"
+    source_spec: "CLEANUP §3.2 W2.1"
+    status: not_started
+    depends_on: [C-W1.1, C-W1.3]
+    output_files:
+      - sample-data/agentxp_demo.duckdb
+      - agentxp/fixtures/generate_demo_warehouse.py
+      - agentxp/fixtures/E_F12345_seed_contract.yaml
+    agent_type: builder
+    parallel_group: W2-B
+    session: null
+    notes: "Shane decision 2 — E_F12345 = 314/384/+22.3% pinned"
+
+  - id: C-W2.2
+    wave: 2
+    description: "Six tables DDL (experiments, assignments, users, sessions, orders, page_events)"
+    source_spec: "CLEANUP §3.2 W2.2"
+    status: not_started
+    depends_on: []
+    output_files: [agentxp/fixtures/schema/]
+    agent_type: builder
+    parallel_group: W2-A
+    session: null
+    notes: ""
+
+  - id: C-W2.3
+    wave: 2
+    description: "semantic_models/*.yaml with kind: fact|dim and joins: blocks"
+    source_spec: "CLEANUP §3.2 W2.3"
+    status: not_started
+    depends_on: [C-W0.12]
+    output_files: [semantic_models/]
+    agent_type: builder
+    parallel_group: W2-C
+    session: null
+    notes: ""
+
+  - id: C-W2.4
+    wave: 2
+    description: "metrics/*.yaml v2 (6 canonical metrics)"
+    source_spec: "CLEANUP §3.2 W2.4"
+    status: not_started
+    depends_on: [C-W0.13]
+    output_files: [metrics/]
+    agent_type: builder
+    parallel_group: W2-C
+    session: null
+    notes: ""
+
+  - id: C-W2.5
+    wave: 2
+    description: "assignments/README.md convention doc"
+    source_spec: "CLEANUP §3.2 W2.5"
+    status: not_started
+    depends_on: []
+    output_files: [assignments/README.md]
+    agent_type: builder
+    parallel_group: W2-A
+    session: null
+    notes: ""
+
+  - id: C-W2.6
+    wave: 2
+    description: "sample-data/EXPERIMENTS.md table (8 experiments × verdict path)"
+    source_spec: "CLEANUP §3.2 W2.6"
+    status: not_started
+    depends_on: []
+    output_files: [sample-data/EXPERIMENTS.md]
+    agent_type: builder
+    parallel_group: W2-A
+    session: null
+    notes: ""
+
+  - id: C-W2.7
+    wave: 2
+    description: "fixture.lock.yaml (logical-content hashing, not raw DuckDB bytes)"
+    source_spec: "CLEANUP §3.2 W2.7"
+    status: not_started
+    depends_on: [C-W2.1]
+    output_files: [fixture.lock.yaml]
+    agent_type: builder
+    parallel_group: W2-C
+    session: null
+    notes: ""
+
+  - id: C-W2.8
+    wave: 2
+    description: "Regenerate tests/render/fixtures/bundles_ship/* from new warehouse"
+    source_spec: "CLEANUP §3.2 W2.8"
+    status: not_started
+    depends_on: [C-W2.1]
+    output_files: [tests/render/fixtures/bundles_ship/]
+    agent_type: builder
+    parallel_group: W2-C
+    session: null
+    notes: "Module 10 +0.032 (+18.0%) preserved via exp_001 synthetic anchor"
+
+  - id: P-W2.1
+    wave: 2
+    description: "E_F12345 seed adds PowerGridData (9-point curve)"
+    source_spec: "PRES §3.2 P2.1"
+    status: not_started
+    depends_on: [P-W0.5, P-W1.1, C-W2.1]
+    output_files: [agentxp/fixtures/generate_demo_warehouse.py]
+    agent_type: builder
+    parallel_group: W2-C
+    session: null
+    notes: ""
+
+  - id: P-W2.2
+    wave: 2
+    description: "Interim monitor.50pct.snapshot.yaml for E_F12345"
+    source_spec: "PRES §3.2 P2.2"
+    status: not_started
+    depends_on: [C-W2.1]
+    output_files:
+      - sample-data/agentxp_demo.duckdb  # extended
+      - agentxp/fixtures/generate_demo_warehouse.py
+    agent_type: builder
+    parallel_group: W2-C
+    session: null
+    notes: ""
+
+  - id: P-W2.3
+    wave: 2
+    description: "Per-arm means and SEs in seed + MetricResult projection"
+    source_spec: "PRES §3.2 P2.3"
+    status: not_started
+    depends_on: [P-W0.4, C-W2.1]
+    output_files:
+      - agentxp/fixtures/generate_demo_warehouse.py
+      - agentxp/render/distill.py
+    agent_type: builder
+    parallel_group: W2-C
+    session: null
+    notes: ""
+
+  - id: P-W2.4
+    wave: 2
+    description: "Cross-format equality test matrix scaffolding"
+    source_spec: "PRES §3.2 P2.4"
+    status: not_started
+    depends_on: [P-W0.2]
+    output_files:
+      - tests/render/test_cross_format_equality.py
+      - tests/golden/canonical_strs/
+    agent_type: builder
+    parallel_group: W2-A
+    session: null
+    notes: "Manifests authored in W4; runner scaffolds here"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Wave 3 — Inline dispatch + brief integrity (8 tasks, ships dark)
+  # ─────────────────────────────────────────────────────────────────
+  - id: C-W3.1
+    wave: 3
+    description: "dispatch_agent inline branch (atomic pair, no retry)"
+    source_spec: "CLEANUP §3.3 W3.1"
+    status: not_started
+    depends_on: [C-W0.3, C-W0.4]
+    output_files: [agentxp/orchestrator/store.py]
+    agent_type: builder
+    parallel_group: W3-B
+    session: null
+    notes: "Inline mode v0.1, metadata.subtype=inline, no API key"
+
+  - id: C-W3.2
+    wave: 3
+    description: "Inline raw-text persistence at bundles/<agent>.inline.txt + inline_raw_sha256"
+    source_spec: "CLEANUP §3.3 W3.2"
+    status: not_started
+    depends_on: [C-W3.1]
+    output_files:
+      - agentxp/orchestrator/inline_persist.py
+      - agentxp/audit/events.py
+    agent_type: builder
+    parallel_group: W3-C
+    session: null
+    notes: "Anchored via agent.completed.metadata.inline_raw_sha256 (audit-supplement A resolution)"
+
+  - id: C-W3.3
+    wave: 3
+    description: "Three-part brief integrity lock (design_chain_hash + metric_snapshot + expected_shape)"
+    source_spec: "CLEANUP §3.3 W3.3"
+    status: not_started
+    depends_on: [C-W0.1, C-W0.13]
+    output_files: [agentxp/schemas/brief.py]
+    agent_type: builder
+    parallel_group: W3-A
+    session: null
+    notes: ""
+
+  - id: C-W3.4
+    wave: 3
+    description: "Brief-commit 1.0× strict power refusal (Shane decision 5)"
+    source_spec: "CLEANUP §3.3 W3.4"
+    status: not_started
+    depends_on: [C-W3.3, C-W2.1]
+    output_files: [agentxp/orchestrator/store.py]
+    agent_type: builder
+    parallel_group: W3-C
+    session: null
+    notes: "n_required > available_assignment_surface_per_arm raises; no --force"
+
+  - id: C-W3.5
+    wave: 3
+    description: "Two-state-lifecycle (Stage 4 terminal for design experiment, Stage 8 for analyze)"
+    source_spec: "CLEANUP §3.3 W3.5"
+    status: not_started
+    depends_on: [C-W0.5]
+    output_files: [agentxp/orchestrator/store.py]
+    agent_type: builder
+    parallel_group: W3-A
+    session: null
+    notes: ""
+
+  - id: P-W3.1
+    wave: 3
+    description: "prepare_power_grid(brief) at brief lock"
+    source_spec: "PRES §3.3 P3.1"
+    status: not_started
+    depends_on: [P-W0.5, P-W1.1]
+    output_files: [agentxp/orchestrator/store.py]
+    agent_type: builder
+    parallel_group: W3-C
+    session: null
+    notes: ""
+
+  - id: P-W3.2
+    wave: 3
+    description: "Per-readout-kind build_provenance discriminator + cascade"
+    source_spec: "PRES §3.3 P3.2"
+    status: not_started
+    depends_on: [P-W0.6, P-W0.2, C-W3.3]
+    output_files: [agentxp/render/provenance.py]
+    agent_type: builder
+    parallel_group: W3-C
+    session: null
+    notes: "5 precedence chains per readout kind, downward cascade"
+
+  - id: P-W3.3
+    wave: 3
+    description: "persist_render helper (atomic write + sidecar + catalog append)"
+    source_spec: "PRES §3.3 P3.3"
+    status: not_started
+    depends_on: [P-W0.7]
+    output_files: [agentxp/render/persistence.py]
+    agent_type: builder
+    parallel_group: W3-B
+    session: null
+    notes: ""
+
+  # ─────────────────────────────────────────────────────────────────
+  # Wave 4 — ATOMIC SURFACE FLIP (24 tasks, ONE PR)
+  # ─────────────────────────────────────────────────────────────────
+  - id: C-W4.1
+    wave: 4
+    description: "Flip SURFACE_V01_ENABLED default to True"
+    source_spec: "CLEANUP §3.4 W4.1"
+    status: not_started
+    depends_on: []
+    output_files: [agentxp/_flags.py]
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: "Part of the atomic PR; orchestrated last"
+
+  - id: C-W4.2
+    wave: 4
+    description: "Delete 8 sample-data CSVs (Shane decision 4)"
+    source_spec: "CLEANUP §3.4 W4.2"
+    status: not_started
+    depends_on: [C-W2.1]
+    output_files: [sample-data/]
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: ""
+
+  - id: C-W4.3
+    wave: 4
+    description: ".claude/commands/experiment.md rewrite for sub-verbs"
+    source_spec: "CLEANUP §3.4 W4.3"
+    status: not_started
+    depends_on: []
+    output_files: [.claude/commands/experiment.md]
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: ""
+
+  - id: C-W4.4
+    wave: 4
+    description: ".claude/skills/experiment/SKILL.md rewrite (inline-mode v0.1 path)"
+    source_spec: "CLEANUP §3.4 W4.4"
+    status: not_started
+    depends_on: [C-W3.1]
+    output_files: [.claude/skills/experiment/SKILL.md]
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: ""
+
+  - id: C-W4.5
+    wave: 4
+    description: "STAGES.md split into STAGES_DESIGN.md + STAGES_ANALYZE.md"
+    source_spec: "CLEANUP §3.4 W4.5"
+    status: not_started
+    depends_on: [C-W3.3]
+    output_files:
+      - .claude/skills/experiment/STAGES_DESIGN.md
+      - .claude/skills/experiment/STAGES_ANALYZE.md
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: ""
+
+  - id: C-W4.6
+    wave: 4
+    description: "Root CLAUDE.md §1 rewrite (literal 3-sentence opener)"
+    source_spec: "CLEANUP §3.4 W4.6"
+    status: not_started
+    depends_on: []
+    output_files: [CLAUDE.md]
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: ""
+
+  - id: C-W4.7
+    wave: 4
+    description: "docs/QUICKSTART.md + docs/USER_JOURNEYS.md rewrite"
+    source_spec: "CLEANUP §3.4 W4.7"
+    status: not_started
+    depends_on: [C-W3.3]
+    output_files:
+      - docs/QUICKSTART.md
+      - docs/USER_JOURNEYS.md
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: ""
+
+  - id: C-W4.8
+    wave: 4
+    description: "Walkthroughs rewrite (your-first → meta, pre-registration → design, monitoring → analyze, data-connectors → synthetic CSV)"
+    source_spec: "CLEANUP §3.4 W4.8"
+    status: not_started
+    depends_on: []
+    output_files:
+      - docs/walkthroughs/your-first-experiment.md
+      - docs/walkthroughs/pre-registration.md
+      - docs/walkthroughs/analyze.md
+      - docs/walkthroughs/data-connectors.md
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: "monitoring.md renamed to analyze.md"
+
+  - id: C-W4.9
+    wave: 4
+    description: "Per-module curriculum 0–10 updates (change matrix)"
+    source_spec: "CLEANUP §3.4 W4.9"
+    status: not_started
+    depends_on: []
+    output_files: [docs/learn/]
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: "Modules 0–10, file:line precision in cleanup persona Round 2 plans"
+
+  - id: C-W4.10
+    wave: 4
+    description: "Muscle-memory refusal message for --data <csv> path"
+    source_spec: "CLEANUP §3.4 W4.10"
+    status: not_started
+    depends_on: []
+    output_files: [agentxp/cli/experiment.py]
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: "Refusal copy from Product-UX Round 2"
+
+  - id: P-W4.1
+    wave: 4
+    description: "Four pure distill_* functions (distill_intent / distill_design_brief / distill_mid_run / distill_verdict)"
+    source_spec: "PRES §3.4 P4.1"
+    status: not_started
+    depends_on: [P-W0.2]
+    output_files: [agentxp/render/distill.py]
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: "distill_mid_run signature is the peek wall — NEVER takes analyzer outputs"
+
+  - id: P-W4.2
+    wave: 4
+    description: "Seven chart primitives at viewBox 1020×H"
+    source_spec: "PRES §3.4 P4.2"
+    status: not_started
+    depends_on: [P-W0.4, P-W2.3, C-W2.8]
+    output_files: [agentxp/render/charts.py]
+    agent_type: builder
+    parallel_group: W4-A
+    session: null
+    notes: "control_vs_treatment_bars, distribution_overlap, guardrail_threshold, power_design_curve, arm_allocation_bar, srm_observed_bar, metric_callout_strip"
+
+  - id: P-W4.3
+    wave: 4
+    description: "Existing chart fixes (lift_bar axis values + MDE marker, ci_interval axis-label-row)"
+    source_spec: "PRES §3.4 P4.3"
+    status: not_started
+    depends_on: [P-W4.2]
+    output_files: [agentxp/render/charts.py]
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: "Fixes '95% CCI' overlap bug"
+
+  - id: P-W4.4
+    wave: 4
+    description: "html.py section-per-question restructure (verdict at TOP — Shane decision 7)"
+    source_spec: "PRES §3.4 P4.4"
+    status: not_started
+    depends_on: [P-W4.1, P-W4.2]
+    output_files:
+      - agentxp/render/adapters/html.py
+      - templates/experiment-report.html.j2
+      - templates/partials/xp-verdict-hero.html.j2
+      - templates/partials/xp-srm-section.html.j2
+      - templates/partials/xp-primary-section.html.j2
+      - templates/partials/xp-guardrail-section.html.j2
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: "Sections: Verdict → SRM → Primary → Guardrails (1 per) → Receipts"
+
+  - id: P-W4.5
+    wave: 4
+    description: "New design_brief.py adapter + template"
+    source_spec: "PRES §3.4 P4.5"
+    status: not_started
+    depends_on: [P-W0.2, P-W0.5, P-W4.2]
+    output_files:
+      - agentxp/render/adapters/design_brief.py
+      - templates/design-brief.html.j2
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: "Renders Stage 3+4 design brief readout per reference HTML"
+
+  - id: P-W4.6
+    wave: 4
+    description: "New mid_run.py adapter (peek-safe by construction)"
+    source_spec: "PRES §3.4 P4.6"
+    status: not_started
+    depends_on: [P-W0.2]
+    output_files:
+      - agentxp/render/adapters/mid_run.py
+      - templates/mid-run.html.j2
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: "No charts, no magnitudes, no metric names. Property test enforces."
+
+  - id: P-W4.7
+    wave: 4
+    description: "New intent.py adapter (HTML + Markdown for share-tail)"
+    source_spec: "PRES §3.4 P4.7"
+    status: not_started
+    depends_on: [P-W0.2]
+    output_files:
+      - agentxp/render/adapters/intent.py
+      - templates/intent.html.j2
+      - templates/intent.md.j2
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: ""
+
+  - id: P-W4.8
+    wave: 4
+    description: "card.py rebuild (verdict-as-hero upper third — Shane decision 7)"
+    source_spec: "PRES §3.4 P4.8"
+    status: not_started
+    depends_on: [P-W4.2, P-W4.4]
+    output_files:
+      - agentxp/render/adapters/card.py
+      - templates/social-card.html.j2
+    agent_type: builder
+    parallel_group: W4-B
+    session: null
+    notes: "Shares xp-verdict-hero partial with html.py"
+
+  - id: P-W4.9
+    wave: 4
+    description: "Four library entry points (render_intent_card / render_design_brief / render_monitor_check / render_verdict)"
+    source_spec: "PRES §3.4 P4.9"
+    status: not_started
+    depends_on: [P-W4.5, P-W4.6, P-W4.7, P-W4.8]
+    output_files: [agentxp/render/__init__.py]
+    agent_type: builder
+    parallel_group: W4-C
+    session: null
+    notes: "Accept exp_id OR Bundle; pure functions; Lin's notebook path"
+
+  - id: P-W4.10
+    wave: 4
+    description: "/readout slash command + agentxp readout CLI verb"
+    source_spec: "PRES §3.4 P4.10"
+    status: not_started
+    depends_on: [P-W4.9]
+    output_files:
+      - .claude/commands/readout.md
+      - agentxp/cli/readout.py
+      - agentxp/cli/report.py
+    agent_type: builder
+    parallel_group: W4-D
+    session: null
+    notes: "agentxp report aliased to readout --type verdict with DeprecationWarning"
+
+  - id: P-W4.11
+    wave: 4
+    description: "agentxp readouts <id> + agentxp readouts --index CLI verbs"
+    source_spec: "PRES §3.4 P4.11"
+    status: not_started
+    depends_on: [P-W3.3, P-W4.10]
+    output_files: [agentxp/cli/readouts.py]
+    agent_type: builder
+    parallel_group: W4-E
+    session: null
+    notes: ""
+
+  - id: P-W4.12
+    wave: 4
+    description: "Share-tail wiring at Stage 1 (intent readout)"
+    source_spec: "PRES §3.4 P4.12"
+    status: not_started
+    depends_on: [P-W4.9, C-W4.4]
+    output_files:
+      - .claude/skills/experiment/SKILL.md
+      - .claude/skills/experiment/STAGES_DESIGN.md
+    agent_type: builder
+    parallel_group: W4-E
+    session: null
+    notes: ""
+
+  - id: P-W4.13
+    wave: 4
+    description: "Share-tail wiring at Stage 3 (design brief) + Stage 8 (verdict, with public-card single question)"
+    source_spec: "PRES §3.4 P4.13"
+    status: not_started
+    depends_on: [P-W4.9, P-W4.12]
+    output_files:
+      - .claude/skills/experiment/SKILL.md
+      - .claude/skills/experiment/STAGES_DESIGN.md
+      - .claude/skills/experiment/STAGES_ANALYZE.md
+    agent_type: builder
+    parallel_group: W4-E
+    session: null
+    notes: ""
+
+  - id: P-W4.14
+    wave: 4
+    description: "Share-tail wiring at Stage 5 halt only"
+    source_spec: "PRES §3.4 P4.14"
+    status: not_started
+    depends_on: [P-W4.9, C-W4.5]
+    output_files:
+      - .claude/skills/experiment/SKILL.md
+      - .claude/skills/experiment/STAGES_ANALYZE.md
+    agent_type: builder
+    parallel_group: W4-E
+    session: null
+    notes: "Silent on clean monitor commit; readout fires only on gate.opened"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Wave 5 — Polish (7 tasks, 1-week post-W4)
+  # ─────────────────────────────────────────────────────────────────
+  - id: C-W5.1
+    wave: 5
+    description: "Module 8 gauntlet rewrite (18 → 21 questions)"
+    source_spec: "CLEANUP §3.5 W5.1"
+    status: not_started
+    depends_on: [C-W4.9]
+    output_files: [docs/learn/08_capstone.md]
+    agent_type: builder
+    parallel_group: W5-A
+    session: null
+    notes: ""
+
+  - id: C-W5.2
+    wave: 5
+    description: "trace.md numeric re-verification against shipped warehouse"
+    source_spec: "CLEANUP §3.5 W5.2"
+    status: not_started
+    depends_on: [C-W2.8]
+    output_files: [docs/learn/trace.md]
+    agent_type: builder
+    parallel_group: W5-A
+    session: null
+    notes: ""
+
+  - id: C-W5.3
+    wave: 5
+    description: "README aha-index + module-map + fixture cheat-sheet update"
+    source_spec: "CLEANUP §3.5 W5.3"
+    status: not_started
+    depends_on: [C-W4.9]
+    output_files: [docs/learn/README.md]
+    agent_type: builder
+    parallel_group: W5-A
+    session: null
+    notes: ""
+
+  - id: C-W5.4
+    wave: 5
+    description: "docs/SYSTEM_AUDIT.md §11 final entries"
+    source_spec: "CLEANUP §3.5 W5.4"
+    status: not_started
+    depends_on: []
+    output_files: [docs/SYSTEM_AUDIT.md]
+    agent_type: builder
+    parallel_group: W5-A
+    session: null
+    notes: ""
+
+  - id: P-W5.1
+    wave: 5
+    description: "Module 10 curriculum extension (continuous-spine sub-section)"
+    source_spec: "PRES §3.5 P5.1"
+    status: not_started
+    depends_on: [C-W4.9]
+    output_files: [docs/learn/10_presentation.md]
+    agent_type: builder
+    parallel_group: W5-A
+    session: null
+    notes: ""
+
+  - id: P-W5.2
+    wave: 5
+    description: "agentxp prune --readouts extension"
+    source_spec: "PRES §3.5 P5.2"
+    status: not_started
+    depends_on: [C-W0.16, P-W0.7]
+    output_files: [agentxp/cli/prune.py]
+    agent_type: builder
+    parallel_group: W5-A
+    session: null
+    notes: ""
+
+  - id: P-W5.3
+    wave: 5
+    description: "Cross-experiment readouts-index regeneration"
+    source_spec: "PRES §3.5 P5.3"
+    status: not_started
+    depends_on: [P-W4.11]
+    output_files: [agentxp/cli/readouts.py]
+    agent_type: builder
+    parallel_group: W5-A
+    session: null
+    notes: ""
+
+session_log:
+  - session: 1
+    date: "2026-06-04"
+    wave: 0
+    tasks_completed: []
+    tasks_failed: []
+    notes: "Tracker generated from combined build plan. Ready to start Wave 0 execution."
