@@ -59,9 +59,9 @@ def _build_parser() -> argparse.ArgumentParser:
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _resolve_exp_dir(project: Optional[Path], exp_id: str) -> Path:
+def _resolve_exp_dir(project: Optional[Path], experiment_id: str) -> Path:
     root = (project if project is not None else Path.cwd()).resolve()
-    return root / "experiments" / exp_id
+    return root / "experiments" / experiment_id
 
 
 def _load_state(exp_dir: Path) -> Optional[dict[str, Any]]:

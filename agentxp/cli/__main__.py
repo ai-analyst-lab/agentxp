@@ -29,6 +29,7 @@ SUBCOMMANDS: dict[str, tuple[str, str] | str] = {
     "report":     ("agentxp.cli.report", "main"),     # presentation W2 — wired
     "experiment": ("agentxp.cli.experiment", "main"), # W5.2 — wired
     "migrate":    ("agentxp.cli.migrate", "main"),    # §1.7.6 — router (state|metrics)
+    "prune":      ("agentxp.cli.prune", "main"),      # W0.16 — orphan experiment cleanup (S1)
 }
 
 

@@ -26,6 +26,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from agentxp.schemas._types import Sha256Hex
 from agentxp.schemas.state import _enforce_utc
 
 
@@ -158,7 +159,7 @@ class ProfileReport(BaseModel):
     # ── Table-level stats ───────────────────────────────────────────────
     row_count: int = Field(..., ge=0)
     column_count: int = Field(..., ge=1)
-    schema_sha256: str = Field(..., min_length=64, max_length=64)
+    schema_sha256: Sha256Hex
 
     # ── Per-column profiles ─────────────────────────────────────────────
     columns: list[ColumnProfile] = Field(default_factory=list)

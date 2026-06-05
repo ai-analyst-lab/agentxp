@@ -62,9 +62,9 @@ def _build_parser() -> argparse.ArgumentParser:
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _resolve_exp_dir(project: Optional[Path], exp_id: str) -> Path:
+def _resolve_exp_dir(project: Optional[Path], experiment_id: str) -> Path:
     root = (project if project is not None else Path.cwd()).resolve()
-    return root / "experiments" / exp_id
+    return root / "experiments" / experiment_id
 
 
 def _read_lock_metadata(lock_path: Path) -> Optional[dict[str, Any]]:
@@ -108,7 +108,7 @@ def _new_action_id() -> str:
 
 
 def _emit_stale_reclaimed(
-    exp_dir: Path, exp_id: str, reclaimed_pid: Optional[int]
+    exp_dir: Path, experiment_id: str, reclaimed_pid: Optional[int]
 ) -> None:
     """Append a stage.committed event with subtype="lock.stale_reclaimed"
     so the audit chain records the break. metadata.reclaimed_pid carries
@@ -146,7 +146,7 @@ def _emit_stale_reclaimed(
         parent_action_id=None,
         actor_kind="user",
         actor_name="agentxp unlock",
-        experiment_id=exp_id,
+        experiment_id=experiment_id,
         stage=stage_value,
         bundle_hash=None,
         metadata=metadata,

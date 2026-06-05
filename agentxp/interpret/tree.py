@@ -1,10 +1,10 @@
 """Pure-function 8-step decision tree for the Stage-7 interpreter.
 
 Implements the verdict ladder defined in OPENXP_V01_PLAN.md §22 and emits one
-of the 8 closed Verdict labels per §1.8.17:
+of the 9 closed Verdict labels per §1.8.17 (extended in v0.1 cleanup W0.11):
 
     INVALID-SRM, NO-SHIP-GUARDRAIL, INCONCLUSIVE, NO-LIFT,
-    DIRECTIONAL-ONLY, LIFT-WITH-CAVEAT, SHIP, LEARN
+    DIRECTIONAL-ONLY, LIFT-WITH-CAVEAT, SHIP, LEARN, UNVERIFIABLE
 
 Order of evaluation is fixed (Step 1 -> Step 8); the first step that fires
 terminates the walk. ``late_ratio`` is formally defined here per M106 /
@@ -13,6 +13,12 @@ effect to the early-window primary effect, used by Step 7 to flag novelty.
 This module is a deterministic compute kernel: no I/O, no LLM, no imports
 from agentxp.audit / agentxp.orchestrator / agentxp.cli. It is consumed by the
 interpreter agent's bundle writer (see ``agents/interpreter.system.md``).
+
+UNVERIFIABLE (added v0.1 W0.11, wired in W1.6) is the "the tree could not
+complete" verdict — emitted when a tree-step input is null instead of falling
+through to SHIP-default. Preserves Module 3 aha #2 (the order of the steps IS
+the priority ranking) under null-input conditions. Renders distinct from
+RenderStatus.UNVERIFIABLE — two layers, two "can't check" claims.
 """
 from __future__ import annotations
 
@@ -35,6 +41,7 @@ Verdict = Literal[
     "LIFT-WITH-CAVEAT",
     "SHIP",
     "LEARN",
+    "UNVERIFIABLE",
 ]
 
 

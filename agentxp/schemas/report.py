@@ -29,6 +29,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # ──────────────────────────────────────────────────────────────────────────
 
 from agentxp.interpret.tree import Verdict
+from agentxp.schemas._types import Sha256Hex
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -282,8 +283,8 @@ class Report(BaseModel):
     prior_turns_compressed_ref: Optional[str] = None  # e.g., "bundles/readout.ctx.yaml#prior_turns_compressed"
 
     # ── W_pres provenance (schema_version 2) — core-written, NOT agent-written ──
-    chain_hash: Optional[str] = None  # canonical_chain_hash(exp_dir) over log.jsonl, computed by finalize_report()
-    locked_brief_hash: Optional[str] = None  # sha256 of experiment.yaml (write-once lock); "recorded" receipt, NOT in VERIFIED gate
+    chain_hash: Optional[Sha256Hex] = None  # canonical_chain_hash(exp_dir) over log.jsonl, computed by finalize_report()
+    locked_brief_hash: Optional[Sha256Hex] = None  # sha256 of experiment.yaml (write-once lock); "recorded" receipt, NOT in VERIFIED gate
     agentxp_version: Optional[str] = None  # agentxp.__version__ at finalize time
 
     # ── W_pres design-card fields (schema_version 2) — optional, defaulted ──

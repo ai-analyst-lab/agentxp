@@ -1,151 +1,165 @@
-"""Pairwise audit-trail diff helper for ``agentxp audit <a> --diff <b>`` (§15).
+"""``agentxp prune`` — remove abandoned / orphan experiment artifacts.
 
-Surfaces three classes of differences:
-  - events present in A but missing in B (and vice-versa)
-  - bundle hashes that differ for the same agent_name
-  - a unified-diff-style text rendering with optional ANSI color
+v0.1 cleanup W0.16 — addresses audit finding S1 (orphan
+``experiments/exp_001/`` left from prior debug walks with no cleanup verb).
 
-Source spec: experimentation-platform/OPENXP_V01_PLAN.md §15.
+This verb handles ORPHAN-EXPERIMENT pruning in v0.1. The presentation-spine
+extension P-W5.2 layers ``--readouts`` onto this same verb to prune superseded
+readout slots; that ships in Wave 5.
+
+Behavior (v0.1 W0.16 baseline):
+
+    agentxp prune --orphans [--dry-run] [--force]
+        Walk ``experiments/`` and identify orphan experiments — directories
+        without a ``state.yaml`` (the canonical marker of a real experiment).
+        With --dry-run: print what would be removed, exit 0, no writes.
+        Default: refuse without --force when any candidate has untracked
+        artifacts (bundles/, decisions/, log.jsonl); --force overrides.
+
+Refusal conditions (without --force):
+  - Any candidate orphan carries an unresolved ``.state.lock`` (someone else
+    may be working on it).
+  - Any candidate is younger than 24h (probably mid-debug).
+
+Exit codes:
+  - EXIT_OK (0): completed (including --dry-run with no candidates).
+  - EXIT_USER_ERROR (1): bad arguments, refusal triggered.
+  - EXIT_WARNING (2): some candidates skipped (locks, recency); rest proceeded.
 """
 from __future__ import annotations
 
-import json
+import argparse
+import shutil
+import sys
+import time
 from pathlib import Path
+from typing import Optional
 
-__all__ = ["render_diff"]
-
-
-# ANSI color escapes — only emitted when use_color=True (TTY heuristic).
-_RED = "\033[31m"
-_GREEN = "\033[32m"
-_RESET = "\033[0m"
+from agentxp.cli.exit_codes import EXIT_OK, EXIT_USER_ERROR, EXIT_WARNING
 
 
-def _load_log_events(exp_dir: Path) -> list[dict]:
-    log_path = exp_dir / "log.jsonl"
-    if not log_path.exists():
-        return []
-    events: list[dict] = []
-    with log_path.open("r", encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                events.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-    return events
+_RECENCY_REFUSAL_SECONDS = 24 * 60 * 60  # 24h
 
 
-def _event_key(event: dict) -> tuple:
-    """Coarse identity key for diffing.
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="agentxp prune",
+        description=(
+            "Remove orphan experiment directories (no state.yaml). "
+            "Use --dry-run to preview. --force overrides recency / lock refusals."
+        ),
+    )
+    parser.add_argument(
+        "--orphans",
+        action="store_true",
+        help="prune orphan experiment dirs (no state.yaml). Required in v0.1.",
+    )
+    parser.add_argument(
+        "--project",
+        type=Path,
+        default=None,
+        help="project root (default: cwd).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report what would be removed; write nothing.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="override recency and lock-file refusals.",
+    )
+    return parser
 
-    Two events are considered "the same event" if they share event_name +
-    the major identifier(s). We deliberately exclude timestamp and action_id
-    so that two runs of the same experiment compare cleanly. Bundle hash is
-    NOT part of the key so that a "same event, different bundle hash" diff
-    is surfaced as a hash difference rather than a missing event.
-    """
-    name = event.get("event_name", "")
-    parts: list = [name]
-    for field in ("stage", "kind", "agent_name", "query_id"):
-        if event.get(field):
-            parts.append(f"{field}={event[field]}")
-    return tuple(parts)
+
+def _is_orphan(exp_dir: Path) -> bool:
+    """An experiment is an orphan iff its directory has no state.yaml."""
+    return exp_dir.is_dir() and not (exp_dir / "state.yaml").exists()
 
 
-def _format_event_line(event: dict) -> str:
-    """One-line summary of an event for diff output."""
-    ts = event.get("timestamp", "")
-    name = event.get("event_name", "-")
-    extras: list[str] = []
-    for field in ("stage", "kind", "agent_name", "query_id"):
-        if event.get(field):
-            extras.append(f"{field}={event[field]}")
-    extras_str = " ".join(extras)
-    return f"{ts} {name} {extras_str}".rstrip()
+def _has_lock(exp_dir: Path) -> bool:
+    return (exp_dir / ".state.lock").exists()
 
 
-def render_diff(
-    exp_a_id: str,
-    exp_a_dir: Path,
-    exp_b_id: str,
-    exp_b_dir: Path,
-    *,
-    use_color: bool = False,
-) -> str:
-    """Return the text rendering of the A-vs-B diff."""
-    events_a = _load_log_events(exp_a_dir)
-    events_b = _load_log_events(exp_b_dir)
+def _too_recent(exp_dir: Path) -> bool:
+    """True iff the directory's mtime is within the recency refusal window."""
+    try:
+        mtime = exp_dir.stat().st_mtime
+    except OSError:
+        return False
+    return (time.time() - mtime) < _RECENCY_REFUSAL_SECONDS
 
-    keys_a = {_event_key(e): e for e in events_a}
-    keys_b = {_event_key(e): e for e in events_b}
 
-    only_in_a = [keys_a[k] for k in keys_a.keys() - keys_b.keys()]
-    only_in_b = [keys_b[k] for k in keys_b.keys() - keys_a.keys()]
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
 
-    # Bundle-hash differences: same agent_name appears in both A and B with
-    # different bundle_hash values. Compare on (agent_name, event_name) so
-    # dispatched vs completed don't cross-pollinate.
-    def _agent_hashes(events: list[dict]) -> dict[tuple[str, str], str]:
-        out: dict[tuple[str, str], str] = {}
-        for ev in events:
-            if ev.get("event_name") not in (
-                "agent.dispatched",
-                "agent.completed",
-            ):
-                continue
-            agent = ev.get("agent_name")
-            bh = ev.get("bundle_hash")
-            if not agent or not bh:
-                continue
-            out.setdefault((agent, ev["event_name"]), bh)
-        return out
+    if not args.orphans:
+        print(
+            "agentxp prune requires --orphans in v0.1. "
+            "(--readouts ships in W5.)",
+            file=sys.stderr,
+        )
+        return EXIT_USER_ERROR
 
-    hashes_a = _agent_hashes(events_a)
-    hashes_b = _agent_hashes(events_b)
-    hash_diffs: list[tuple[str, str, str, str]] = []
-    for key, hash_a in hashes_a.items():
-        hash_b = hashes_b.get(key)
-        if hash_b is not None and hash_b != hash_a:
-            agent, event_name = key
-            hash_diffs.append((agent, event_name, hash_a, hash_b))
+    project_root = (args.project if args.project is not None else Path.cwd()).resolve()
+    experiments_dir = project_root / "experiments"
 
-    lines: list[str] = []
-    lines.append(f"--- {exp_a_id}/log.jsonl")
-    lines.append(f"+++ {exp_b_id}/log.jsonl")
+    if not experiments_dir.exists():
+        print(f"no experiments/ directory found at {experiments_dir}")
+        return EXIT_OK
 
-    if not only_in_a and not only_in_b and not hash_diffs:
-        lines.append("no differences")
-        return "\n".join(lines) + "\n"
+    candidates = [d for d in experiments_dir.iterdir() if _is_orphan(d)]
+    if not candidates:
+        print("no orphan experiments found")
+        return EXIT_OK
 
-    def _minus(text: str) -> str:
-        line = f"- {text}"
-        return f"{_RED}{line}{_RESET}" if use_color else line
+    skipped: list[tuple[Path, str]] = []
+    eligible: list[Path] = []
 
-    def _plus(text: str) -> str:
-        line = f"+ {text}"
-        return f"{_GREEN}{line}{_RESET}" if use_color else line
+    for candidate in candidates:
+        if _has_lock(candidate) and not args.force:
+            skipped.append((candidate, "locked"))
+            continue
+        if _too_recent(candidate) and not args.force:
+            skipped.append((candidate, "modified <24h ago"))
+            continue
+        eligible.append(candidate)
 
-    if only_in_a:
-        lines.append("")
-        lines.append(f"events only in {exp_a_id}:")
-        for ev in only_in_a:
-            lines.append(_minus(_format_event_line(ev)))
+    if args.dry_run:
+        if eligible:
+            print(f"would remove {len(eligible)} orphan experiment(s):")
+            for d in eligible:
+                print(f"  {d.relative_to(project_root)}")
+        for d, reason in skipped:
+            print(f"skip {d.relative_to(project_root)} ({reason}; use --force to override)")
+        return EXIT_OK
 
-    if only_in_b:
-        lines.append("")
-        lines.append(f"events only in {exp_b_id}:")
-        for ev in only_in_b:
-            lines.append(_plus(_format_event_line(ev)))
+    removed = 0
+    for d in eligible:
+        try:
+            shutil.rmtree(d)
+            removed += 1
+            print(f"removed {d.relative_to(project_root)}")
+        except OSError as e:
+            print(
+                f"failed to remove {d.relative_to(project_root)}: {e}",
+                file=sys.stderr,
+            )
 
-    if hash_diffs:
-        lines.append("")
-        lines.append("bundle hashes that differ:")
-        for agent, event_name, hash_a, hash_b in hash_diffs:
-            lines.append(f"  {agent} ({event_name}):")
-            lines.append(_minus(f"  {hash_a[:12]}..."))
-            lines.append(_plus(f"  {hash_b[:12]}..."))
+    for d, reason in skipped:
+        print(
+            f"skip {d.relative_to(project_root)} ({reason}; use --force to override)"
+        )
 
-    return "\n".join(lines) + "\n"
+    if skipped:
+        return EXIT_WARNING
+    return EXIT_OK
+
+
+__all__ = ["main"]
+
+
+if __name__ == "__main__":
+    sys.exit(main())

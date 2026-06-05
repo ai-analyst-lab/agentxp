@@ -87,9 +87,9 @@ def _build_parser() -> argparse.ArgumentParser:
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _resolve_exp_dir(project: Optional[Path], exp_id: str) -> Path:
+def _resolve_exp_dir(project: Optional[Path], experiment_id: str) -> Path:
     root = (project if project is not None else Path.cwd()).resolve()
-    return root / "experiments" / exp_id
+    return root / "experiments" / experiment_id
 
 
 def _load_log_events(exp_dir: Path) -> list[dict]:
@@ -165,7 +165,7 @@ def _short_metadata(event: dict) -> str:
 
 
 def _render_text(
-    exp_id: str,
+    experiment_id: str,
     events: list[dict],
     decisions: list[tuple[str, str]],
     *,
@@ -175,7 +175,7 @@ def _render_text(
     """Build the full text rendering as a single string."""
     lines: list[str] = []
     if not quiet:
-        lines.append(f"Audit trail for {exp_id}")
+        lines.append(f"Audit trail for {experiment_id}")
         lines.append("-" * (len(lines[0])))
 
     if not events:
@@ -236,7 +236,7 @@ def _render_text(
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def _validate_chain_for_cli(project_root: Path, exp_id: str) -> tuple[str, int]:
+def _validate_chain_for_cli(project_root: Path, experiment_id: str) -> tuple[str, int]:
     """Run validate_chain against the experiment; return (status_str, exit_code).
 
     The validate_chain function takes a private ``_root`` kwarg pointing at
@@ -250,7 +250,7 @@ def _validate_chain_for_cli(project_root: Path, exp_id: str) -> tuple[str, int]:
 
     experiments_root = project_root / "experiments"
     try:
-        result = validate_chain(exp_id, _root=experiments_root)
+        result = validate_chain(experiment_id, _root=experiments_root)
     except Exception as e:
         return (f"FAILED ({type(e).__name__}: {e})", EXIT_WARNING)
 
@@ -275,10 +275,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     project_root = (args.project if args.project is not None else Path.cwd()).resolve()
     exp_dir = _resolve_exp_dir(args.project, args.exp_id)
 
-    # --diff path — delegate to prune.py (text-mode diff).
+    # --diff path — delegate to audit_diff.py (text-mode diff).
     if args.diff is not None:
         try:
-            from agentxp.cli.prune import render_diff
+            from agentxp.cli.audit_diff import render_diff
         except Exception as e:
             print(f"unexpected error: {type(e).__name__}: {e}", file=sys.stderr)
             return EXIT_FATAL

@@ -170,7 +170,7 @@ def _decisions_section(decisions: list[tuple[str, str]]) -> str:
 
 
 def render_html_report(
-    exp_id: str,
+    experiment_id: str,
     events: list[dict],
     decisions: list[tuple[str, str]],
 ) -> str:
@@ -185,7 +185,7 @@ def render_html_report(
         f"gates resolved: {gates_resolved}"
     )
 
-    title = f"Audit trail for {exp_id}"
+    title = f"Audit trail for {experiment_id}"
     return (
         "<!doctype html>\n"
         "<html lang='en'><head>"

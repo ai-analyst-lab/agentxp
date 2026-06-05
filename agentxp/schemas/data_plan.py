@@ -32,6 +32,8 @@ from typing import Any, Literal, Optional
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from agentxp.schemas._types import Sha256Hex
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # Shared UTC validator. Mirror of ``agentxp.schemas.state._enforce_utc`` —
@@ -129,7 +131,7 @@ class DataFingerprint(BaseModel):
     schema_version: Literal[1] = 1
     rows: int = Field(..., ge=0)
     cols: int = Field(..., ge=1)
-    schema_sha256: str = Field(..., min_length=64, max_length=64)
+    schema_sha256: Sha256Hex
     profiled_at: datetime
 
     @field_validator("profiled_at")

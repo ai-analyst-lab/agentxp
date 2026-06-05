@@ -15,6 +15,7 @@ from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from agentxp.schemas._types import Sha256Hex
 from agentxp.schemas.state import GateKind, Stage
 
 
@@ -150,7 +151,7 @@ class StageCommittedPayload(_BasePayload):
 
     event_name: Literal[EventName.STAGE_COMMITTED] = EventName.STAGE_COMMITTED
     stage: Stage
-    bundle_hash: Optional[str] = None
+    bundle_hash: Optional[Sha256Hex] = None
     metadata: dict = Field(default_factory=dict)
 
 
@@ -198,7 +199,7 @@ class AgentDispatchedPayload(_BasePayload):
 
     event_name: Literal[EventName.AGENT_DISPATCHED] = EventName.AGENT_DISPATCHED
     agent_name: str  # one of §1.8.8 canonical names
-    bundle_hash: str
+    bundle_hash: Sha256Hex
     purpose: Optional[str] = None  # per resource_bounds purpose key (§10.5.7)
     metadata: dict = Field(default_factory=dict)
 
@@ -216,7 +217,7 @@ class AgentCompletedPayload(_BasePayload):
 
     event_name: Literal[EventName.AGENT_COMPLETED] = EventName.AGENT_COMPLETED
     agent_name: str
-    bundle_hash: str
+    bundle_hash: Sha256Hex
     duration_ms: int
     classification: Literal["success", "retry", "failed"]
     metadata: dict = Field(default_factory=dict)
@@ -231,8 +232,8 @@ class QueryProposedPayload(_BasePayload):
 
     event_name: Literal[EventName.QUERY_PROPOSED] = EventName.QUERY_PROPOSED
     query_id: str  # ULID; matches queries/{ulid}.yaml
-    raw_hash: str
-    ast_hash: str
+    raw_hash: Sha256Hex
+    ast_hash: Sha256Hex
     metadata: dict = Field(default_factory=dict)
 
 
@@ -261,7 +262,7 @@ class QueryExecutedPayload(_BasePayload):
     query_id: str
     duration_ms: int
     rows_returned: int
-    result_hash: str
+    result_hash: Sha256Hex
     metadata: dict = Field(default_factory=dict)
 
 
