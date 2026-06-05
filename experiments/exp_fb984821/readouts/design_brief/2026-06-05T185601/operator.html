@@ -1,0 +1,587 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>design brief · exp_fb984821</title>
+<style>
+@page { size: 8.5in 11in; margin: 0.6in 0.7in; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #F5F4EE;
+  color: #1A1A1A;
+  font-family: 'Inter', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 64px 72px 64px;
+  background: #F5F4EE;
+}
+.doc-rule-top {
+  height: 6px;
+  background: #006BA2;
+  margin: -56px -64px 0 -64px;
+}
+.doc-rule-mid {
+  height: 1px;
+  background: #1A1A1A;
+  margin: 0 -64px 32px -64px;
+}
+
+/* Eyebrow — small caps over the headline */
+.eyebrow {
+  font-size: 11px;
+  color: #006BA2;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  margin-top: 24px;
+}
+.eyebrow + .eyebrow-meta {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-top: 4px;
+}
+
+/* Document-level headline */
+.headline {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  line-height: 1.05;
+  margin-top: 14px;
+  color: #1A1A1A;
+}
+.headline.verdict-ship    { color: #2D8659; }
+.headline.verdict-noship  { color: #C8102E; }
+.headline.verdict-caveat  { color: #B8941F; }
+.headline.verdict-nolift  { color: #5A5A55; }
+.headline.verdict-invalid { color: #C8102E; }
+.headline.verdict-inconc  { color: #5A5A55; }
+.headline.verdict-unver   { color: #5A5A55; }
+
+.lede {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 19px;
+  color: #3A3A35;
+  margin-top: 16px;
+  line-height: 1.45;
+}
+
+/* Section heading rhythm — eyebrow has no top border by default; the
+   adjacent .hero already paints a bottom border, so layering both
+   produces a visible double-rule with empty space between. */
+.section {
+  margin-top: 32px;
+}
+.section-eyebrow {
+  font-size: 10px;
+  color: #006BA2;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.section-title {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1A1A1A;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin-bottom: 10px;
+}
+.section-prose {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 15px;
+  color: #3A3A35;
+  line-height: 1.55;
+  margin-bottom: 16px;
+  max-width: 64ch;
+}
+
+/* TL;DR card at the top of analysis docs */
+.tldr {
+  background: #FBFAF5;
+  border-left: 4px solid #1A1A1A;
+  padding: 18px 22px;
+  margin-top: 28px;
+}
+.tldr-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #006BA2;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tldr-decision {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 21px;
+  font-weight: 700;
+  color: #1A1A1A;
+  line-height: 1.25;
+}
+.tldr-decision .verdict-chip {
+  display: inline-block;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  vertical-align: 5px;
+  margin-right: 10px;
+}
+.tldr-because {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 15px;
+  color: #3A3A35;
+  margin-top: 10px;
+  line-height: 1.55;
+}
+
+/* Hero number — the single dominant figure */
+.hero {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  margin-top: 36px;
+  padding: 24px 0 18px;
+  border-top: 1px solid #1A1A1A;
+  border-bottom: 1px solid #E5E3DC;
+}
+.hero-main {
+  flex: none;
+}
+.hero-main .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #8A8580;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.hero-main .val {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 72px;
+  font-weight: 700;
+  color: #006BA2;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-feature-settings: "tnum";
+}
+.hero-main .val.neg { color: #C8102E; }
+.hero-main .val.flat { color: #5A5A55; }
+.hero-main .unit {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #5A5A55;
+  margin-top: 8px;
+  max-width: 28ch;
+}
+.hero-side {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 22px;
+  padding-bottom: 6px;
+}
+.hero-side .item .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #8A8580;
+  font-weight: 700;
+}
+.hero-side .item .val {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin-top: 2px;
+  font-feature-settings: "tnum";
+}
+
+/* Inline key-value rows (Hypothesis card, etc.) */
+.kv {
+  background: #FBFAF5;
+  border-left: 4px solid #1A1A1A;
+  padding: 16px 22px;
+  margin: 14px 0;
+}
+.kv .row {
+  display: flex;
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 4px 0;
+}
+.kv .k {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #8A8580;
+  width: 130px;
+  flex: none;
+  font-weight: 700;
+  padding-top: 3px;
+}
+.kv .v { color: #1A1A1A; max-width: 56ch; }
+
+/* Metric rows */
+.metric-row {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 14px;
+}
+.metric-row:first-of-type { border-top: 1px solid #1A1A1A; }
+.metric-row .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: 110px;
+  flex: none;
+  color: #006BA2;
+  font-weight: 700;
+  padding-top: 3px;
+}
+.metric-row .body { flex: 1; }
+.metric-row .name { font-weight: 700; color: #1A1A1A; font-size: 14px; }
+.metric-row .spec { font-size: 13px; color: #5A5A55; margin-top: 3px; line-height: 1.55; max-width: 60ch; }
+
+/* Decision rules table */
+.rules { border-top: 1px solid #1A1A1A; margin-top: 6px; }
+.rule {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.rule:last-child { border-bottom: 1px solid #1A1A1A; }
+.rule .when {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: 130px;
+  flex: none;
+  font-weight: 700;
+  color: #006BA2;
+  padding-top: 4px;
+}
+.rule .then { flex: 1; color: #1A1A1A; max-width: 60ch; }
+
+/* Badges */
+.badge {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 9px;
+  text-transform: uppercase;
+  display: inline-block;
+}
+.badge.pass    { background: #2D8659; color: #F5F4EE; }
+.badge.warn    { background: #C8102E; color: #F5F4EE; }
+.badge.neutral { background: #5A5A55; color: #F5F4EE; }
+.badge.draft   { background: #B8941F; color: #F5F4EE; }
+
+/* Charts */
+.chart {
+  margin-top: 16px;
+}
+.chart-caption {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: #5A5A55;
+  margin-top: 6px;
+  line-height: 1.5;
+  max-width: 60ch;
+}
+.chart-axis-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #8A8580;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Guardrail card — bar is the dominant visual element */
+.guard {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  border-top: 1px solid #E5E3DC;
+  padding: 16px 0;
+}
+.guard:first-of-type { border-top: 1px solid #1A1A1A; }
+.guard:last-of-type  { border-bottom: 1px solid #1A1A1A; }
+.guard-name {
+  flex: none;
+  width: 200px;
+}
+.guard-name .n {
+  font-weight: 700;
+  color: #1A1A1A;
+  font-size: 15px;
+}
+.guard-name .meta {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8A8580;
+  margin-top: 3px;
+}
+.guard-detail {
+  flex: 1;
+  font-size: 13px;
+  color: #1A1A1A;
+}
+.guard-detail .ci-bar {
+  height: 32px;
+  position: relative;
+  margin: 6px 0 8px;
+  background: linear-gradient(to right, #FDE6E6 0%, #FDE6E6 50%, #E7F2EA 50%, #E7F2EA 100%);
+  border: 1px solid #E5E3DC;
+}
+.guard-detail .ci-bar .zero {
+  position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: #1A1A1A;
+}
+.guard-detail .ci-bar .ci {
+  position: absolute; top: 8px; bottom: 8px; background: #1A1A1A; opacity: 0.85;
+}
+.guard-detail .ci-bar .ci.harm { background: #C8102E; }
+.guard-detail .ci-bar .ci.pass { background: #2D8659; }
+.guard-detail .stat-line {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  color: #5A5A55;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+
+/* Decision-tree trail (engineer) */
+.trail { border-top: 1px solid #1A1A1A; margin-top: 8px; }
+.trail-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.trail-row.fired { background: #F0F7F1; }
+.trail-row .num {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8A8580;
+  width: 32px;
+  flex: none;
+  padding-top: 2px;
+}
+.trail-row .what { flex: 1; color: #1A1A1A; }
+.trail-row .stat {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #5A5A55;
+  width: 180px;
+  flex: none;
+  padding-top: 2px;
+}
+
+/* Provenance block */
+.prov {
+  background: #FBFAF5;
+  border: 1px solid #E5E3DC;
+  padding: 16px 20px;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #1A1A1A;
+  line-height: 1.8;
+  margin-top: 10px;
+}
+.prov .pk {
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  font-weight: 700;
+  display: inline-block;
+  width: 150px;
+}
+.prov .pv { color: #1A1A1A; }
+
+/* Footer */
+.footer {
+  margin-top: 56px;
+  padding-top: 18px;
+  border-top: 1px solid #1A1A1A;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.footer .mk { color: #1A1A1A; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <div class="doc-rule-top"></div>
+  <div class="doc-rule-mid"></div>
+
+  <div class="eyebrow">exp_fb984821 · Pre-registered design brief · OPERATOR</div>
+  <div class="eyebrow-meta">Growth · Checkout · sealed 2026-06-05T18:43:44.845392Z · duration ~7.7 days at 7,735/day accrual</div>
+
+  <h1 class="headline">Buy now above the fold</h1>
+  <p class="lede">Rendering the Buy Now call-to-action above the fold on the product detail
+page, relative to the current below-fold placement, increases conversion_rate
+among product-page visitors on the demo storefront over the exposure window,
+with the expected direction being a higher per-user probability of placing at
+least one order. The treatment is hypothesized to act by reducing the
+interaction distance between product consideration and purchase initiation;
+the magnitude of the effect is pre-registered in this brief at the
+feasibility-bounded relative MDE below and is not asserted as a point
+prediction.
+</p>
+
+  <div class="tldr">
+    <div class="tldr-label">At a glance</div>
+    <div class="tldr-decision">
+      Primary metric is <em>conversion_rate</em>; decision is binary against a positive lower bound on conversion lift AND no guardrail breach.
+    </div>
+    <div class="tldr-because">Pre-registered before any analysis. Decision is binary against conversion_rate: a 7.0% relative relative lift over a 10.0% baseline requires 29,718 per arm at the standard α / power settings. Guardrails: revenue_per_user, page_load_time, cart_abandonment_rate.</div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-main">
+      <div class="lab">Sample required (per arm)</div>
+      <div class="val">29,718</div>
+      <div class="unit">to detect a 7.0% relative relative effect at α = 0.05, power = 0.80</div>
+    </div>
+    <div class="hero-side">
+      <div class="item"><div class="lab">Baseline</div><div class="val">10.0%</div></div>
+      <div class="item"><div class="lab">Total sample</div><div class="val">59,436</div></div>
+      <div class="item"><div class="lab">Duration</div><div class="val">~7.7 days at 7,735/day accrual</div></div>
+      <div class="item"><div class="lab">Feasibility</div><div class="val" style="color:#2D8659;">VIABLE</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Mechanism</div>
+    <div class="section-title">Why we think this works</div>
+    <div class="section-prose">An above-fold Buy Now call-to-action reduces the steps between product consideration and purchase initiation; the treatment is expected to lift the per-user probability of placing at least one order.</div>
+    <div class="section-prose" style="color:#5A5A55;">Conversion baseline on the demo storefront sits near 10% over the trailing 28 days.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Metrics</div>
+    <div class="section-title">conversion_rate is the verdict-driving metric.</div>
+    <div class="section-prose">Primary is conversion_rate; secondaries inform interpretation but do not influence the verdict. Guardrails block ship if their CI crosses the pre-registered non-inferiority margin in the adverse direction.</div>
+
+    <div class="metric-row"><div class="lab">Primary</div><div class="body"><div class="name">conversion_rate</div><div class="spec">Proportion · baseline 10.0% · MDE 7.0% relative · direction higher is better</div></div></div>
+    <div class="metric-row"><div class="lab">Guardrail</div><div class="body"><div class="name">revenue_per_user</div><div class="spec">Direction higher is better. Decision blocks if 90% CI lies past -1.0% relative.</div></div></div>
+    <div class="metric-row"><div class="lab">Guardrail</div><div class="body"><div class="name">page_load_time</div><div class="spec">Direction lower is better. Decision blocks if 90% CI lies past 5.0% relative.</div></div></div>
+    <div class="metric-row"><div class="lab">Guardrail</div><div class="body"><div class="name">cart_abandonment_rate</div><div class="spec">Direction lower is better. Decision blocks if 90% CI lies past 5.0% relative.</div></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Power</div>
+    <div class="section-title">Detecting smaller effects requires much more sample.</div>
+    <div class="section-prose">To resolve a 7.0% relative relative effect against a 10.0% baseline, the design requires 29,718 per arm. Tighter detection thresholds climb the curve to the left.</div>
+
+    <div class="chart">
+      <svg viewBox="0 0 640 200" width="100%" height="200" xmlns="http://www.w3.org/2000/svg">
+        <line x1="80" y1="20" x2="600" y2="20" stroke="#E5E3DC" stroke-width="1"/>
+        <line x1="80" y1="60" x2="600" y2="60" stroke="#E5E3DC" stroke-width="1"/>
+        <line x1="80" y1="100" x2="600" y2="100" stroke="#E5E3DC" stroke-width="1"/>
+        <line x1="80" y1="140" x2="600" y2="140" stroke="#E5E3DC" stroke-width="1"/>
+        <line x1="80" y1="160" x2="600" y2="160" stroke="#1A1A1A" stroke-width="1"/>
+
+        <text x="74" y="24.0" text-anchor="end" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">352,653</text>
+        <text x="74" y="59.0" text-anchor="end" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">235,102</text>
+        <text x="74" y="94.0" text-anchor="end" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">117,551</text>
+        <text x="74" y="129.0" text-anchor="end" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">0</text>
+        <text x="80.0" y="178" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">1.8%</text>
+        <text x="210.0" y="178" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">8.3%</text>
+        <text x="339.99999999999994" y="178" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">14.9%</text>
+        <text x="470.0" y="178" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">21.4%</text>
+        <text x="600.0" y="178" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">28.0%</text>
+
+        <polyline points="80.0,20.0 93.3,87.0 106.7,115.3 120.0,129.8 133.3,138.3 146.7,143.6 160.0,147.2 173.3,149.7 186.7,151.6 200.0,153.0 213.3,154.0 226.7,154.9 240.0,155.6 253.3,156.1 266.7,156.6 280.0,156.9 293.3,157.3 306.7,157.5 320.0,157.8 333.3,158.0 346.7,158.1 360.0,158.3 373.3,158.4 386.7,158.6 400.0,158.7 413.3,158.8 426.7,158.8 440.0,158.9 453.3,159.0 466.7,159.1 480.0,159.1 493.3,159.2 506.7,159.2 520.0,159.3 533.3,159.3 546.7,159.3 560.0,159.4 573.3,159.4 586.7,159.4 600.0,159.5" fill="none" stroke="#006BA2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <line x1="184.0" y1="151.151671875" x2="184.0" y2="160" stroke="#006BA2" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <line x1="80" y1="151.151671875" x2="184.0" y2="151.151671875" stroke="#006BA2" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <circle cx="184.0" cy="151.151671875" r="6" fill="#006BA2" stroke="#F5F4EE" stroke-width="2.5"/>
+        <text x="196.0" y="145.151671875" font-family="'Charter','Iowan Old Style','Georgia',serif" font-style="italic" font-size="13" fill="#1A1A1A" font-weight="700">Our design</text>
+        <text x="196.0" y="161.151671875" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">7.0% relative MDE · 29,718/arm</text>
+
+        <text x="80" y="196" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="9" fill="#8A8580" letter-spacing="0.15em">SAMPLE PER ARM (Y) · MINIMUM DETECTABLE EFFECT (X)</text>
+      </svg>
+      <div class="chart-caption">Smaller effects require disproportionately more sample. Our design point is feasible inside the available user_id surface.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Assignment + cohorts</div>
+    <div class="section-title">First-exposure attribution at the user_id level.</div>
+    <div class="section-prose">Each user is randomly assigned at first exposure to control or treatment in a 50 / 50 split. Events before first_exposure_at are not attributed to the experiment.</div>
+
+    <div class="metric-row"><div class="lab">Unit</div><div class="body"><div class="name">user_id</div><div class="spec">One row per (user_id, experiment_id) in the assignments table; first_exposure_at gates which events are attributed.</div></div></div>
+    <div class="metric-row"><div class="lab">Arms</div><div class="body"><div class="name">50 / 50</div><div class="spec">control · treatment</div></div></div>
+    <div class="metric-row"><div class="lab">Cohort</div><div class="body"><div class="name">Users on the demo storefront whose first exposure to the experiment is their first `page_event` row with `event_name = 'product_view'` during the exposure window; assignment fires at that event (`assignment.first_exposure_at = MIN(page_event.event_at WHERE event_name = 'product_view')` per `user_id`), so "all assigned users" is by construction the set of product-page visitors during the window, segment = general.</div></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Decision rules</div>
+    <div class="section-title">Pre-registered. The analyze verb walks the same tree against the same metrics.</div>
+    <div class="section-prose">Ship the treatment if and only if the two-sided 95% confidence interval on
+the relative lift in conversion_rate excludes zero on the positive side
+(lower bound strictly greater than zero) AND no guardrail breaches its
+pre-registered non-inferiority margin. If the primary interval crosses
+zero, or if any guardrail's confidence interval crosses its non-inferiority
+margin in the adverse direction, the verdict is do-not-ship regardless of
+point estimate. The rule is intentionally tight: a treatment whose true
+effect is below the pre-registered MDE is expected to fail it.
+</div>
+
+    <div class="rules">
+      <div class="rule"><div class="when">Ship</div><div class="then">Primary 95% CI excludes zero on benefit side · no guardrail breach · novelty late-ratio ≥ 0.7</div></div>
+      <div class="rule"><div class="when">Lift with caveat</div><div class="then">Real lift but below MDE/2 — surface the caveat in the readout but still consider rolling out</div></div>
+      <div class="rule"><div class="when">No-ship · guardrail</div><div class="then">Any guardrail's 90% CI lies past its harm threshold</div></div>
+      <div class="rule"><div class="when">No-lift</div><div class="then">Well-powered, primary CI straddles zero with half-width &gt; 2 × MDE</div></div>
+      <div class="rule"><div class="when">Inconclusive</div><div class="then">Underpowered (n &lt; required) AND primary CI straddles zero</div></div>
+      <div class="rule"><div class="when">Invalid</div><div class="then">SRM χ² p &lt; 0.0005 and no override resolved — investigate assignment</div></div>
+    </div>
+  </div>
+
+
+  <div class="footer">
+    <span class="mk">brief.sealed.yaml</span>
+    <span>seal 37770e1e22d1… · 2026-06-05T18:43:44.845392Z · R1 R11</span>
+  </div>
+</div>
+</body>
+</html>

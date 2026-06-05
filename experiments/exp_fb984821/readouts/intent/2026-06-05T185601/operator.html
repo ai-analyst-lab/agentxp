@@ -1,0 +1,484 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>intent · exp_fb984821</title>
+<style>
+@page { size: 8.5in 11in; margin: 0.6in 0.7in; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #F5F4EE;
+  color: #1A1A1A;
+  font-family: 'Inter', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 64px 72px 64px;
+  background: #F5F4EE;
+}
+.doc-rule-top {
+  height: 6px;
+  background: #006BA2;
+  margin: -56px -64px 0 -64px;
+}
+.doc-rule-mid {
+  height: 1px;
+  background: #1A1A1A;
+  margin: 0 -64px 32px -64px;
+}
+
+/* Eyebrow — small caps over the headline */
+.eyebrow {
+  font-size: 11px;
+  color: #006BA2;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  margin-top: 24px;
+}
+.eyebrow + .eyebrow-meta {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-top: 4px;
+}
+
+/* Document-level headline */
+.headline {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  line-height: 1.05;
+  margin-top: 14px;
+  color: #1A1A1A;
+}
+.headline.verdict-ship    { color: #2D8659; }
+.headline.verdict-noship  { color: #C8102E; }
+.headline.verdict-caveat  { color: #B8941F; }
+.headline.verdict-nolift  { color: #5A5A55; }
+.headline.verdict-invalid { color: #C8102E; }
+.headline.verdict-inconc  { color: #5A5A55; }
+.headline.verdict-unver   { color: #5A5A55; }
+
+.lede {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 19px;
+  color: #3A3A35;
+  margin-top: 16px;
+  line-height: 1.45;
+}
+
+/* Section heading rhythm — eyebrow has no top border by default; the
+   adjacent .hero already paints a bottom border, so layering both
+   produces a visible double-rule with empty space between. */
+.section {
+  margin-top: 32px;
+}
+.section-eyebrow {
+  font-size: 10px;
+  color: #006BA2;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.section-title {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1A1A1A;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin-bottom: 10px;
+}
+.section-prose {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 15px;
+  color: #3A3A35;
+  line-height: 1.55;
+  margin-bottom: 16px;
+  max-width: 64ch;
+}
+
+/* TL;DR card at the top of analysis docs */
+.tldr {
+  background: #FBFAF5;
+  border-left: 4px solid #1A1A1A;
+  padding: 18px 22px;
+  margin-top: 28px;
+}
+.tldr-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #006BA2;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tldr-decision {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 21px;
+  font-weight: 700;
+  color: #1A1A1A;
+  line-height: 1.25;
+}
+.tldr-decision .verdict-chip {
+  display: inline-block;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  vertical-align: 5px;
+  margin-right: 10px;
+}
+.tldr-because {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 15px;
+  color: #3A3A35;
+  margin-top: 10px;
+  line-height: 1.55;
+}
+
+/* Hero number — the single dominant figure */
+.hero {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  margin-top: 36px;
+  padding: 24px 0 18px;
+  border-top: 1px solid #1A1A1A;
+  border-bottom: 1px solid #E5E3DC;
+}
+.hero-main {
+  flex: none;
+}
+.hero-main .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #8A8580;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.hero-main .val {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 72px;
+  font-weight: 700;
+  color: #006BA2;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-feature-settings: "tnum";
+}
+.hero-main .val.neg { color: #C8102E; }
+.hero-main .val.flat { color: #5A5A55; }
+.hero-main .unit {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #5A5A55;
+  margin-top: 8px;
+  max-width: 28ch;
+}
+.hero-side {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 22px;
+  padding-bottom: 6px;
+}
+.hero-side .item .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #8A8580;
+  font-weight: 700;
+}
+.hero-side .item .val {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin-top: 2px;
+  font-feature-settings: "tnum";
+}
+
+/* Inline key-value rows (Hypothesis card, etc.) */
+.kv {
+  background: #FBFAF5;
+  border-left: 4px solid #1A1A1A;
+  padding: 16px 22px;
+  margin: 14px 0;
+}
+.kv .row {
+  display: flex;
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 4px 0;
+}
+.kv .k {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #8A8580;
+  width: 130px;
+  flex: none;
+  font-weight: 700;
+  padding-top: 3px;
+}
+.kv .v { color: #1A1A1A; max-width: 56ch; }
+
+/* Metric rows */
+.metric-row {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 14px;
+}
+.metric-row:first-of-type { border-top: 1px solid #1A1A1A; }
+.metric-row .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: 110px;
+  flex: none;
+  color: #006BA2;
+  font-weight: 700;
+  padding-top: 3px;
+}
+.metric-row .body { flex: 1; }
+.metric-row .name { font-weight: 700; color: #1A1A1A; font-size: 14px; }
+.metric-row .spec { font-size: 13px; color: #5A5A55; margin-top: 3px; line-height: 1.55; max-width: 60ch; }
+
+/* Decision rules table */
+.rules { border-top: 1px solid #1A1A1A; margin-top: 6px; }
+.rule {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.rule:last-child { border-bottom: 1px solid #1A1A1A; }
+.rule .when {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: 130px;
+  flex: none;
+  font-weight: 700;
+  color: #006BA2;
+  padding-top: 4px;
+}
+.rule .then { flex: 1; color: #1A1A1A; max-width: 60ch; }
+
+/* Badges */
+.badge {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 9px;
+  text-transform: uppercase;
+  display: inline-block;
+}
+.badge.pass    { background: #2D8659; color: #F5F4EE; }
+.badge.warn    { background: #C8102E; color: #F5F4EE; }
+.badge.neutral { background: #5A5A55; color: #F5F4EE; }
+.badge.draft   { background: #B8941F; color: #F5F4EE; }
+
+/* Charts */
+.chart {
+  margin-top: 16px;
+}
+.chart-caption {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: #5A5A55;
+  margin-top: 6px;
+  line-height: 1.5;
+  max-width: 60ch;
+}
+.chart-axis-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #8A8580;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Guardrail card — bar is the dominant visual element */
+.guard {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  border-top: 1px solid #E5E3DC;
+  padding: 16px 0;
+}
+.guard:first-of-type { border-top: 1px solid #1A1A1A; }
+.guard:last-of-type  { border-bottom: 1px solid #1A1A1A; }
+.guard-name {
+  flex: none;
+  width: 200px;
+}
+.guard-name .n {
+  font-weight: 700;
+  color: #1A1A1A;
+  font-size: 15px;
+}
+.guard-name .meta {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8A8580;
+  margin-top: 3px;
+}
+.guard-detail {
+  flex: 1;
+  font-size: 13px;
+  color: #1A1A1A;
+}
+.guard-detail .ci-bar {
+  height: 32px;
+  position: relative;
+  margin: 6px 0 8px;
+  background: linear-gradient(to right, #FDE6E6 0%, #FDE6E6 50%, #E7F2EA 50%, #E7F2EA 100%);
+  border: 1px solid #E5E3DC;
+}
+.guard-detail .ci-bar .zero {
+  position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: #1A1A1A;
+}
+.guard-detail .ci-bar .ci {
+  position: absolute; top: 8px; bottom: 8px; background: #1A1A1A; opacity: 0.85;
+}
+.guard-detail .ci-bar .ci.harm { background: #C8102E; }
+.guard-detail .ci-bar .ci.pass { background: #2D8659; }
+.guard-detail .stat-line {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  color: #5A5A55;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+
+/* Decision-tree trail (engineer) */
+.trail { border-top: 1px solid #1A1A1A; margin-top: 8px; }
+.trail-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.trail-row.fired { background: #F0F7F1; }
+.trail-row .num {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8A8580;
+  width: 32px;
+  flex: none;
+  padding-top: 2px;
+}
+.trail-row .what { flex: 1; color: #1A1A1A; }
+.trail-row .stat {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #5A5A55;
+  width: 180px;
+  flex: none;
+  padding-top: 2px;
+}
+
+/* Provenance block */
+.prov {
+  background: #FBFAF5;
+  border: 1px solid #E5E3DC;
+  padding: 16px 20px;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #1A1A1A;
+  line-height: 1.8;
+  margin-top: 10px;
+}
+.prov .pk {
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  font-weight: 700;
+  display: inline-block;
+  width: 150px;
+}
+.prov .pv { color: #1A1A1A; }
+
+/* Footer */
+.footer {
+  margin-top: 56px;
+  padding-top: 18px;
+  border-top: 1px solid #1A1A1A;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.footer .mk { color: #1A1A1A; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <div class="doc-rule-top"></div>
+  <div class="doc-rule-mid"></div>
+
+  <div class="eyebrow">exp_fb984821 · Pre-registered intent · OPERATOR</div>
+  <div class="eyebrow-meta">captured 2026-06-05T18:26:06.097726+00:00 · by shane@aieval.ai</div>
+
+  <h1 class="headline">Intent for exp_fb984821</h1>
+  <p class="lede">The statement below is the experiment's pre-registered intent. It was captured at the start of the design verb, before any metric value tied to assignment was read.</p>
+
+  <div class="section">
+    <div class="section-eyebrow">What we want to test</div>
+    <div class="section-title">Intent</div>
+    <div class="section-prose" style="font-style: normal; font-size: 15px; color: #1A1A1A; max-width: 64ch; white-space: pre-wrap;">Test whether moving the buy-now button above the fold on the product page improves conversion. Treatment renders the buy-now CTA above the fold; control renders the current below-fold placement. Population: product-page visitors on the demo storefront. Expected direction: treatment increases the primary conversion metric.
+</div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Discipline</div>
+    <div class="section-title">What comes next</div>
+    <div class="section-prose">
+      The intent is the first artifact in the design verb. The orchestrator will dispatch the understander to draft semantic models and metrics (only if missing), then the designer to draft a hypothesis, brief, and data plan, with the critic firing at every commit-worthy step. The brief seals only after a power-feasibility check passes and the user confirms.
+    </div>
+    <div class="section-prose">
+      The intent statement here carries no analysis output and no quantitative outcome claim. By R11 the design verb cannot reach an outcome-bearing column; this share-tail is the user's pre-registered statement of what the experiment is intended to learn, exactly as captured.
+    </div>
+  </div>
+
+  <div class="receipt" style="margin-top: 48px; font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace; font-size: 10px; color: #8A8580; text-transform: uppercase; letter-spacing: 0.12em;">
+    exp_fb984821 · intent · audience operator · captured 2026-06-05T18:26:06.097726+00:00 · captured_by shane@aieval.ai · render_status DRAFT_UNVERIFIED
+  </div>
+</div>
+</body>
+</html>
