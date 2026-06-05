@@ -37,7 +37,7 @@ guardrails:
 cohorts_summary:
   - Users on the demo storefront whose first exposure to the experiment is their first `page_event` row with `event_name = 'product_view'` during the exposure window; assignment fires at that event and the assigned population is therefore co-extensive with product-page visitors during the window, segment = general.
 cohorts:
-  - Users on the demo storefront whose first exposure to the experiment is their first `page_event` row with `event_name = 'product_view'` during the exposure window; assignment fires at that event (`assignment.first_exposure_at = MIN(page_event.event_ts WHERE event_name = 'product_view')` per `user_id`), so "all assigned users" is by construction the set of product-page visitors during the window, segment = general.
+  - Users on the demo storefront whose first exposure to the experiment is their first `page_event` row with `event_name = 'product_view'` during the exposure window; assignment fires at that event (`assignment.first_exposure_at = MIN(page_event.event_at WHERE event_name = 'product_view')` per `user_id`), so "all assigned users" is by construction the set of product-page visitors during the window, segment = general.
 assignment_unit: user_id
 arms:
   - control
