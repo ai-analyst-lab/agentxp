@@ -1,0 +1,39 @@
+schema_version: 1
+hypothesis: |
+  Rendering the Buy Now call-to-action above the fold on the product detail
+  page, relative to the current below-fold placement, increases conversion_rate
+  among product-page visitors on the demo storefront over the exposure window,
+  with the expected direction being a higher per-user probability of placing at
+  least one order. The treatment is hypothesized to act by reducing the
+  interaction distance between product consideration and purchase initiation;
+  the magnitude of the effect is left for the brief and is not asserted here.
+primary_metric_candidate: conversion_rate
+primary_direction: higher_is_better
+rationale: |
+  conversion_rate is the canonical outcome the intent names ("improves
+  conversion") and is the only proportion metric in the catalog whose
+  numerator is the purchase event itself; selecting a leading indicator as
+  primary would shift the contract away from the stated objective and expose
+  the test to a leading-lagging divergence the brief cannot adjudicate.
+  buy_now_click_rate and begin_checkout_rate are well-suited as leading
+  indicators in the data plan — the former is the closest possible behavioral
+  proxy for the manipulated UI element and the latter the next funnel step —
+  but neither is the conversion event, so neither should displace
+  conversion_rate as primary. The expected direction follows from the
+  mechanism: an above-fold CTA reduces the steps between product view and
+  purchase initiation, which the catalog treats as monotonic with order
+  placement (higher_is_better).
+leading_indicators:
+  - buy_now_click_rate
+  - begin_checkout_rate
+  - add_to_cart_rate
+guardrail_candidates:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    why: Catches the case where conversion rises but per-user revenue falls because the above-fold CTA shifts purchases toward lower-value items or shortens consideration.
+  - metric_name: page_load_time
+    direction: lower_is_better
+    why: A repositioned CTA can change render order or above-the-fold asset weight; the p95 latency guardrail catches performance regressions that would otherwise erode the funnel.
+  - metric_name: cart_abandonment_rate
+    direction: lower_is_better
+    why: An above-fold Buy Now path may bypass cart-page deliberation; this guardrail catches the case where more users start checkout but fewer complete it after adding items.

@@ -1,0 +1,1 @@
+- `2026-06-05T18:33:21.565982+00:00` — designer drafted hypothesis (primary_metric_candidate=conversion_rate, higher_is_better)
