@@ -36,6 +36,12 @@ __all__ = [
     "ViewBundle",
     "Provenance",
     "RenderStatus",
+    # Spine VMs (T40)
+    "IntentVM",
+    "DesignBriefVM",
+    "MidRunVM",
+    "VerdictVM",
+    "_MID_RUN_FORBIDDEN_FIELDS",
 ]
 
 
@@ -252,3 +258,142 @@ class ViewBundle(BaseModel):
     @property
     def render_status(self) -> RenderStatus:
         return self.provenance.render_status
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Spine VMs (T40) — one per share-tail moment.
+#
+# Each fires inline (chat) and on disk after a specific orchestrator commit:
+#   - IntentVM       after intent capture          (design verb)
+#   - DesignBriefVM  after brief seal              (design verb)
+#   - MidRunVM       on monitor halt only          (analyze verb)
+#   - VerdictVM      after verdict commits         (analyze verb; this is
+#                                                   essentially a slice of
+#                                                   the existing ReportVM)
+#
+# All have extra="forbid". The critical peek-prevention invariant is on
+# MidRunVM: it MUST NOT carry any outcome-bearing field (lift, CI, p_value,
+# per-arm magnitudes). The closure test in tests/render/test_spine_vms.py
+# asserts this — a developer who adds such a field gets caught at code
+# review by the test, not at production by a peek.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class IntentVM(BaseModel):
+    """The user's pre-registered intent, rendered at the first share-tail
+    moment of the design verb.
+
+    Renders the prose so a stakeholder can read what's about to be tested
+    without sharing the brief (which may still be drafting). Carries no
+    metrics, no analysis, no decision rules — just intent.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    schema_version: Literal[1] = 1
+
+    intent_text: str
+    captured_at: str  # ISO-8601 UTC
+    captured_by: str
+    experiment_id: str
+
+
+class DesignBriefVM(BaseModel):
+    """The sealed brief, rendered after the brief seals (design verb's
+    terminal share-tail moment).
+
+    Carries: hypothesis prose, primary metric + decision rule, guardrails,
+    cohort definitions, MDE + power, the integrity-lock hashes. Crucially
+    *does not* carry any analysis output — by R11 the brief seals before
+    any analysis exists.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    schema_version: Literal[1] = 1
+
+    experiment_id: str
+    hypothesis_text: str
+    primary_metric_name: str
+    primary_decision_rule: str  # rendered string
+    mde_text: str  # e.g. "+2.0% relative"
+    power_text: str  # e.g. "80% at α=0.05, n_required=24,572"
+    guardrails_summary: list[str]  # one line per guardrail
+    cohorts_summary: list[str]
+    assignment_unit: Literal["user_id", "session_id", "device_id", "account_id"]
+    expected_arm_ratio_text: str  # e.g. "50/50 control / treatment"
+    # Integrity-lock display (first 12 chars for receipt strip)
+    design_chain_hash_short: str
+    metric_snapshot_count: int  # how many metric YAMLs were hashed
+    sealed_at: str
+
+
+class MidRunVM(BaseModel):
+    """A mid-run readout fires ONLY on monitor halt — never on routine
+    progress. The halt reason is the closed signal the orchestrator passes
+    up; the user reads it and either resolves (override / abort) or extends
+    monitoring.
+
+    PEEK-PREVENTION INVARIANT (R10): this VM structurally lacks any field
+    that could reveal experiment outcomes. No lift, no CI, no p-value, no
+    per-arm count breakdown beyond the SRM ratio test that triggered the
+    halt. The signal is qualitative: "the experiment hit a halting
+    condition" with the *kind* of halt named.
+
+    The closure test in tests/render/test_spine_vms.py:
+      test_mid_run_vm_has_no_peek_revealing_fields
+    iterates a forbidden-name set and asserts each is absent from
+    model_fields. Adding lift / CI / p-value / per-arm magnitude to this
+    VM requires a visible schema edit AND will fail the closure test
+    until the test's forbidden set is also amended.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    schema_version: Literal[1] = 1
+
+    experiment_id: str
+    halt_reason: Literal[
+        "srm_yellow",          # χ² between WARNING and BLOCK
+        "srm_red",             # χ² past BLOCK threshold
+        "guardrail_breach",    # a guardrail's 90% CI crosses harm threshold
+        "exposure_stale",      # accrual stalled past the freshness window
+    ]
+    halt_summary_text: str  # one-line human description, NO outcome numbers
+    triggered_at: str       # ISO-8601 UTC
+    elapsed_text: str       # e.g. "ran for 4 days; halt fired at day 4 14:32 UTC"
+    suggested_resolutions: list[str]  # closed-set free text per halt_reason
+    # SRM-specific field: ONLY the chi-squared statistic and threshold
+    # (this is metadata about the assignment, not metric outcome).
+    srm_chi2: Optional[float] = None
+    srm_threshold: Optional[float] = None
+
+    # Notably absent (closure-tested):
+    #   lift, lift_absolute, lift_relative,
+    #   ci_lower_95, ci_upper_95, ci_lower_90, ci_upper_90, p_value,
+    #   n_arm_control, n_arm_treatment,
+    #   mean_arm_control, mean_arm_treatment,
+    #   primary_metric_value, treatment_lift
+
+
+# VerdictVM is effectively a re-export of ReportVM at the spine moment
+# "verdict committed" — same shape, different framing. The renderer for
+# the verdict readout fires distill() on the report.json (which produces
+# the ReportVM) and wraps it as a verdict-stage share-tail.
+VerdictVM = ReportVM
+
+
+# Closure-test fixture exported for tests/render/test_spine_vms.py (T40).
+_MID_RUN_FORBIDDEN_FIELDS: frozenset[str] = frozenset({
+    "lift", "lift_absolute", "lift_relative",
+    "ci_lower_95", "ci_upper_95", "ci_lower_90", "ci_upper_90",
+    "p_value",
+    "n_arm_control", "n_arm_treatment",
+    "mean_arm_control", "mean_arm_treatment",
+    "primary_metric_value", "treatment_lift",
+    "primary_lift_magnitude",
+    "effect_size", "cohens_d", "cohens_h",
+    "relative_lift", "absolute_lift",
+})
+"""Field names that MUST NOT appear in MidRunVM.model_fields.
+
+The closure test asserts: ``forbidden & set(MidRunVM.model_fields) == set()``.
+This is the R10 peek-prevention discipline made executable.
+"""

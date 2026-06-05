@@ -22,10 +22,17 @@ from typing import Type, TypeVar
 import yaml
 from pydantic import BaseModel
 
-from agentxp.orchestrator.project_lock import (
-    project_read_lock,
-    project_write_lock,
-)
+from contextlib import nullcontext
+
+
+def project_read_lock(_project_root: Path):
+    """v3 single-user: no inter-process lock needed."""
+    return nullcontext()
+
+
+def project_write_lock(_project_root: Path):
+    """v3 single-user: no inter-process lock needed."""
+    return nullcontext()
 
 T = TypeVar("T", bound=BaseModel)
 

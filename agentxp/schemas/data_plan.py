@@ -1,25 +1,16 @@
-"""Canonical schema for ``data_plan.yaml`` v2.
+"""Canonical schema for ``data_plan.yaml``.
 
-Captures the user's data-source binding for one experiment. Owned by the Stage
-4 commit (``data_plan_confirmed``); also serialized as the nested
-``state.yaml.data_plan`` block.
+Captures the user's data-source binding for one experiment. Owned by the
+brief drafter; serialized into the brief's expected-shape lock so the
+analyze verb can verify the assignment surface hasn't drifted (R11).
 
-Source spec:
-  - experimentation-platform/OPENXP_V01_PLAN.md §7      — DataPlanV2 layout
-  - experimentation-platform/OPENXP_V01_PLAN.md §1.7.1  — PII flow surfaces
-  - experimentation-platform/OPENXP_V01_PLAN.md §1.7.2  — UTC enforcement
-  - experimentation-platform/OPENXP_V01_PLAN.md §1.8.6  — schema_version policy
-  - experimentation-platform/OPENXP_V01_PLAN.md §10.5.5 — auth_expired flow
-                                                          (status transitions
-                                                          on auth events)
+The ``SourceType`` enum is the canonical surface for the connection
+adapter layer (8 values: file + 7 warehouse adapters). DuckDB is a
+distinct ``source_type`` rather than collapsed under ``warehouse`` so
+the data-plan can distinguish "local embedded engine" from "remote
+warehouse profile" without consulting the adapter table.
 
-Build task: sys-w_pre1-02 (BUILD_STATUS.yaml W_pre1.2). The locked SourceType
-enum carries 8 values (file + 7 warehouse adapters) — broader than §7's
-3-value summary; the wider enum is the canonical surface for the connection
-adapter layer (W_pre1.7). DuckDB is treated as a separate ``source_type``
-rather than collapsed under ``warehouse`` so the data-plan can distinguish
-"local embedded engine" from "remote warehouse profile" without consulting
-the adapter table.
+All datetime fields are UTC-tz-aware (per ``_enforce_utc``).
 """
 from __future__ import annotations
 

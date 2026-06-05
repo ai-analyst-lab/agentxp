@@ -1,23 +1,14 @@
-"""Canonical schemas for the AgentXP v0.1 Stage-0 profiler output.
+"""Pydantic schemas for the profiler tool's output.
 
-The profiler runs DuckDB ``SUMMARIZE`` plus two HG-D4 heuristics
-(null-rate-on-identifier + mixed-timestamp-format detection) and writes its
-output to ``experiments/{exp_id}/bundles/profiler.out.yaml``. Downstream
-``semantic_modeler`` (Stage 0.5) and ``metric_drafter`` (Stage 0.75) consume
-that bundle.
+The profiler runs DuckDB ``SUMMARIZE`` plus two heuristics
+(null-rate-on-identifier + mixed-timestamp-format detection) and returns
+a ``ProfileReport``. In v2 the profiler is a tool the orchestrator calls
+during ``agentxp design`` (via the understander role) — not a standalone
+agent. The understander uses the report to draft semantic models and
+metrics against the warehouse's natural structure (blind to experiment
+intent, per R5).
 
-Source spec: experimentation-platform/OPENXP_V01_PLAN.md
-  - §1.0 schema amendments (3): ``ProfileReportRow`` adds ``null_rate``,
-         ``mixed_format_detected``, ``format_samples``, ``flagged_for_review``,
-         ``flag_reason`` (HG-D4 fields).
-  - §1.7.2  Time-zone policy — every datetime field is UTC-enforced.
-  - §1.8.6  schema_version policy — ``bundles/profiler.out.yaml`` is at v1.
-  - §5      Agent table — ``profiler`` is a NEW Stage-0 agent dispatched with
-            purpose=``profile`` (smallest resource budget).
-  - §10.5.5 mixed_timestamp_formats gate (data-quality gate, F.PRACTICE.02).
-  - HG-D4   re-budget for null-rate + mixed-timestamp heuristics.
-
-Closure-tested by tests/coherence/test_canonical_names.py.
+All datetime fields are UTC-tz-aware (per ``_enforce_utc``).
 """
 from __future__ import annotations
 

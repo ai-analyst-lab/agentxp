@@ -1,127 +1,83 @@
 ---
 name: audit
-description: Replay the decision chain for any experiment in the project. Default text mode, --diff, or --html.
+description: Replay the decision chain for any experiment in the project. Walks log.md + git log. Default text mode, --diff, or --html.
 ---
 
-# Skill: `/audit` — Decision Chain Replay
+# Skill: `/audit`
 
 ## Purpose
 
-This skill replays the full chain of decisions, agent dispatches, gate openings, and stage commits for any experiment in the project. The README promises that plain-English questions ("Why did exp_007 halt at Stage 5?") produce the same result as the explicit CLI call. The skill classifies the question, dispatches the right `agentxp audit` subcommand, and surfaces the chain integrity verdict that the CLI computes.
+The audit surface is two things: `experiments/<id>/log.md` (append-only human-readable log) and `git log` (every `commit_artifact` runs a git commit). This skill walks both, optionally diffs two experiments, and optionally renders HTML.
+
+There is no separate event log in v2 — git is the chain.
 
 ## When to invoke
 
-Direct invocation:
-
-- `/audit <exp_id>` — default text timeline
+Direct:
+- `/audit <exp_id>` — text timeline
 - `/audit <exp_id> --diff <other_exp_id>` — pairwise diff
-- `/audit <exp_id> --html` — render the self-contained HTML report
+- `/audit <exp_id> --html` — self-contained HTML
 
-Plain-English routing examples:
+Plain-English routing:
 
-| Phrase | Dispatch |
+| Phrase | What to do |
 |---|---|
-| "Why did exp_007 halt at Stage 5?" | default text mode + filter rendering to `gate.blocked` and `query.failed` |
-| "What did the analyzer decide?" | default text mode + filter to `agent.completed` where agent_name=analyzer |
-| "Compare exp_001 to exp_007" | `--diff` |
-| "Send the report to my director" | `--html` and surface the output path |
-| "Show me the queries for exp_004" | default text mode + filter to `query.*` events |
+| "Why did exp_007 halt?" | `/audit exp_007` then look for halt-related entries |
+| "Compare exp_001 to exp_007" | `/audit exp_001 --diff exp_007` |
+| "Send the audit to my director" | `/audit <id> --html` and surface the file path |
+| "What dispatches landed for exp_004" | `/audit exp_004` then filter for dispatch entries |
 
-## Arguments
+## Procedure
 
-```
-/audit <exp_id> [flags]
+### Text mode (default)
 
-Positional:
-  <exp_id>                   required; experiment identifier under experiments/
+```python
+from pathlib import Path
+from agentxp.workflows.audit import walk_log
 
-Flags:
-  --diff <other_exp_id>      pairwise diff against another experiment
-  --html                     render self-contained HTML report
-  --out <path>               output path for --html (default per CLI)
-  --quiet                    suppress chain integrity chrome
-  --json                     emit structured event array
+for entry in walk_log(Path.cwd() / "experiments" / args.exp_id):
+    print(f"{entry.timestamp}  {entry.message}")
 ```
 
-## The workflow
+Optionally interleave `git log --oneline -- experiments/<id>/` so each commit SHA appears next to its log entry. The two are kept in sync by `commit_artifact`.
 
-1. **Validate that `experiments/<exp_id>/` exists.** If the directory is absent, surface the error and exit; do not shell out.
+### Diff mode
 
-2. **Classify the question** when invocation is plain-English. The classifier is a single pass over the user phrase:
+```python
+from agentxp.workflows.audit import diff_logs
 
-   - "timeline" / "history" / "what happened" → default text mode.
-   - "diff" / "compared to" / "vs" → `--diff`. If the second exp_id is not in the phrase, ask once for it.
-   - "html" / "share" / "send to" / "report" → `--html`. Offer the default output path.
-   - "why did X halt" / "why did X fail" → default text mode plus filter rendering to `gate.blocked` and `query.failed` events.
-   - "show me the queries" → default text mode plus filter to `query.*` events.
+for d in diff_logs(exp_a, exp_b):
+    if d.kind == "changed":
+        print(f"line {d.line_no}: {d.a.message}  ->  {d.b.message}")
+    elif d.kind == "only_in_a":
+        print(f"only in {exp_a.name}: {d.a.message}")
+    elif d.kind == "only_in_b":
+        print(f"only in {exp_b.name}: {d.b.message}")
+```
 
-   Explicit slash invocations skip classification.
+### HTML mode
 
-3. **Execute the CLI.** Shell out to `agentxp audit <exp_id> [flags]`. Capture stdout and surface it to the user verbatim. The CLI is canonical.
+Render a self-contained HTML page that includes the log timeline + the renders catalog summary + the integrity-lock receipt from `brief.sealed.yaml`. Use `agentxp.render.report` for the HTML adapter; the data comes from `walk_log` and `list_catalog`.
 
-4. **Augment when the question requires it.** For "why" questions, read `experiments/<exp_id>/log.jsonl` directly and surface the matching `gate.blocked.reason` or `query.failed.metadata.subtype`. For `--diff` questions where the user wants commentary, write one paragraph after the CLI output naming which bundle hashes differ and which queries diverged. No statistical reinterpretation.
+## Tools you call
 
-5. **Chain integrity verdict.** The CLI prints `chain integrity: OK` or `chain integrity: FAILED` at the end of the text mode. If the verdict is FAILED, surface this prominently and warn the user that the audit is not trustworthy. Do not paper over a FAILED verdict with commentary.
+- `walk_log` / `diff_logs` from `agentxp.workflows.audit`
+- `list_catalog` from `agentxp.workflows.readouts` (for the renders catalog summary in HTML mode)
+- `git log --oneline -- experiments/<id>/` via Bash for commit SHAs
+
+## Rules cited
+
+- **R7** — every claim in the audit cites a log entry or a commit SHA
 
 ## What this skill does NOT do
 
-- Does not reinterpret the verdict. The interpreter's output stays canonical; this skill replays the chain that produced it.
-- Does not modify any audit artifact. Read-only on `log.jsonl`, `decisions.jsonl`, and bundle hashes.
-- Does not fire any events. No `_commit_stage` happens here.
+- Replay specialist dispatches against an LLM — the log captures the dispatch result, not the prompt
+- Validate the renders chain — that is `/readouts <id> --validate`
 
-## Cross-references
+## Terminal output
 
-- Top-level orientation: `CLAUDE.md`.
-- Decisions writer detail: `agentxp/audit/decisions.py`.
-- Event vocabulary (the 13 closed-set values): `agentxp/audit/events.py`.
-- CLI entry: `agentxp/cli/audit.py` and the HTML renderer at `agentxp/cli/audit_html.py`.
-- Diff helper: `agentxp/cli/prune.py`.
-
-## Example walkthrough
-
-```
-User: "Why did exp_007 halt at Stage 5?"
-
-[skill classifies the phrase as a "why halt" question]
-[dispatch: agentxp audit exp_007, filtered rendering to gate.blocked and query.failed]
-[skill reads log.jsonl and locates gate.blocked(kind="srm_halt") at Stage 5]
-
-Stage 5 halted on a sample-ratio mismatch.
-gate.blocked(kind="srm_halt", chi_square=158.79, p=0.00012)
-observed: A=45612, B=45592 (expected: 50/50)
-The monitor agent surfaced an imbalance well below the 0.0005 threshold.
-
-To proceed, run /resume exp_007. The resume classifier will surface the
-override dialog (SrmOverrideReasonCode: known_imbalance |
-manual_continuation | investigation_complete).
-```
+Text mode: timeline printed to stdout. Diff mode: changes printed to stdout. HTML mode: file path + suggested next step (open in browser).
 
 ## Banned vocabulary
 
-These tokens never appear in skill output, dispatched commentary, or augmentation paragraphs:
-
-- `leverage`
-- `powerful`
-- `delightful`
-- `robust`
-- `seamless`
-- `cutting-edge`
-- `great question`
-- `excellent observation`
-- `we're excited`
-- `successfully`
-- `Let me walk you through`
-- `Before we begin, let me explain`
-- `co-pilot`
-- `statistically significant improvement` (use lift + CI)
-- `trending positively`
-- `encouraging signal`
-- `promising results`
-- `consider shipping`
-- `appears to have been successful`
-
-Banned patterns:
-
-- Reinterpreting the chain integrity verdict instead of surfacing it.
-- Co-pilot or colleague register ("Here's what I found for your experiment"). The audit is a chain replay; there is no second person beyond the dispatch dialog.
-- Manufactured emotional beats around a FAILED verdict. Plain statement only.
+The voice audit at `agentxp/render/voice_audit.py` rejects the marketing-register phrases listed in CLAUDE.md §13. Audit narration is academic and traceable; every claim cites a log entry or a commit SHA.

@@ -29,10 +29,20 @@ _AGENTS_ROOT = Path(__file__).resolve().parents[2] / "agents"
 
 
 def _collect_agent_prompts() -> list[Path]:
-    """Walk ``agents/*.system.md`` + ``agents/designer/*.system.md``."""
+    """Walk specialist prompts at ``agents/<role>.md`` (v2 convention).
+
+    The v1 ``agents/*.system.md`` and ``agents/designer/*.system.md``
+    layouts were deleted at cutover; v2 specialists are flat at
+    ``agents/<role>.md`` (understander, designer, critic, sql_specialist,
+    analyst_narrator). The orchestrator's own prompt is the project root
+    CLAUDE.md, not in agents/. INDEX.md is the roster doc — also not a
+    specialist prompt.
+    """
     prompts: list[Path] = []
-    prompts.extend(sorted(_AGENTS_ROOT.glob("*.system.md")))
-    prompts.extend(sorted(_AGENTS_ROOT.glob("*/*.system.md")))
+    prompts.extend(
+        p for p in sorted(_AGENTS_ROOT.glob("*.md"))
+        if p.stem.upper() != "INDEX"
+    )
     return prompts
 
 
@@ -60,12 +70,18 @@ def _strip_banned_section(text: str) -> str:
     return text
 
 
-def test_voice_ci_collects_thirteen_agent_prompts() -> None:
-    """Defensive sanity: the suite is wired to all 13 prompts."""
+def test_voice_ci_collects_five_specialist_prompts() -> None:
+    """Defensive sanity: the suite is wired to all 5 v2 specialist prompts.
+
+    v1 had 13 .system.md prompts; v2 collapses to 5 specialists (the
+    orchestrator's prompt is the project root CLAUDE.md, scanned
+    elsewhere)."""
     prompts = _collect_agent_prompts()
-    assert len(prompts) == 13, (
-        f"expected 13 agent system prompts; found {len(prompts)}: "
-        f"{[p.name for p in prompts]}"
+    names = {p.stem for p in prompts}
+    expected = {"understander", "designer", "critic",
+                "sql_specialist", "analyst_narrator"}
+    assert names == expected, (
+        f"expected v2 specialists {expected}; found {names}"
     )
 
 

@@ -1,19 +1,28 @@
-"""5-layer SQL safety pipeline for AgentXP v0.1 (§11).
+"""SQL safety pipeline for AgentXP (§11 + T20 design/analyze wall).
 
-Walks user / agent SQL through five gates before dispatch:
+Walks user / agent SQL through six gates before dispatch:
 
-  1. parse           — sqlglot tree (delegated to :mod:`agentxp.sql.parser`)
-  2. read_only       — reject DELETE / DROP / UPDATE / INSERT / TRUNCATE / MERGE / CREATE / ALTER
-  3a. cross_adapter  — reject queries spanning multiple warehouse adapters
-  3b. semantic       — assert every FROM table is a declared fact_source
-  3c. deny_list      — block §11 DENY_FUNCTIONS + non-ALLOWED_AST_NODES
-  4. resource        — inject / cap LIMIT per the §11 resource-bounds matrix
+  1. parse                — sqlglot tree (delegated to :mod:`agentxp.sql.parser`)
+  2. read_only            — reject DELETE / DROP / UPDATE / INSERT / TRUNCATE / MERGE / CREATE / ALTER
+  3a. cross_adapter       — reject queries spanning multiple warehouse adapters
+  3b. semantic            — assert every FROM table is a declared fact_source
+  3c. deny_list           — block §11 DENY_FUNCTIONS + non-ALLOWED_AST_NODES
+  3d. design_outcome_peek — REJECT outcome-bearing column references when
+                            ``mode == "design"``. Skipped when ``mode == "analyze"``.
+                            (T20 — R11 wall enforcement at the SQL layer)
+  4. resource             — inject / cap LIMIT per the §11 resource-bounds matrix
 
-Source spec: experimentation-platform/OPENXP_V01_PLAN.md §11.
+The ``mode`` parameter on :func:`run_pipeline` is **keyword-only and
+required**; there is no default. The design verb passes ``mode="design"``
+and outcome-revealing columns are rejected before they can be queried.
+This makes peek-prevention an architectural property (the safety pipeline
+refuses the query) rather than a behavioral rule the agent must remember.
+
+Source spec: experimentation-platform/OPENXP_V01_PLAN.md §11 + rebuild/CLAUDE.md R11.
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 from sqlglot import exp
@@ -24,6 +33,17 @@ from agentxp.sql.parser import (
     parse_sql,
     walk_ast,
 )
+
+
+SafetyMode = Literal["design", "analyze"]
+"""SQL safety mode (T20).
+
+- ``design``  — the orchestrator is in ``agentxp design``. Outcome columns
+                are rejected before the query reaches the warehouse.
+- ``analyze`` — the orchestrator is in ``agentxp analyze``, opened against
+                a sealed brief. All v0.1 layers apply; outcome columns are
+                allowed because the brief authorized them.
+"""
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -64,6 +84,16 @@ class DialectHazardViolation(SafetyViolation):
     silently rewrites to a non-equivalent form (e.g. a recursive CTE against
     ``databricks``, which has no recursive-CTE support and which sqlglot
     silently de-recurses). Reject rather than ship a silently-wrong query."""
+
+
+class DesignModePeekViolation(SafetyViolation):
+    """T20 — Layer 3d: the query references an outcome-bearing column while
+    the safety pipeline is in design mode (``mode="design"``).
+
+    Outcome-bearing columns reveal the assignment or the experiment result;
+    the design verb is for pre-registration and must not see them. R11 wall
+    enforcement at the SQL layer. There is no override — the user invokes
+    ``agentxp analyze --brief <path>`` to query outcomes."""
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -200,6 +230,63 @@ def assert_no_dialect_hazard(tree: exp.Expression, dialect: str) -> None:
                 "databricks dialect; sqlglot would silently de-recurse it into "
                 "a non-equivalent query. Rewrite without recursion before "
                 "dispatching to databricks."
+            )
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Layer 3d — design-mode outcome-column reject (T20, R11)
+#
+# In ``agentxp design``, the orchestrator pre-registers an experiment. It
+# must not be able to read assignment- or outcome-bearing columns, because
+# knowing those numbers contaminates judgment: a designer who has seen the
+# split or the lift will subtly draft toward what's there. We enforce the
+# wall at the SQL layer rather than relying on prompt discipline.
+#
+# The forbidden-column set is the assignment-revealing names common across
+# real warehouses. The set is a closed list per v0.2; if a warehouse uses
+# a non-standard name (e.g. ``bucket_id`` instead of ``variant``), the
+# semantic-model layer is the right place to declare it as outcome-bearing
+# — that's a future extension. v0.2 starts with the standard names.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+_DESIGN_MODE_FORBIDDEN_COLUMNS: frozenset[str] = frozenset({
+    "variant",
+    "treatment",
+    "treatment_group",
+    "arm",
+    "assigned_arm",
+    "exposure_arm",
+    "experiment_arm",
+    "cohort_assignment",
+    "bucket",
+})
+"""Column names whose appearance in a design-mode query triggers
+``DesignModePeekViolation``. Lowercase; the check is case-insensitive."""
+
+
+def layer_3d_design_mode_outcome_reject(tree: exp.Expression) -> None:
+    """Raise :class:`DesignModePeekViolation` on outcome-bearing column refs.
+
+    Walks every :class:`exp.Column` node and matches its name (lowercase)
+    against ``_DESIGN_MODE_FORBIDDEN_COLUMNS``. The first match aborts the
+    query — the user receives a clear refusal with the specific column
+    name and the path forward (use ``agentxp analyze --brief <path>``).
+
+    Called only when ``mode == "design"``; analyze mode skips this layer.
+    """
+    for node in walk_ast(tree):
+        if not isinstance(node, exp.Column):
+            continue
+        col_name = node.name
+        if not col_name:
+            continue
+        if col_name.lower() in _DESIGN_MODE_FORBIDDEN_COLUMNS:
+            raise DesignModePeekViolation(
+                f"Column {col_name!r} is outcome-bearing and may not be queried in "
+                f"design mode (R11). The design verb pre-registers the experiment; "
+                f"querying assignment or outcomes is the analyze verb's job. "
+                f"Run `agentxp analyze --brief <path>` against a sealed brief instead."
             )
 
 
@@ -461,11 +548,13 @@ def run_pipeline(
     sql: str,
     dialect: str,
     purpose: str,
+    *,
+    mode: SafetyMode,
     config: Optional[dict] = None,
     target_profile: Optional[str] = None,
     semantic_models: Optional[list] = None,
 ) -> SafetyResult:
-    """Run the 5-layer §11 pipeline. Returns :class:`SafetyResult` on success.
+    """Run the safety pipeline (§11 + T20). Returns :class:`SafetyResult`.
 
     Layer order — fail-closed at every step:
 
@@ -474,7 +563,13 @@ def run_pipeline(
       3a. Layer 3a cross-adapter
       3b. Layer 3b semantic model
       3c. Layer 3c deny-list / allowlist
+      3d. Layer 3d design-mode outcome-column reject     (T20 — only when mode="design")
       4. Layer 4 resource bounds      (rewrites the tree)
+
+    ``mode`` is keyword-only and required. Passing ``"design"`` activates
+    Layer 3d; passing ``"analyze"`` skips it. There is no default — a
+    caller that fails to specify mode gets a TypeError, not a silent
+    bypass of the R11 wall.
 
     The orchestrator catches :class:`SafetyViolation` at its own boundary
     and persists a ``SafetyLayerResult(passed=False, reason=...)`` row.
@@ -491,6 +586,8 @@ def run_pipeline(
     layer_3a_assert_single_adapter(tree, config=config, target_profile=target_profile)
     layer_3b_semantic_model_check(tree, semantic_models=semantic_models)
     layer_3c_deny_list_check(tree)
+    if mode == "design":
+        layer_3d_design_mode_outcome_reject(tree)
     layers.append(3)
 
     tree = layer_4_enforce_resource_bounds(tree, purpose=purpose)
@@ -505,6 +602,8 @@ def run_pipeline(
 
 
 __all__ = [
+    # Mode type alias (T20)
+    "SafetyMode",
     # Exceptions
     "SafetyViolation",
     "ReadOnlyViolation",
@@ -514,6 +613,7 @@ __all__ = [
     "ResourceBoundsViolation",
     "UnparseableSQL",
     "DialectHazardViolation",
+    "DesignModePeekViolation",
     # Result
     "SafetyResult",
     # Layer entry points
@@ -522,6 +622,7 @@ __all__ = [
     "layer_3a_assert_single_adapter",
     "layer_3b_semantic_model_check",
     "layer_3c_deny_list_check",
+    "layer_3d_design_mode_outcome_reject",
     "layer_4_enforce_resource_bounds",
     # Orchestrator
     "run_pipeline",

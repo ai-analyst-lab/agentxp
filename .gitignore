@@ -30,3 +30,42 @@ Thumbs.db
 
 # Experiment outputs (user-generated)
 experiments/
+
+# Sample data — demo warehouse fixtures, lock files, EXPECTED_VERDICTS.
+# Workshop / dev only; never in the public repo.
+sample-data/
+
+
+# Python build artifacts
+build/
+agentxp.egg-info/
+*.egg-info/
+
+
+# v1 archive — preserved in git history (recoverable via git show <sha>:archive/...)
+archive/
+
+
+# pytest cache
+.pytest_cache/
+
+
+# Experiment artifacts (per-run; not source-of-truth)
+experiments/
+
+# Scratch — walk scripts, ad-hoc tools
+scratch/
+
+# User-owned metric + semantic-model catalogs — users write their own,
+# we ship only _TEMPLATE.yaml as a starting point
+metrics/*.yaml
+!metrics/_TEMPLATE.yaml
+semantic_models/*.yaml
+!semantic_models/_TEMPLATE.yaml
+
+# Eval-loop screenshot output (regenerable via scratch/eval/screenshot.py)
+scratch/eval/iter_*/
+
+# Internal planning notes (not for public-facing repo)
+rebuild/
+

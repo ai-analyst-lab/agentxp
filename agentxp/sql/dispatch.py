@@ -26,13 +26,7 @@ from typing import Any, Callable, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from agentxp.audit.events import (
-    QueryExecutedPayload,
-    QueryFailedPayload,
-    QueryProposedPayload,
-)
 from agentxp.audit.redactor import redact_message
-from agentxp.audit.storage import append_event
 from agentxp.sql.adapter import (
     AdapterError,
     AdapterResult,
@@ -196,18 +190,9 @@ def _emit_proposed(
     sql_validated: str,
     proposed_at: datetime,
 ) -> None:
-    payload = QueryProposedPayload(
-        timestamp=proposed_at,
-        action_id=intent.action_id or f"act-{query_id}",
-        parent_action_id=intent.parent_action_id,
-        actor_kind="agent",
-        actor_name=intent.agent_name,
-        experiment_id=intent.exp_id,
-        query_id=query_id,
-        raw_hash=_sha256_hex(intent.sql),
-        ast_hash=_sha256_hex(sql_validated),
-    )
-    append_event(exp_dir, payload)
+    # v3: event-emission is replaced by git + log.md at the orchestrator
+    # boundary (commit_artifact). No structured event emission here.
+    return
 
 
 def _emit_executed(
@@ -216,21 +201,8 @@ def _emit_executed(
     query_id: str,
     adapter_result: AdapterResult,
 ) -> None:
-    payload = QueryExecutedPayload(
-        timestamp=_utc_now(),
-        action_id=intent.action_id or f"act-{query_id}",
-        parent_action_id=intent.parent_action_id,
-        actor_kind="orchestrator",
-        actor_name=intent.agent_name,
-        experiment_id=intent.exp_id,
-        query_id=query_id,
-        duration_ms=int(adapter_result.elapsed_seconds * 1000),
-        rows_returned=adapter_result.row_count,
-        result_hash=_sha256_hex(
-            f"{adapter_result.row_count}|{adapter_result.bytes_scanned}"
-        ),
-    )
-    append_event(exp_dir, payload)
+    # v3: see _emit_proposed.
+    return
 
 
 def _emit_failed(
@@ -241,22 +213,8 @@ def _emit_failed(
     error_message: str,
     subtype: Optional[str] = None,
 ) -> None:
-    metadata: dict = {}
-    if subtype is not None:
-        metadata["subtype"] = subtype
-    payload = QueryFailedPayload(
-        timestamp=_utc_now(),
-        action_id=intent.action_id or f"act-{query_id}",
-        parent_action_id=intent.parent_action_id,
-        actor_kind="orchestrator",
-        actor_name=intent.agent_name,
-        experiment_id=intent.exp_id,
-        query_id=query_id,
-        error_class=error_class,
-        error_message=error_message,
-        metadata=metadata,
-    )
-    append_event(exp_dir, payload)
+    # v3: see _emit_proposed.
+    return
 
 
 def _safety_trace_from_layers(layers_passed: list[int]) -> list[SafetyLayerResult]:
@@ -348,11 +306,15 @@ def dispatch_sql(
         query_id = _new_query_ulid()
 
         # ----- Layer 1-4 safety pipeline -----
+        # mode="analyze" preserves v0.1 dispatch behavior. T80-T84 will plumb
+        # the actual verb (design vs analyze) through QueryIntent so design-mode
+        # dispatches activate Layer 3d outcome-column rejection (T20, R11).
         try:
             safety = run_pipeline(
                 current_sql,
                 dialect=intent.dialect,
                 purpose=intent.purpose,
+                mode="analyze",
                 config=intent.config,
                 target_profile=intent.target_profile,
                 semantic_models=intent.semantic_models,

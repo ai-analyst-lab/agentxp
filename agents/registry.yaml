@@ -1,0 +1,132 @@
+version: 1
+agents:
+  analyst_narrator:
+    description: "Writes prose about statistical results the orchestrator already\n\
+      computed. Blind to hypothesis direction and designer narrative \u2014\nprevents\
+      \ biased narration of inconclusive results."
+    bundle_schema: AnalystNarratorBundle
+    dispatched_by:
+    - analyze
+    inputs:
+    - metric_results: list[MetricResult]
+    - brief_decision_rules: list[DecisionRule]
+    - srm_result: SrmResult
+    - guardrail_results: list[GuardrailResult]
+    - confidence_labels: list[ConfidenceLabelEntry]
+    outputs:
+    - AnalysisNarrative
+    blind_to:
+    - hypothesis
+    - hypothesis_prose
+    - intent
+    - designer_narrative
+    - conversation
+    - expected_direction
+    - hoped_outcome
+    emits:
+    - analysis.json
+  critic:
+    description: 'Judges artifacts produced by other specialists. Blind to producer
+
+      reasoning and conversation history. One prompt, four firing-points
+
+      via judging_mode discriminator.'
+    bundle_schema: CriticBundle
+    dispatched_by:
+    - design
+    - analyze
+    inputs:
+    - artifact: ArtifactRef
+    - artifact_payload: dict
+    - claimed_scope: ClaimedScope
+    - cited_inputs: list[ArtifactRef]
+    - 'judging_mode: Literal[''brief_consistency'', ''analysis_vs_brief'', ''verdict_vs_analysis'',
+      ''readout_faithfulness'']'
+    outputs:
+    - Judgment
+    blind_to:
+    - producer_reasoning
+    - conversation_history
+    - prior_judgments
+    - user_intent_prose
+    emits:
+    - decisions/<seq>-critique.yaml
+  designer:
+    description: "Drafts the artifacts that move an experiment from intent through\
+      \ a\nsealed brief \u2014 hypothesis, brief, data plan. Runs only inside the\n\
+      design verb. Cannot see analysis output (R11 architectural wall)."
+    bundle_schema: DesignerBundle
+    dispatched_by:
+    - design
+    inputs:
+    - intent: IntentText
+    - semantic_models: list[SemanticModel]
+    - metrics: list[Metric]
+    - assignment_surface: AssignmentSurface
+    - prior_drafts: list[ArtifactRef]
+    - task: Literal["draft_hypothesis", "draft_brief", "draft_data_plan"]
+    outputs:
+    - HypothesisDraft
+    - BriefDraft
+    - DataPlanDraft
+    blind_to:
+    - analysis
+    - metric_result
+    - srm_result
+    - guardrail_result
+    - interpretation
+    - verdict
+    - lift
+    - ci_low
+    - ci_high
+    - p_value
+    emits:
+    - hypothesis.yaml
+    - brief.yaml
+    - data_plan.yaml
+  sql_specialist:
+    description: 'Writes and corrects SQL queries against the warehouse. The bundle''s
+
+      verb field controls what the safety pipeline allows; design-mode
+
+      queries cannot reference outcome columns (R11).'
+    bundle_schema: SqlSpecialistBundle
+    dispatched_by:
+    - design
+    - analyze
+    inputs:
+    - intent: SqlIntent
+    - warehouse_schema: WarehouseSchema
+    - semantic_models: list[SemanticModel]
+    - verb: Literal["design", "analyze"]
+    - brief_ref: Optional[ArtifactRef]
+    - prior_attempt: Optional[FailedSqlAttempt]
+    outputs:
+    - SqlProposal
+    blind_to: []
+    emits:
+    - queries/<ulid>.yaml
+  understander:
+    description: "Drafts semantic models (entities) and metrics (named aggregations)\
+      \ from\na dataset's natural structure. Blind to experiment intent \u2014 prevents\n\
+      metric-fishing."
+    bundle_schema: UnderstanderBundle
+    dispatched_by:
+    - design
+    inputs:
+    - warehouse_profile: WarehouseProfile
+    - existing_semantic_models: list[ArtifactRef]
+    - existing_metrics: list[ArtifactRef]
+    - task: Literal["draft_semantic_models", "draft_metrics"]
+    outputs:
+    - SemanticModelProposal
+    - MetricProposal
+    blind_to:
+    - intent
+    - hypothesis
+    - brief
+    - experiment_intent
+    - experiment_id
+    emits:
+    - semantic_models/<name>.yaml
+    - metrics/<name>.yaml

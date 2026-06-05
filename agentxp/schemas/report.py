@@ -1,16 +1,17 @@
-"""Canonical schemas for report.md / report.json sidecar (Stage 8 readout output).
+"""Pydantic schemas for ``report.md`` and its ``report.json`` sidecar.
 
-Models the JSON sidecar that the readout agent writes. Markdown renders from this JSON.
+The report is the analyze verb's terminal artifact. Markdown renders from
+this JSON. In v2 the readout is rendered by the presentation spine
+(``agentxp/render/distill.py`` + chart primitives), not by an agent — the
+orchestrator dispatches the analyst-narrator for the narrative prose,
+then the renderer composes the report against this schema.
 
-Source spec: experimentation-platform/OPENXP_V01_PLAN.md §22, §23, §24, §10.7, §10.8.1,
-§1.8.7, §1.8.10, §1.8.15, §1.8.17.
+Verdict is owned by ``agentxp.interpret.tree`` (9 values including
+UNVERIFIABLE on null required inputs) and re-exported here for the
+Report schema. ConfidenceLabel comes from ``agentxp.interpret.confidence``.
 
-W_pre1.6 ships this module. The downstream consumers are:
-  - readout agent (writes report.json + report.md from this schema)
-  - validate_chain (returns ChainValidation defined here)
-  - interpret/confidence.py (consumes ConfidenceLabel)
-
-Verdict is owned by interpret/tree.py and re-exported here for the Report schema.
+R7 — every claim in the report carries an ``AuditPaths`` reference.
+R8 — confidence labels are quoted from ``map_confidence()``, never chosen.
 """
 from __future__ import annotations
 
@@ -70,10 +71,13 @@ class NoShipReasonCode(str, Enum):
 # ──────────────────────────────────────────────────────────────────────────
 
 class ConversationRef(BaseModel):
-    """Pointer to a specific turn in conversation.jsonl.
+    """Pointer to a specific turn in the conversation/log history.
 
-    Used by validate_chain Invariant 2 (§10.7.2) to verify the bundle's
-    `through_turn_id` resolves to a real turn.
+    Carryover from v0.1 where conversation.jsonl was a separate append-only
+    store. In v2 the conversation is the Claude Code chat + the on-disk
+    ``log.md``; this struct survives because some AuditPaths still want
+    to point at a specific turn id for replay precision. Kept Optional
+    on AuditPaths.
     """
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal[1] = 1
@@ -98,7 +102,14 @@ class AuditPaths(BaseModel):
 
 
 class UncertaintyNote(BaseModel):
-    """One entry in "What I'm not sure about" section of the readout (§22)."""
+    """One entry in "What I'm not sure about" section of the readout (§22).
+
+    R7 partial — ``audit_link: Optional[str]`` is the v0.1 shape; tightening
+    to a required ``audit_paths: AuditPaths`` is deferred until ``finalize.py``
+    is rewritten alongside the readout pipeline (it has callers that
+    currently produce ungrounded notes from raw-string caveats). Tracked
+    in BUILD.yaml as a follow-up on the finalize rewrite.
+    """
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal[1] = 1
     topic: str
@@ -210,7 +221,13 @@ class SegmentResult(BaseModel):
 
 
 class EdgeCaseFlag(BaseModel):
-    """One row in the readout's edge-case-flags table (§22)."""
+    """One row in the readout's edge-case-flags table.
+
+    R7 enforcement: every flag cites the artifact whose check produced it
+    (the SRM result, the power MDE row, the late-ratio diagnostic). A flag
+    that cannot point at an underlying check is not a flag — it is an
+    unsubstantiated assertion, and the schema refuses it.
+    """
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal[1] = 1
     name: Literal[
@@ -223,6 +240,7 @@ class EdgeCaseFlag(BaseModel):
     ]
     status: Literal["clear", "flagged", "blocking"]
     detail: str
+    audit_paths: AuditPaths
 
 
 class DiagnosticGate(BaseModel):

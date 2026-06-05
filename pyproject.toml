@@ -65,9 +65,6 @@ png = [
     "playwright>=1.40",
 ]
 
-[project.scripts]
-agentxp = "agentxp.cli.__main__:main"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

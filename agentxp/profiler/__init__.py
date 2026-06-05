@@ -1,5 +1,6 @@
-"""AgentXP v0.1 Stage-0 profiler package."""
+"""AgentXP profiler package.
 
-from agentxp.profiler.driver import profile_dataset, write_profile_bundle
-
-__all__ = ["profile_dataset", "write_profile_bundle"]
+In v3 the profiler is a tool: the orchestrator calls ``duckdb_summarize``
++ ``heuristics`` directly through the understander's bundle. The v0.1
+``profile_dataset`` / ``write_profile_bundle`` agent driver is gone (T114).
+"""

@@ -228,4 +228,134 @@ def distill_index(rows: list[IndexRowVM]) -> IndexVM:
     )
 
 
-__all__ = ["distill", "distill_index"]
+# ──────────────────────────────────────────────────────────────────────────
+# Spine distill functions (T41) — one per share-tail moment.
+#
+# Each is PURE: no I/O, no time.time(), no chain access, no re-derivation.
+# The orchestrator computes inputs and passes them in; the function
+# projects them into the corresponding spine VM.
+#
+# distill_mid_run's signature is the wall: it does NOT accept analyzer
+# outputs as parameters. Adding such a parameter would surface as a
+# visible signature change AND fail the closure test in
+# tests/render/test_spine_vms.py.
+# ──────────────────────────────────────────────────────────────────────────
+
+from agentxp.render.viewmodel import (   # noqa: E402 — at bottom for layer ordering
+    DesignBriefVM,
+    IntentVM,
+    MidRunVM,
+    VerdictVM,
+)
+
+
+def distill_intent(
+    *,
+    experiment_id: str,
+    intent_text: str,
+    captured_at: str,
+    captured_by: str,
+) -> IntentVM:
+    """T41 — pure distill for the intent share-tail moment (design verb).
+
+    Renders the user's pre-registered intent without any analysis context.
+    Identical inputs produce identical output (audit replay).
+    """
+    return IntentVM(
+        experiment_id=experiment_id,
+        intent_text=intent_text,
+        captured_at=captured_at,
+        captured_by=captured_by,
+    )
+
+
+def distill_design_brief(
+    *,
+    experiment_id: str,
+    sealed_brief_payload: dict,
+    integrity_lock: dict,
+) -> DesignBriefVM:
+    """T41 — pure distill for the design-brief share-tail moment.
+
+    Renders the sealed brief + integrity lock receipt. Fires after the
+    brief seals (the design verb's terminal share-tail). No analysis
+    output exists at this moment by R11 (the wall has not been crossed).
+    """
+    brief = sealed_brief_payload
+    expected = brief.get("expected_shape", {}) or integrity_lock.get(
+        "expected_shape", {}
+    )
+    chain_hash = integrity_lock.get("design_chain_hash", "")
+    metric_snapshot = integrity_lock.get("metric_snapshot", {}) or {}
+
+    return DesignBriefVM(
+        experiment_id=experiment_id,
+        hypothesis_text=brief.get("hypothesis", ""),
+        primary_metric_name=brief.get("primary_metric", ""),
+        primary_decision_rule=brief.get("primary_decision_rule", ""),
+        mde_text=brief.get("mde_text", ""),
+        power_text=brief.get("power_text", ""),
+        guardrails_summary=brief.get("guardrails_summary", []),
+        cohorts_summary=brief.get("cohorts_summary", []),
+        assignment_unit=expected.get("assignment_unit", "user_id"),
+        expected_arm_ratio_text=brief.get("expected_arm_ratio_text", ""),
+        design_chain_hash_short=(chain_hash[:12] + "…") if chain_hash else "",
+        metric_snapshot_count=len(metric_snapshot),
+        sealed_at=integrity_lock.get("sealed_at", ""),
+    )
+
+
+def distill_mid_run(
+    *,
+    experiment_id: str,
+    halt_reason: str,
+    halt_summary_text: str,
+    triggered_at: str,
+    elapsed_text: str,
+    suggested_resolutions: list[str],
+    srm_chi2: Optional[float] = None,
+    srm_threshold: Optional[float] = None,
+) -> MidRunVM:
+    """T41 — pure distill for the monitor-halt share-tail moment.
+
+    PEEK-PREVENTION PROPERTY: the signature **does not accept** lift, CI,
+    p-value, per-arm magnitudes, or any other analyzer-output parameter.
+    A caller cannot pass outcome information through — the function
+    signature is the wall. The closure test in tests/render/test_spine_vms.py
+    asserts this property programmatically.
+
+    Fires only when the orchestrator's automated monitor halt fires
+    (SRM yellow/red, guardrail breach, exposure stale). Never on routine
+    progress; the user reads the mid-run readout only when an action is
+    required.
+    """
+    return MidRunVM(
+        experiment_id=experiment_id,
+        halt_reason=halt_reason,    # type: ignore[arg-type]
+        halt_summary_text=halt_summary_text,
+        triggered_at=triggered_at,
+        elapsed_text=elapsed_text,
+        suggested_resolutions=suggested_resolutions,
+        srm_chi2=srm_chi2,
+        srm_threshold=srm_threshold,
+    )
+
+
+def distill_verdict(report: Report) -> VerdictVM:
+    """T41 — pure distill for the verdict-committed share-tail moment.
+
+    VerdictVM = ReportVM (same shape, share-tail framing). This wrapper
+    exists so the orchestrator can use the same distill_* API shape for
+    all four spine moments.
+    """
+    return distill(report)
+
+
+__all__ = [
+    "distill",
+    "distill_index",
+    "distill_intent",
+    "distill_design_brief",
+    "distill_mid_run",
+    "distill_verdict",
+]

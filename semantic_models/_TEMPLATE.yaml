@@ -1,0 +1,43 @@
+# semantic_models/<name>.yaml — one file per logical table your metrics
+# read from. Acts as a thin contract between the warehouse schema and the
+# metric definitions; the orchestrator reads these to understand what
+# columns are available without scanning the warehouse.
+#
+# Copy this template, drop the comments, and fill in the fields.
+
+name: example_model                        # snake_case; matches the file name
+display_name: Example                      # human-readable
+description: |
+  One paragraph describing this model. What does each row represent?
+  What's the grain? What's the typical lifecycle of a row?
+
+primary_key: id                            # str or list[str] for composite keys
+source_table: example_table                # the actual warehouse table
+
+dimensions:
+  - name: id
+    type: integer                          # integer · string · float · date · timestamp · boolean
+    description: Unique identifier for this row.
+
+  - name: created_at
+    type: timestamp
+    description: UTC timestamp when the row was created.
+
+  - name: status
+    type: string
+    description: |
+      Enumerated state. Listed here so metric definitions can filter on it
+      without needing to scan the warehouse first.
+    enum: [active, paused, completed]
+
+relationships:
+  - to: other_model
+    on: other_id
+    type: many_to_one
+    description: Each row of this model belongs to one other_model.
+
+# If this model carries outcome-bearing columns, list them. The SQL safety
+# pipeline refuses to query these columns in design mode (R11 Layer 3d).
+# outcome_columns: [arm, treatment_id]
+
+schema_version: 1

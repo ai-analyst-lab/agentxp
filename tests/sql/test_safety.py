@@ -23,20 +23,21 @@ from agentxp.sql.parser import parse_sql
 
 
 def test_read_only_allows_select():
-    r = run_pipeline("SELECT * FROM t LIMIT 10", "duckdb", "preview")
+    r = run_pipeline("SELECT * FROM t LIMIT 10", "duckdb", "preview", mode="analyze")
     assert isinstance(r, SafetyResult)
     assert r.layers_passed == [1, 2, 3, 4]
 
 
 def test_read_only_allows_explain():
-    r = run_pipeline("EXPLAIN SELECT * FROM t", "duckdb", "preview")
+    r = run_pipeline("EXPLAIN SELECT * FROM t", "duckdb", "preview", mode="analyze")
     assert isinstance(r, SafetyResult)
     assert "EXPLAIN" in r.sql_validated.upper()
 
 
 def test_read_only_allows_cte():
     r = run_pipeline(
-        "WITH x AS (SELECT 1 AS n) SELECT * FROM x", "duckdb", "preview"
+        "WITH x AS (SELECT 1 AS n) SELECT * FROM x", "duckdb", "preview",
+        mode="analyze",
     )
     assert r.layers_passed == [1, 2, 3, 4]
 
@@ -48,27 +49,27 @@ def test_read_only_allows_cte():
 
 def test_read_only_blocks_delete():
     with pytest.raises(ReadOnlyViolation):
-        run_pipeline("DELETE FROM t WHERE id = 1", "duckdb", "preview")
+        run_pipeline("DELETE FROM t WHERE id = 1", "duckdb", "preview", mode="analyze")
 
 
 def test_read_only_blocks_drop():
     with pytest.raises(ReadOnlyViolation):
-        run_pipeline("DROP TABLE t", "duckdb", "preview")
+        run_pipeline("DROP TABLE t", "duckdb", "preview", mode="analyze")
 
 
 def test_read_only_blocks_update():
     with pytest.raises(ReadOnlyViolation):
-        run_pipeline("UPDATE t SET x = 1", "duckdb", "preview")
+        run_pipeline("UPDATE t SET x = 1", "duckdb", "preview", mode="analyze")
 
 
 def test_read_only_blocks_insert():
     with pytest.raises(ReadOnlyViolation):
-        run_pipeline("INSERT INTO t VALUES (1)", "duckdb", "preview")
+        run_pipeline("INSERT INTO t VALUES (1)", "duckdb", "preview", mode="analyze")
 
 
 def test_read_only_blocks_truncate():
     with pytest.raises(ReadOnlyViolation):
-        run_pipeline("TRUNCATE TABLE t", "duckdb", "preview")
+        run_pipeline("TRUNCATE TABLE t", "duckdb", "preview", mode="analyze")
 
 
 def test_read_only_blocks_merge():
@@ -78,17 +79,18 @@ def test_read_only_blocks_merge():
             "WHEN MATCHED THEN UPDATE SET x = 1",
             "snowflake",
             "preview",
+            mode="analyze",
         )
 
 
 def test_read_only_blocks_create():
     with pytest.raises(ReadOnlyViolation):
-        run_pipeline("CREATE TABLE t (x INT)", "duckdb", "preview")
+        run_pipeline("CREATE TABLE t (x INT)", "duckdb", "preview", mode="analyze")
 
 
 def test_read_only_blocks_alter():
     with pytest.raises(ReadOnlyViolation):
-        run_pipeline("ALTER TABLE t ADD COLUMN x INT", "duckdb", "preview")
+        run_pipeline("ALTER TABLE t ADD COLUMN x INT", "duckdb", "preview", mode="analyze")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -98,17 +100,17 @@ def test_read_only_blocks_alter():
 
 def test_deny_list_blocks_pg_sleep():
     with pytest.raises(DenyListViolation):
-        run_pipeline("SELECT pg_sleep(60)", "postgres", "preview")
+        run_pipeline("SELECT pg_sleep(60)", "postgres", "preview", mode="analyze")
 
 
 def test_deny_list_blocks_exec():
     with pytest.raises(DenyListViolation):
-        run_pipeline("SELECT exec('drop table t')", "duckdb", "preview")
+        run_pipeline("SELECT exec('drop table t')", "duckdb", "preview", mode="analyze")
 
 
 def test_deny_list_blocks_system_wait():
     with pytest.raises(DenyListViolation):
-        run_pipeline("SELECT SYSTEM$WAIT(60)", "snowflake", "preview")
+        run_pipeline("SELECT SYSTEM$WAIT(60)", "snowflake", "preview", mode="analyze")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -117,25 +119,25 @@ def test_deny_list_blocks_system_wait():
 
 
 def test_resource_bounds_injects_limit():
-    r = run_pipeline("SELECT * FROM t", "duckdb", "preview")
+    r = run_pipeline("SELECT * FROM t", "duckdb", "preview", mode="analyze")
     assert "LIMIT 1000" in r.sql_validated.upper()
 
 
 def test_resource_bounds_caps_existing_limit():
-    r = run_pipeline("SELECT * FROM t LIMIT 10000", "duckdb", "preview")
+    r = run_pipeline("SELECT * FROM t LIMIT 10000", "duckdb", "preview", mode="analyze")
     # Existing 10k > preview cap (1k) → replaced.
     assert "LIMIT 1000" in r.sql_validated.upper()
     assert "10000" not in r.sql_validated
 
 
 def test_resource_bounds_preserves_smaller_limit():
-    r = run_pipeline("SELECT * FROM t LIMIT 50", "duckdb", "preview")
+    r = run_pipeline("SELECT * FROM t LIMIT 50", "duckdb", "preview", mode="analyze")
     assert "LIMIT 50" in r.sql_validated.upper()
 
 
 def test_resource_bounds_profile_purpose_has_larger_cap():
     # profile cap is 100k; an existing LIMIT 50_000 should be preserved.
-    r = run_pipeline("SELECT * FROM t LIMIT 50000", "duckdb", "profile")
+    r = run_pipeline("SELECT * FROM t LIMIT 50000", "duckdb", "profile", mode="analyze")
     assert "LIMIT 50000" in r.sql_validated.upper()
 
 
@@ -149,6 +151,7 @@ def test_run_pipeline_happy_path():
         "SELECT id, value FROM events WHERE value > 0 LIMIT 100",
         "duckdb",
         "preview",
+        mode="analyze",
     )
     assert r.layers_passed == [1, 2, 3, 4]
     assert r.sql_validated  # non-empty
@@ -157,7 +160,7 @@ def test_run_pipeline_happy_path():
 
 def test_run_pipeline_unparseable_raises():
     with pytest.raises(UnparseableSQL):
-        run_pipeline("SELECT FROM WHERE", "duckdb", "preview")
+        run_pipeline("SELECT FROM WHERE", "duckdb", "preview", mode="analyze")
 
 
 def test_layer_3a_no_op_without_config():
@@ -191,7 +194,7 @@ _RECURSIVE_CTE = (
 
 def test_recursive_cte_rejected_for_databricks():
     with pytest.raises(DialectHazardViolation):
-        run_pipeline(_RECURSIVE_CTE, "databricks", "preview")
+        run_pipeline(_RECURSIVE_CTE, "databricks", "preview", mode="analyze")
 
 
 def test_recursive_cte_allowed_for_duckdb():
@@ -204,7 +207,8 @@ def test_recursive_cte_allowed_for_duckdb():
 
 def test_non_recursive_cte_allowed_for_databricks():
     r = run_pipeline(
-        "WITH t AS (SELECT 1 AS n) SELECT * FROM t", "databricks", "preview"
+        "WITH t AS (SELECT 1 AS n) SELECT * FROM t", "databricks", "preview",
+        mode="analyze",
     )
     assert isinstance(r, SafetyResult)
 

@@ -1,0 +1,69 @@
+# metrics/<name>.yaml — one file per metric your experiments may use.
+#
+# AgentXP's brief-seal includes a hash of every referenced metric file, so
+# changing a metric definition after seal will fail verification (R11).
+# Keep metrics small, named, and stable.
+#
+# Copy this template, drop the comments, and fill in the fields.
+
+name: example_metric                       # snake_case; how briefs reference it
+display_name: Example metric               # human-readable
+description: |
+  One paragraph describing what this metric measures, in product-team
+  vocabulary. Include the unit, the time window, and any caveats a reader
+  needs to interpret the number correctly.
+
+# proportion · mean · ratio · count
+type: proportion
+
+# The unit of analysis the numerator counts in
+unit: user_id
+
+numerator:
+  text: Distinct users with at least one <event>
+  source: <semantic_model_name>            # references semantic_models/*.yaml
+  agg: count_distinct                      # count · count_distinct · mean · sum · p95 · …
+  column: user_id
+  filter: |
+    event_name = '<event_name>'
+    AND event_at >= assignment.first_exposure_at
+
+# Omit denominator for type: mean
+denominator:
+  text: Distinct users assigned to the experiment
+  source: assignment
+  agg: count_distinct
+  column: user_id
+
+# Plausible baseline for this metric in your business. Used by the
+# designer to suggest power numbers.
+baseline_range: [0.05, 0.15]
+
+# The MDE the team would call "minimally interesting"; used for the
+# default n_required suggestion.
+typical_mde: 0.05
+
+# higher_is_better · lower_is_better
+direction: higher_is_better
+
+# For mean/ratio metrics on heavy-tailed columns (revenue, latency).
+# Has no effect on proportions.
+winsorize: false
+# winsorize_bounds: [0.01, 0.99]
+
+# primary · secondary · guardrail (suggestion only; briefs decide
+# per-experiment).
+common_role: primary
+
+# For guardrail-type metrics: maximum relative move that does NOT
+# constitute harm. Null for primaries.
+guardrail_default_nim: null
+
+# Who owns this metric (informational; appears in readouts)
+owner_team: Your Team
+
+tags: [example, template]
+
+# Bump when the definition changes in a way that should invalidate
+# existing seals.
+schema_version: 1

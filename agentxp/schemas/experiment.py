@@ -15,10 +15,13 @@ from pydantic import BaseModel, Field
 class ExperimentStatus(str, Enum):
     """Experiment lifecycle states.
 
-    Canonical 11-state superset matching `agentxp.storage.lifecycle.ALL_STATES`.
-    The state machine (forward/backward transitions, retreats-require-amendment)
-    is enforced by the storage layer — this enum is only the Pydantic-validated
-    surface used when loading/serializing `experiment.yaml`.
+    Carryover from v0.1's state machine. v2's orchestrator does not run
+    a state machine — verbs (design / analyze) terminate on artifact
+    presence (brief sealed / report committed), not on enum transitions.
+    The enum is kept as a Pydantic-validated surface for serializing
+    ``experiment.yaml`` and for downstream display ("status: SHIPPED");
+    the transition logic in ``agentxp.storage.lifecycle`` is on the
+    T114 deletion list.
     """
     DESIGNING = "DESIGNING"
     POWERED = "POWERED"

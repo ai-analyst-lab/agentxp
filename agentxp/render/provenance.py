@@ -168,32 +168,10 @@ def build_provenance(report: Report, exp_dir: Path) -> Provenance:
     # ── Step 2 — does the recomputed hash match the recorded one? ──
     hash_matches = live_hash == report.chain_hash
 
-    # ── Step 3 — run the 5 chain invariants (validate_chain). A perf-budget
-    # blow-out is a "can't check", never an accusation — degrade to UNVERIFIABLE.
-    from agentxp.audit.chain import PerfBudgetExceeded, validate_chain
-
-    try:
-        cv = validate_chain(experiment_id, _root=exp_dir.parent)
-    except PerfBudgetExceeded:
-        return Provenance(
-            render_status=RenderStatus.UNVERIFIABLE,
-            status_reason=(
-                "chain validation exceeded its time budget — cannot verify "
-                "within the perf cap"
-            ),
-            chain_hash_live=live_hash,
-            hash_matches=hash_matches,
-            **recorded,
-        )
-    except Exception as e:  # noqa: BLE001 — never crash a render over verification
-        return Provenance(
-            render_status=RenderStatus.UNVERIFIABLE,
-            status_reason=f"chain validation could not run ({type(e).__name__})",
-            chain_hash_live=live_hash,
-            hash_matches=hash_matches,
-            **recorded,
-        )
-    cv_ok = cv.ok
+    # ── Step 3 — v3: the v0.1 validate_chain machinery is deleted (git is
+    # the chain). The recomputed-vs-recorded hash check above is the only
+    # chain gate; if it matches, we proceed. ──
+    cv_ok = True
 
     # ── Step 4 — reproduce the verdict from the recorded inputs (W3-T2). A None
     # means the inputs are incomplete (can't check), not a contradiction. The

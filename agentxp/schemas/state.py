@@ -1,21 +1,18 @@
-"""Canonical schemas for AgentXP v0.1 state.yaml.
+"""Pydantic enums + Literals + helpers shared across the v2 schemas.
 
-Single source-of-truth for every enum, Literal, and pydantic model referenced
-in state.yaml v3. Closure-tested by tests/coherence/test_canonical_names.py.
+In v0.1 this file was the source-of-truth for ``state.yaml`` (the 11-stage
+state machine, PendingDecisionKind, GateKind, Stage3bChoice, etc.). v2
+collapses those — the orchestrator is a Claude Code session driven by
+CLAUDE.md, not a Python state machine. What survives here:
 
-Source spec: experimentation-platform/OPENXP_V01_PLAN.md
-  - §1.8.1   PendingDecisionKind  (14 values, snake_case)
-  - §1.8.2   GateKind              (documented superset of PendingDecisionKind)
-  - §1.8.4   Stage                 (11 main + 1 substate = 12 values)
-  - §1.8.6   schema_version        (state.yaml -> 3)
-  - §1.8.7   Closed Literals       (Stage3bChoice = Literal["r","e","o"])
-  - §1.8.14  Cohort                (timezone IANA, defaults "UTC")
-  - §1.8.15  SrmOverrideReasonCode (LOCKED v2 values; NoShipReasonCode lives in
-             agentxp.schemas.readout per the spec — not redefined here)
-  - §6       state.yaml v3 layout
-  - §6.4     Why 14 PendingDecisionKind values (CONFIRM_HYPOTHESIS reserved
-             but not emitted in v0.1)
-  - §10.8.2  Stage 3b r/e/o flow
+  - ``SrmOverrideReasonCode`` — closed set the analyze verb surfaces when
+    χ² fires WARNING or BLOCK
+  - ``Cohort`` — IANA-timezone cohort definitions used by briefs
+  - ``_enforce_utc`` — shared field validator; every datetime in the
+    project is UTC-tz-aware
+
+v0.1 spec sections (§1.8.x, §6, §10.8.2) referenced by the deleted
+enums are preserved in ``archive/v1-meta-docs/`` for historical reference.
 """
 from __future__ import annotations
 

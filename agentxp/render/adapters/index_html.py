@@ -28,7 +28,11 @@ from pathlib import Path
 import jinja2
 from pydantic import ValidationError
 
-from agentxp.audit.chain import PerfBudgetExceeded
+class PerfBudgetExceeded(Exception):
+    """v3: validate_chain is gone; this stub exists so build_provenance's
+    legacy exception path still type-resolves. The exception is never
+    raised in v3 since the per-row time-budget logic moved with
+    validate_chain itself."""
 from agentxp.render import brand
 from agentxp.render.distill import distill, distill_index
 from agentxp.render.provenance import RenderStatus, build_provenance

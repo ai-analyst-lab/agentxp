@@ -89,24 +89,35 @@ class GuardrailEval:
 @dataclass
 class TreeInput:
     """Pure-function input. The interpreter's bundle inputs flattened to the
-    decision-relevant scalars. See §22 for field semantics."""
-    # Step 1 — SRM gate
-    srm_pass: bool
-    # Step 2 — Guardrail check
+    decision-relevant scalars. See §22 for field semantics.
+
+    Analysis-derived fields are typed ``Optional`` because they may legitimately
+    be None during partial analysis (SRM not yet computed, monitoring not
+    started, primary metric still pending). Brief-derived fields
+    (``n_required``, ``primary_direction``, ``mde_pct``, ``baseline``,
+    ``guardrails``) stay non-Optional because a sealed brief always supplies
+    them — passing None for a brief-derived field is a malformed-input
+    signal and ``walk_tree`` returns ``UNVERIFIABLE`` rather than risking a
+    wrong verdict.
+    """
+    # Step 1 — SRM gate (analysis-derived)
+    srm_pass: Optional[bool]
+    # Step 2 — Guardrail check (brief + analysis; the list may be empty)
     guardrails: list[GuardrailEval]
     # Step 3 — Sample adequacy
-    n_observed: int
-    n_required: int
-    # Steps 4-7 — Primary metric
-    primary_ci_lower_95: float
-    primary_ci_upper_95: float
-    primary_ci_lower_90: float
-    primary_ci_upper_90: float
-    primary_lift_magnitude: float
+    n_observed: Optional[int]                    # analysis-derived
+    n_required: int                              # brief-derived
+    # Steps 4-7 — Primary metric (analysis-derived)
+    primary_ci_lower_95: Optional[float]
+    primary_ci_upper_95: Optional[float]
+    primary_ci_lower_90: Optional[float]
+    primary_ci_upper_90: Optional[float]
+    primary_lift_magnitude: Optional[float]
+    # Brief-derived (non-Optional — sealed-brief invariants)
     primary_direction: Literal["higher_is_better", "lower_is_better", "neither"]
     mde_pct: float
     baseline: float
-    # Optional fields
+    # Optional fields with defaults
     srm_override_resolved: bool = False
     late_ratio: Optional[float] = None
 
@@ -233,6 +244,59 @@ def compute_late_ratio(
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# UNVERIFIABLE wiring (W1.6) — per-step required-input declarations.
+#
+# Every step declares which TreeInput fields it needs to evaluate. Before a
+# step runs, ``walk_tree`` checks the declared fields are non-None; if any
+# is missing, the walk short-circuits to UNVERIFIABLE with the step number
+# whose inputs were incomplete. This preserves the verdict ladder's priority
+# ordering under partial-analysis conditions instead of falling through to
+# SHIP-default on null (the failure mode the v1 audit B5 surfaced).
+#
+# Brief-derived fields (mde_pct, baseline, primary_direction, n_required) are
+# checked separately at step 0 because they participate in mde_absolute
+# computation that runs before any per-step check.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+REQUIRED_INPUTS_PER_STEP: dict[int, tuple[str, ...]] = {
+    1: ("srm_pass",),
+    2: ("guardrails",),
+    3: ("n_observed", "primary_ci_lower_95", "primary_ci_upper_95"),
+    4: ("n_observed", "primary_ci_lower_95", "primary_ci_upper_95"),
+    5: ("primary_ci_lower_90", "primary_ci_upper_90",
+        "primary_ci_lower_95", "primary_ci_upper_95"),
+    6: ("primary_lift_magnitude",
+        "primary_ci_lower_95", "primary_ci_upper_95"),
+    7: ("primary_lift_magnitude",
+        "primary_ci_lower_95", "primary_ci_upper_95"),
+    # Step 8 is terminal LEARN; we only reach it after prior steps passed,
+    # which means their inputs were already validated as non-None.
+}
+
+
+def _unverifiable_at(
+    step: int, missing: list[str], diagnostics: dict[str, Any],
+) -> TreeResult:
+    """Build the UNVERIFIABLE TreeResult for a step with missing inputs."""
+    diagnostics = {**diagnostics, "missing_inputs": missing, "unverifiable_step": step}
+    return TreeResult(
+        verdict="UNVERIFIABLE",
+        step_fired=[
+            f"{step}: UNVERIFIABLE — required input(s) missing: {', '.join(missing)}"
+        ],
+        terminal_step=step,
+        diagnostics=diagnostics,
+    )
+
+
+def _missing_for(inputs: TreeInput, step: int) -> list[str]:
+    """Return the list of required-but-None field names for ``step``."""
+    required = REQUIRED_INPUTS_PER_STEP.get(step, ())
+    return [name for name in required if getattr(inputs, name) is None]
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Public API
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -246,6 +310,18 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
     step_fired: list[str] = []
     diagnostics: dict[str, Any] = {}
 
+    # ── Step 0 — brief-derived input pre-flight (UNVERIFIABLE wiring W1.6) ──
+    # mde_pct and baseline participate in mde_absolute which is used by every
+    # downstream step. They are brief-derived so should always be present, but
+    # we defend against a malformed input rather than risk a wrong verdict.
+    pre_missing = [
+        name for name, val in
+        (("mde_pct", inputs.mde_pct), ("baseline", inputs.baseline))
+        if val is None
+    ]
+    if pre_missing:
+        return _unverifiable_at(0, pre_missing, diagnostics)
+
     mde_absolute = _mde_absolute(inputs.mde_pct, inputs.baseline)
     diagnostics["mde_absolute"] = mde_absolute
     # Persist the two inputs to mde_absolute so finalize_report (presentation
@@ -255,6 +331,8 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
     diagnostics["baseline"] = inputs.baseline
 
     # ── Step 1 — SRM gate ────────────────────────────────────────────────
+    if (missing := _missing_for(inputs, 1)):
+        return _unverifiable_at(1, missing, diagnostics)
     if not inputs.srm_pass and not inputs.srm_override_resolved:
         step_fired.append("1: SRM gate (fail, no override) — INVALID-SRM")
         diagnostics["srm_pass"] = False
@@ -269,6 +347,8 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
     diagnostics["srm_override_resolved"] = inputs.srm_override_resolved
 
     # ── Step 2 — Guardrail check ─────────────────────────────────────────
+    if (missing := _missing_for(inputs, 2)):
+        return _unverifiable_at(2, missing, diagnostics)
     violators = [g for g in inputs.guardrails if _guardrail_violates(g)]
     if violators:
         names = [g.metric_name for g in violators]
@@ -294,6 +374,8 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
     diagnostics["guardrails_violated"] = []
 
     # ── Step 3 — Sample adequacy ─────────────────────────────────────────
+    if (missing := _missing_for(inputs, 3)):
+        return _unverifiable_at(3, missing, diagnostics)
     primary_95_straddles = _ci_straddles_zero(
         inputs.primary_ci_lower_95, inputs.primary_ci_upper_95
     )
@@ -316,6 +398,8 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
     )
 
     # ── Step 4 — Primary effect existence (well-powered wide null) ────────
+    if (missing := _missing_for(inputs, 4)):
+        return _unverifiable_at(4, missing, diagnostics)
     ci_half_width_95 = _ci_half_width(
         inputs.primary_ci_lower_95, inputs.primary_ci_upper_95
     )
@@ -346,6 +430,8 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
     )
 
     # ── Step 5 — Primary direction (directional-only signal) ─────────────
+    if (missing := _missing_for(inputs, 5)):
+        return _unverifiable_at(5, missing, diagnostics)
     primary_90_excludes = _ci_excludes_zero(
         inputs.primary_ci_lower_90, inputs.primary_ci_upper_90
     )
@@ -366,6 +452,8 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
     step_fired.append("5: no directional-only signal")
 
     # ── Step 6 — Magnitude vs MDE ────────────────────────────────────────
+    if (missing := _missing_for(inputs, 6)):
+        return _unverifiable_at(6, missing, diagnostics)
     benefit_side_95 = _ci_excludes_zero_on_benefit_side(
         inputs.primary_ci_lower_95,
         inputs.primary_ci_upper_95,
@@ -391,6 +479,8 @@ def walk_tree(inputs: TreeInput) -> TreeResult:
         )
 
     # ── Step 7 — Novelty / late-window ───────────────────────────────────
+    if (missing := _missing_for(inputs, 7)):
+        return _unverifiable_at(7, missing, diagnostics)
     if benefit_side_95 and abs_lift >= MDE_HALF_FRACTION * mde_absolute:
         # Guardrails already cleared at Step 2.
         if inputs.late_ratio is None:
@@ -474,4 +564,5 @@ __all__ = [
     "MDE_HALF_FRACTION",
     "NOLIFT_CI_WIDTH_MULTIPLIER",
     "NOVELTY_LATE_RATIO_FLOOR",
+    "REQUIRED_INPUTS_PER_STEP",
 ]
