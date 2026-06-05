@@ -1,0 +1,60 @@
+schema_version: 1
+hypothesis: |
+  Relocating the Buy Now button on the product detail page from its current
+  below-fold position to an above-fold position, holding all other page
+  elements constant, raises the per-user probability of placing at least one
+  order during the exposure window on the demo storefront, with assignment
+  unitised at user_id and the cohort defined as users assigned to either arm
+  of the experiment with one or more first-exposure events. The hypothesized
+  mechanism is a reduction in the friction between product consideration and
+  purchase initiation: an above-fold call-to-action is reachable without a
+  scroll, which shortens the interaction path from product_view to
+  click_buy_now and, by extension, to order placement. Magnitude is not
+  asserted here and is left to the brief.
+primary_metric_candidate: conversion_rate
+primary_direction: higher_is_better
+rationale: |
+  The intent names "conversion" as the target of the manipulation, and
+  conversion_rate is the only proportion in the catalog whose numerator is
+  the order event itself (count_distinct user_id with ordered_at at or after
+  first_exposure_at over distinct users assigned). Selecting a leading
+  indicator — buy_now_click_rate or begin_checkout_rate — as primary would
+  rewrite the contract: a lift on click_buy_now without a lift on orders is
+  a known failure mode for above-fold CTA tests (more clicks, no purchases),
+  and a brief that pre-registers a click-rate primary cannot adjudicate that
+  divergence at analysis time. revenue_per_user is excluded as primary
+  because its mean structure over a heavy-tailed order_value distribution
+  raises variance for a question the user posed in proportion terms, and
+  because the catalog assigns it the guardrail role for exactly this kind of
+  conversion test (it catches conversion-up-revenue-down). The expected
+  direction is higher_is_better and follows directly from the mechanism: a
+  shorter path to the purchase action is monotonic with order placement
+  under the catalog's direction assignment for conversion_rate.
+leading_indicators:
+  - buy_now_click_rate
+  - begin_checkout_rate
+  - add_to_cart_rate
+guardrail_candidates:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    why: |
+      Detects the case in which conversion_rate rises while per-user revenue
+      falls — for example, if the above-fold CTA shortens deliberation and
+      shifts the mix toward lower-value items, or pulls in marginal buyers
+      whose orders are smaller than the existing converter base.
+  - metric_name: page_load_time
+    direction: lower_is_better
+    why: |
+      Moving an element above the fold can alter the critical rendering path
+      and the weight of above-fold assets; the p95 page_load_time guardrail
+      catches a treatment that is functionally correct but degrades
+      time-to-interactive in the tail, which the catalog notes is what
+      users feel.
+  - metric_name: cart_abandonment_rate
+    direction: lower_is_better
+    why: |
+      An above-fold Buy Now button may route users past the cart-page
+      deliberation step that currently exists in the below-fold flow; this
+      guardrail catches the case where more users add to cart but a smaller
+      share complete the order, which would invert the funnel signal the
+      primary metric reports.

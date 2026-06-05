@@ -1,0 +1,8 @@
+schema_version: 1
+judging_mode: brief_consistency
+artifact:
+  path: experiments/exp_6dd72d0b/hypothesis.yaml
+  sha256: 0db6143907e8061f9d829817fe1a8826d61977fdd7fd0b63af0a10aaa65bddd5
+passed: true
+severity: warn
+reasons: []

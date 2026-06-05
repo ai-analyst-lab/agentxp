@@ -55,6 +55,7 @@ archive/
 # step (CLAUDE.md §7) can land.
 experiments/*
 !experiments/exp_fb984821/
+!experiments/exp_6dd72d0b/
 
 # Scratch — walk scripts, ad-hoc tools
 scratch/
