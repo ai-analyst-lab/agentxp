@@ -5,3 +5,4 @@
 - `2026-06-05T18:30:00.839202+00:00` — designer drafted hypothesis (primary_metric_candidate=conversion_rate, higher_is_better)
 - `2026-06-05T18:33:09.849905+00:00` — designer drafted hypothesis (primary_metric_candidate=conversion_rate, higher_is_better)
 - `2026-06-05T18:36:32.637346+00:00` — designer drafted brief (primary=conversion_rate, MDE=7% rel, n_required=59436, 3 guardrails)
+- `2026-06-05T18:38:17.902191+00:00` — designer revised brief — tightened cohort to declare assignment trigger explicitly (per critic warn)
