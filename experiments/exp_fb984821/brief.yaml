@@ -1,0 +1,47 @@
+schema_version: 1
+hypothesis: |
+  Rendering the Buy Now call-to-action above the fold on the product detail
+  page, relative to the current below-fold placement, increases conversion_rate
+  among product-page visitors on the demo storefront over the exposure window,
+  with the expected direction being a higher per-user probability of placing at
+  least one order. The treatment is hypothesized to act by reducing the
+  interaction distance between product consideration and purchase initiation;
+  the magnitude of the effect is pre-registered in this brief at the
+  feasibility-bounded relative MDE below and is not asserted as a point
+  prediction.
+primary_metric: conversion_rate
+primary_metric_type: proportion
+primary_decision_rule: |
+  Ship the treatment if and only if the two-sided 95% confidence interval on
+  the relative lift in conversion_rate excludes zero on the positive side
+  (lower bound strictly greater than zero) AND no guardrail breaches its
+  pre-registered non-inferiority margin. If the primary interval crosses
+  zero, or if any guardrail's confidence interval crosses its non-inferiority
+  margin in the adverse direction, the verdict is do-not-ship regardless of
+  point estimate. The rule is intentionally tight: a treatment whose true
+  effect is below the pre-registered MDE is expected to fail it.
+mde_text: 7.0% relative
+mde_pct: 7.0
+baseline: 0.10
+n_required: 59436
+guardrails:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    nim_relative: -0.01
+  - metric_name: page_load_time
+    direction: lower_is_better
+    nim_relative: 0.05
+  - metric_name: cart_abandonment_rate
+    direction: lower_is_better
+    nim_relative: 0.05
+cohorts_summary:
+  - All product-page visitors on the demo storefront assigned to the experiment at first exposure, segment = general.
+cohorts:
+  - All product-page visitors on the demo storefront assigned to the experiment at first exposure, segment = general.
+assignment_unit: user_id
+arms:
+  - control
+  - treatment
+expected_arm_ratio_text: 50 / 50
+primary_direction: higher_is_better
+late_ratio: null
