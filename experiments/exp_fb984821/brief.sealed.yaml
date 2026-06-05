@@ -1,0 +1,100 @@
+schema_version: 1
+brief_content:
+  schema_version: 1
+  hypothesis: 'Rendering the Buy Now call-to-action above the fold on the product
+    detail
+
+    page, relative to the current below-fold placement, increases conversion_rate
+
+    among product-page visitors on the demo storefront over the exposure window,
+
+    with the expected direction being a higher per-user probability of placing at
+
+    least one order. The treatment is hypothesized to act by reducing the
+
+    interaction distance between product consideration and purchase initiation;
+
+    the magnitude of the effect is pre-registered in this brief at the
+
+    feasibility-bounded relative MDE below and is not asserted as a point
+
+    prediction.
+
+    '
+  primary_metric: conversion_rate
+  primary_metric_type: proportion
+  primary_decision_rule: 'Ship the treatment if and only if the two-sided 95% confidence
+    interval on
+
+    the relative lift in conversion_rate excludes zero on the positive side
+
+    (lower bound strictly greater than zero) AND no guardrail breaches its
+
+    pre-registered non-inferiority margin. If the primary interval crosses
+
+    zero, or if any guardrail''s confidence interval crosses its non-inferiority
+
+    margin in the adverse direction, the verdict is do-not-ship regardless of
+
+    point estimate. The rule is intentionally tight: a treatment whose true
+
+    effect is below the pre-registered MDE is expected to fail it.
+
+    '
+  mde_text: 7.0% relative
+  mde_pct: 7.0
+  baseline: 0.1
+  n_required: 59436
+  guardrails:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    nim_relative: -0.01
+  - metric_name: page_load_time
+    direction: lower_is_better
+    nim_relative: 0.05
+  - metric_name: cart_abandonment_rate
+    direction: lower_is_better
+    nim_relative: 0.05
+  cohorts_summary:
+  - Users on the demo storefront whose first exposure to the experiment is their first
+    `page_event` row with `event_name = 'product_view'` during the exposure window;
+    assignment fires at that event and the assigned population is therefore co-extensive
+    with product-page visitors during the window, segment = general.
+  cohorts:
+  - Users on the demo storefront whose first exposure to the experiment is their first
+    `page_event` row with `event_name = 'product_view'` during the exposure window;
+    assignment fires at that event (`assignment.first_exposure_at = MIN(page_event.event_at
+    WHERE event_name = 'product_view')` per `user_id`), so "all assigned users" is
+    by construction the set of product-page visitors during the window, segment =
+    general.
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_ratio_text: 50 / 50
+  primary_direction: higher_is_better
+  late_ratio: null
+design_chain_hash: 37770e1e22d1d584de8602b37156d00854a1c79702a1cd12e0829393849b1a13
+metric_snapshot:
+  conversion_rate: f775e246e2992c91fa7a04f5d22bb93d2cb9ed5078144479b7792e6cdf9a5fe1
+  revenue_per_user: c4742f81560b2836b851f2c17bdd1bd3cb102fdf14a69a04cd9170b3cf9d69ae
+  page_load_time: f1914747b5fdf7aac000b3991e59262b5871c3fe85bfc18a82e8bfc7084563e4
+  cart_abandonment_rate: 6498a159e387655f28f9949108bee2f9954e7078afa745f6f0430c2c5eb36db5
+expected_shape:
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_count_ratio:
+    control: 0.5
+    treatment: 0.5
+  cohort_definitions:
+  - Users on the demo storefront whose first exposure to the experiment is their first
+    `page_event` row with `event_name = 'product_view'` during the exposure window;
+    assignment fires at that event (`assignment.first_exposure_at = MIN(page_event.event_at
+    WHERE event_name = 'product_view')` per `user_id`), so "all assigned users" is
+    by construction the set of product-page visitors during the window, segment =
+    general.
+sealed_at: '2026-06-05T18:43:44.845392Z'
+sealed_by: shane@aieval.ai
+agentxp_version: 0.1.0
