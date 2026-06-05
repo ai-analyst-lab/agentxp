@@ -1,0 +1,52 @@
+# design_brief — exp_6dd72d0b
+
+```json
+{
+  "schema_version": 2,
+  "experiment_id": "exp_6dd72d0b",
+  "display_name": "",
+  "owner_team": "",
+  "hypothesis_text": "",
+  "mechanism_prose": "",
+  "historical_baseline_context": "",
+  "primary_metric_name": "",
+  "primary_metric_type": "proportion",
+  "primary_direction": "higher_is_better",
+  "primary_decision_rule": "",
+  "decision_rule_short": "",
+  "secondary_metric_names": [],
+  "mde_text": "",
+  "baseline": 0.0,
+  "power_text": "",
+  "n_per_group": 0,
+  "n_total": 0,
+  "duration_text": "",
+  "guardrails": [],
+  "guardrails_summary": [],
+  "cohorts": [],
+  "cohorts_summary": [],
+  "assignment_unit": "user_id",
+  "arms": [],
+  "expected_arm_ratio_text": "",
+  "at_a_glance_prose": "",
+  "metrics_section_prose": "Primary is ; secondaries inform interpretation but do not influence the verdict. Guardrails block ship if their CI crosses the pre-registered non-inferiority margin in the adverse direction.",
+  "power_section_prose": "",
+  "assignment_section_prose": "",
+  "power_curve_points": "",
+  "power_x_ticks": [],
+  "power_y_ticks": [],
+  "design_x": 0.0,
+  "design_y": 0.0,
+  "design_chain_hash": "28386f7e50030f856c8b50c8318adbe238a94dc5fc2ea3f835d41cbe4355a39e",
+  "design_chain_hash_short": "28386f7e5003…",
+  "metric_snapshot": {
+    "conversion_rate": "f775e246e2992c91fa7a04f5d22bb93d2cb9ed5078144479b7792e6cdf9a5fe1",
+    "revenue_per_user": "c4742f81560b2836b851f2c17bdd1bd3cb102fdf14a69a04cd9170b3cf9d69ae",
+    "page_load_time": "f1914747b5fdf7aac000b3991e59262b5871c3fe85bfc18a82e8bfc7084563e4",
+    "cart_abandonment_rate": "6498a159e387655f28f9949108bee2f9954e7078afa745f6f0430c2c5eb36db5"
+  },
+  "metric_snapshot_count": 4,
+  "sealed_at": "2026-06-05T19:52:39.167221Z",
+  "sealed_by": ""
+}
+```
