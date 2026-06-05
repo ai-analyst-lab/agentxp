@@ -1,0 +1,8 @@
+schema_version: 1
+judging_mode: brief_consistency
+artifact:
+  path: experiments/exp_6dd72d0b/brief.yaml
+  sha256: 84d34edfd346828a238810373ee1fb7f7811f0fec7b3cda35dfe8ded0b65af00
+passed: true
+severity: warn
+reasons: []

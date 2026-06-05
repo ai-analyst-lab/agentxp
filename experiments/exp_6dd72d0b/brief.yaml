@@ -1,0 +1,66 @@
+# Power derivation (two-proportion, α=0.05 two-sided, power=0.80):
+#   z_{α/2} = 1.959964, z_β = 0.841621, (z_{α/2}+z_β)² = 7.848879
+#   p1 = 0.10  (midpoint of conversion_rate.baseline_range [0.05, 0.15])
+#   p2 = 0.105 (5.0% relative lift)
+#   n_per_arm = 7.848879 · (p1·(1-p1) + p2·(1-p2)) / (p2-p1)²
+#             = 7.848879 · (0.090000 + 0.093975) / 0.000025
+#             = 7.848879 · 0.183975 / 0.000025
+#             ≈ 57,759
+#   n_required (total, two arms) = 115,518
+#   assignment_surface.units_available = 137,500 → feasible.
+#   A 2.0% relative MDE (catalog typical_mde for conversion_rate) would
+#   require ≈ 712,566 total and is refused at this surface; 5.0% relative
+#   is the tightest MDE the available surface accommodates at the stated
+#   α and power.
+schema_version: 1
+hypothesis: |
+  Relocating the Buy Now button on the product detail page from a
+  below-fold to an above-fold position, holding all other page elements
+  constant, raises the per-user probability of placing at least one order
+  during the exposure window, with assignment unitised at user_id and the
+  cohort defined as users with one or more first-exposure events on the
+  product detail page.
+primary_metric: conversion_rate
+primary_metric_type: proportion
+primary_decision_rule: |
+  Ship if the two-sided 95% confidence interval on the treatment-minus-control
+  difference in conversion_rate excludes zero on the higher_is_better side —
+  i.e., ci_low > 0 — and no guardrail breaches its non-inferiority margin.
+  A treatment effect below the 5.0% relative MDE (absolute difference < 0.005
+  on a 0.10 baseline) is permitted to fail this rule even if the point
+  estimate is positive, because the trial is not powered to resolve smaller
+  effects at α = 0.05 with 80% power.
+mde_text: 5.0% relative (absolute 0.005 on a 0.10 baseline)
+mde_pct: 5.0
+baseline: 0.1
+n_required: 115518
+guardrails:
+- metric_name: revenue_per_user
+  direction: higher_is_better
+  nim_relative: -0.01
+- metric_name: page_load_time
+  direction: lower_is_better
+  nim_relative: 0.05
+- metric_name: cart_abandonment_rate
+  direction: lower_is_better
+  nim_relative: 0.05
+cohorts_summary:
+- all assigned users with a product_view first-exposure event in the window
+cohorts:
+- name: all_assigned
+  definition: |
+    Users in the assignment semantic model with experiment_id =
+    'exp_6dd72d0b' and arm in ('control', 'treatment'); first exposure
+    defined as the user's earliest page_event with event_name =
+    'product_view' at or after assignment.first_exposure_at. Metric
+    attribution uses event_at >= assignment.first_exposure_at for all
+    page_event-sourced metrics and ordered_at >= assignment.first_exposure_at
+    for order-sourced metrics, consistent with the catalog's first-exposure
+    attribution convention.
+assignment_unit: user_id
+arms:
+- control
+- treatment
+expected_arm_ratio_text: 50 / 50
+primary_direction: higher_is_better
+late_ratio: null
