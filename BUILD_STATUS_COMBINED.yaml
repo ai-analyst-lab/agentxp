@@ -1118,3 +1118,53 @@ session_log:
     tasks_completed: []
     tasks_failed: []
     notes: "Tracker generated from combined build plan. Ready to start Wave 0 execution."
+
+  - session: 2
+    date: "2026-06-04"
+    wave: 0
+    tasks_completed:
+      - C-W0.1   # Sha256Hex type alias + repo-wide hash-field refactor (B3)
+      - C-W0.2   # SURFACE_V01_ENABLED feature flag
+      - C-W0.6   # exp_id -> experiment_id sweep + AST lint (G3)
+      - C-W0.8   # python-ulid>=2.2,<3.0 dependency added
+      - C-W0.9   # orphan v1 metric YAMLs dropped (done in pre-W0 state cleanup)
+      - C-W0.11  # VerdictKind 8 -> 9 (UNVERIFIABLE) for B5 null-input path
+      - C-W0.16  # agentxp prune verb (--orphans); misnamed cli/prune.py renamed -> cli/audit_diff.py
+      - P-W0.6   # ReadoutKind enum + closure test (5 values closed set)
+    tasks_failed: []
+    commits:
+      - "942d9aa docs(plan): v0.1 combined build plan + execution tracker baseline"
+      - "615a5fe feat(w0): Wave 0 Batch 0-A — 8 schema + hygiene foundations"
+    notes: |
+      Batch 0-A complete (8 tasks). 23 new tests added; pre-existing test suite
+      passes clean (1061 passed, 18 skipped, 0 failed for runnable tests).
+
+      Pre-existing collection errors (NOT regressions, NOT from this batch):
+      tests/sql/, tests/smoke/, tests/test_monitoring.py fail to collect under
+      system python3 because sqlglot isn't installed and py3.9 syntax incompat;
+      they will collect under .venv/bin/python with deps installed. Out of
+      scope for Wave 0; address as part of normal pre-Wave-1 dep install.
+
+      Pre-Wave-0 state cleanup notes (in case of resumption confusion):
+      - Stash "pre-v01-cleanup-modifications-2026-06-04" holds prior uncommitted
+        edits to .claude/skills/*.md, CLAUDE.md, .claude/commands/README.md
+        (recover with: git stash pop).
+      - Prior debug-walk artifacts (experiments/exp_001, experiments/exp_002,
+        .agentxp/, project-root semantic_models/fact_sources/assignments/
+        and 3 metric YAMLs) were deleted to start W0 against a clean tree.
+        Wave 2 generates the canonical replacements from the warehouse fixture.
+      - uv.lock left untracked; not gitignored. Decide tracking in W0-B or W0-C.
+
+      NEXT BATCH: W0-B (7 tasks). All ready (deps from W0-A satisfied).
+        C-W0.3  EventMetadataSubtype Literal extension (14 subtypes)
+        C-W0.5  StateYaml v3->v4 + agentxp migrate-state verb
+        C-W0.10 VoiceRule.enforcement Literal halt|warn (B10)
+        C-W0.12 FactSource discriminated subclass split + kind: fact|dim (B4)
+        C-W0.13 Schema cleanups + BriefV3 base (I1-I5 in audit)
+        P-W0.1  Sha256Hex reuse in catalog schemas
+        P-W0.8  _VERDICT_MODIFIER UNVERIFIABLE entry + brand stripe tokens + CSS
+
+      Read AGENTXP_V01_COMBINED_BUILD_PLAN.md §3.0 for the task index,
+      then the source plan section cited per task for the spec details:
+      - "CLEANUP §3.0 W0.X" -> AGENTXP_V01_CLEANUP_MASTER_PLAN.md §3.0 W0.X
+      - "PRES §3.0 P0.X"    -> PRESENTATION_SPINE_MASTER_PLAN.md §3.0 P0.X
