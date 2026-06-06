@@ -54,8 +54,7 @@ archive/
 # directory by default; whitelist specific ones so commit_artifact's git
 # step (CLAUDE.md §7) can land.
 experiments/*
-!experiments/exp_fb984821/
-!experiments/exp_6dd72d0b/
+!experiments/exp_*/
 
 # Scratch — walk scripts, ad-hoc tools
 scratch/

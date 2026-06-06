@@ -390,19 +390,32 @@ def commit_artifact(
     with log_path.open("a") as f:
         f.write(f"- `{ts}` — {safe_entry}\n")
 
-    # Git add + commit
+    # Git add + commit. The pre-W0 bug: paths were passed root-relative
+    # ("experiments/exp_<id>/...") while cwd=exp_dir, so git resolved them
+    # to "experiments/exp_<id>/experiments/exp_<id>/..." and failed with
+    # exit 128. The fix: ask git itself for the worktree root via
+    # `rev-parse --show-toplevel` (works at any depth, agnostic to whether
+    # exp_dir IS the repo or is nested under it), then make the artifact
+    # and log paths relative to that root.
+    toplevel = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=exp_dir, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    project_root = Path(toplevel)
+    rel_art = art_path.resolve().relative_to(project_root.resolve())
+    rel_log = log_path.resolve().relative_to(project_root.resolve())
     git_msg = git_message or f"{artifact_name}: {safe_entry}"
     subprocess.run(
-        ["git", "add", str(art_path), str(log_path)],
-        cwd=exp_dir, check=True, capture_output=True,
+        ["git", "add", str(rel_art), str(rel_log)],
+        cwd=project_root, check=True, capture_output=True,
     )
-    result = subprocess.run(
+    subprocess.run(
         ["git", "commit", "-m", git_msg],
-        cwd=exp_dir, check=True, capture_output=True, text=True,
+        cwd=project_root, check=True, capture_output=True, text=True,
     )
     sha_result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
-        cwd=exp_dir, check=True, capture_output=True, text=True,
+        cwd=project_root, check=True, capture_output=True, text=True,
     )
     return sha_result.stdout.strip()
 
