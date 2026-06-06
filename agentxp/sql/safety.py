@@ -106,12 +106,38 @@ class DesignModePeekViolation(SafetyViolation):
 
 
 _ROW_LIMIT_BY_PURPOSE: dict[str, int] = {
-    "profile":         100_000,
-    "preview":           1_000,
-    "srm_check":     1_000_000,
-    "metric_compute": 10_000_000,
-    "user_paste":        1_000,
+    "profile":              100_000,   # warehouse shape probes (W2.3 retained)
+    "preview":                1_000,   # interactive paste / quick look
+    "srm_check":         1_000_000,    # arm-count sums for chi-square
+    "metric_compute":  10_000_000,     # full per-arm rollups
+    "user_paste":            1_000,    # user-pasted SQL: cap aggressively
+    # W2.3 — purposes previously declared only on SqlIntent (DIAGNOSTIC §B.3 #7).
+    # SqlIntent.purpose now imports `Purpose` from this module so the enum has
+    # a single source of truth.
+    "shape_probe":         100_000,    # specialist-dispatched shape probes
+    "guardrail_check":   1_000_000,    # guardrail metric rollups
+    "monitor_snapshot":  1_000_000,    # mid-run monitor probes
 }
+
+
+Purpose = Literal[
+    "profile",
+    "preview",
+    "srm_check",
+    "metric_compute",
+    "user_paste",
+    "shape_probe",
+    "guardrail_check",
+    "monitor_snapshot",
+]
+"""Canonical purpose enum (W2.3).
+
+Mirrors the keys of ``_ROW_LIMIT_BY_PURPOSE`` exactly. ``SqlIntent.purpose``
+in ``agentxp.schemas.bundles`` imports this Literal so the bundle side and
+the safety pipeline side cannot drift. The closure test in
+``tests/sql/test_purpose_closure.py`` asserts that the Literal members are
+identical to the matrix keys.
+"""
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -265,23 +291,67 @@ _DESIGN_MODE_FORBIDDEN_COLUMNS: frozenset[str] = frozenset({
 ``DesignModePeekViolation``. Lowercase; the check is case-insensitive."""
 
 
-def layer_3d_design_mode_outcome_reject(tree: exp.Expression) -> None:
+def _outcome_columns_from_semantic_models(semantic_models: Optional[list]) -> frozenset[str]:
+    """Collect lowercased outcome-column names declared in semantic models.
+
+    W2.2 — reads the ``outcome_columns`` field from each semantic model
+    (whether dict-shaped from ``yaml.safe_load`` or a pydantic
+    ``BundleSemanticModel`` instance). Augments the hard-coded
+    ``_DESIGN_MODE_FORBIDDEN_COLUMNS`` set so warehouses with non-standard
+    column names (e.g. ``bucket_id`` instead of ``variant``) declare them
+    structurally rather than hoping the closed list happens to cover them.
+
+    Per W1.8, ``outcome_columns`` is required-not-optional at semantic-model
+    load time. A semantic model with a missing field fails to construct,
+    so reaching here with a missing field is a contract bug.
+    """
+    if not semantic_models:
+        return frozenset()
+    out: set[str] = set()
+    for sm in semantic_models:
+        cols = getattr(sm, "outcome_columns", None)
+        if cols is None and isinstance(sm, dict):
+            cols = sm.get("outcome_columns")
+        if cols is None:
+            continue
+        for c in cols:
+            if isinstance(c, str) and c:
+                out.add(c.lower())
+    return frozenset(out)
+
+
+def layer_3d_design_mode_outcome_reject(
+    tree: exp.Expression,
+    semantic_models: Optional[list] = None,
+) -> None:
     """Raise :class:`DesignModePeekViolation` on outcome-bearing column refs.
 
     Walks every :class:`exp.Column` node and matches its name (lowercase)
-    against ``_DESIGN_MODE_FORBIDDEN_COLUMNS``. The first match aborts the
-    query — the user receives a clear refusal with the specific column
-    name and the path forward (use ``agentxp analyze --brief <path>``).
+    against the union of two sources:
+
+    1. The hard-coded ``_DESIGN_MODE_FORBIDDEN_COLUMNS`` set (the standard
+       assignment-revealing names common across warehouses).
+    2. ``outcome_columns`` declared on each semantic model in
+       ``semantic_models`` (W2.2 — lets a warehouse declare non-standard
+       outcome names structurally rather than hoping the closed set covers
+       them).
+
+    The first match aborts the query — the user receives a clear refusal
+    with the specific column name and the path forward (use
+    ``agentxp analyze --brief <path>``).
 
     Called only when ``mode == "design"``; analyze mode skips this layer.
     """
+    forbidden = _DESIGN_MODE_FORBIDDEN_COLUMNS | _outcome_columns_from_semantic_models(
+        semantic_models
+    )
     for node in walk_ast(tree):
         if not isinstance(node, exp.Column):
             continue
         col_name = node.name
         if not col_name:
             continue
-        if col_name.lower() in _DESIGN_MODE_FORBIDDEN_COLUMNS:
+        if col_name.lower() in forbidden:
             raise DesignModePeekViolation(
                 f"Column {col_name!r} is outcome-bearing and may not be queried in "
                 f"design mode (R11). The design verb pre-registers the experiment; "
@@ -587,7 +657,7 @@ def run_pipeline(
     layer_3b_semantic_model_check(tree, semantic_models=semantic_models)
     layer_3c_deny_list_check(tree)
     if mode == "design":
-        layer_3d_design_mode_outcome_reject(tree)
+        layer_3d_design_mode_outcome_reject(tree, semantic_models=semantic_models)
     layers.append(3)
 
     tree = layer_4_enforce_resource_bounds(tree, purpose=purpose)

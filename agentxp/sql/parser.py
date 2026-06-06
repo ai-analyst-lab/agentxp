@@ -60,6 +60,24 @@ ALLOWED_AST_NODES: frozenset[type[exp.Expression]] = frozenset({
     exp.GT,
     exp.LTE,
     exp.GTE,
+    # ── W3.1 additions ──────────────────────────────────────────────────
+    # Each admits a shape-probe pattern Layer 3d still refuses for outcomes.
+    # Layer 3d walks every exp.Column regardless of wrapping node, so
+    # broadening the AST surface does not weaken R11 — the outcome guard
+    # is column-name-based and node-class-agnostic.
+    exp.Sub,        # date arithmetic: started_at - INTERVAL 30 DAY
+    exp.Add,        # date arithmetic: started_at + INTERVAL 1 DAY
+    exp.Mul,        # rate math: numerator * 100.0 / denominator
+    exp.Div,        # rate math: COUNT(*) / total
+    exp.Mod,        # bucketing: user_id % 10
+    exp.In,         # membership: segment IN ('a', 'b')
+    exp.Between,    # range: started_at BETWEEN d1 AND d2
+    exp.Like,       # pattern: segment LIKE 'enterprise%'
+    exp.ILike,      # case-insensitive pattern
+    exp.Is,         # null check: segment IS NOT NULL
+    exp.Null,       # the right-hand side of `IS NOT NULL`
+    exp.Var,        # bare identifier slot in function calls
+                    # (e.g. DATE_TRUNC('day', col) parses the 'day' as Var)
 })
 """The positive AST allowlist enforced at Layer 3c (§11).
 

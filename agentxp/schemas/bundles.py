@@ -47,6 +47,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from agentxp.metrics.schema import MetricDefinition
 from agentxp.schemas._types import AwareUtcDatetime, Sha256Hex
+from agentxp.sql.safety import Purpose as _SafetyPurpose
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -460,10 +461,14 @@ class SqlIntent(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    purpose: Literal[
-        "srm_check", "metric_compute", "guardrail_check",
-        "shape_probe", "monitor_snapshot",
-    ]
+    # W2.3 — single source of truth: agentxp.sql.safety.Purpose.
+    # Pre-W2.3 this Literal declared its own values (srm_check, metric_compute,
+    # guardrail_check, shape_probe, monitor_snapshot) that did NOT overlap
+    # with the safety pipeline's _ROW_LIMIT_BY_PURPOSE keys (profile, preview,
+    # srm_check, metric_compute, user_paste). probe_data() with
+    # purpose="shape_probe" raised ResourceBoundsViolation
+    # (DIAGNOSTIC §B.3 #7). Importing the canonical Literal closes the drift.
+    purpose: _SafetyPurpose
     description: str
 
 
