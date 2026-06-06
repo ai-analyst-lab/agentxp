@@ -60,12 +60,20 @@ This writes `intent.yaml` and appends to `log.md`. Then render the intent share-
 ```python
 from agentxp.render import fan_out
 from agentxp.render.distill import distill_intent
+from agentxp.workflows.design import load_intent
+
+# Load the on-disk intent.yaml into a (bundle, audit) pair. The bundle
+# (IntentText) is the narrow shape the specialist sees; the audit dict
+# carries schema_version + captured_by for the render path. Pre-load_intent
+# callers wrote `IntentText(**yaml.safe_load(path))` which fails on the
+# audit fields (R10 — bundle stays narrow).
+intent_bundle, audit = load_intent(exp_dir / "intent.yaml")
 
 vm = distill_intent(
     experiment_id=exp_dir.name,
-    intent_text=user_supplied_text,
-    captured_at=<from intent.yaml>,  # datetime or ISO string both accepted (W6.1)
-    captured_by=user_email_or_handle,
+    intent_text=intent_bundle.text,
+    captured_at=intent_bundle.captured_at,  # datetime — W1.1/W6.1
+    captured_by=audit["captured_by"],
 )
 # W6.4 — fan_out produces the canonical 6-file layout (PERSONAS × FORMATS)
 # in one call. Render status is COMPUTED by build_provenance_for_brief

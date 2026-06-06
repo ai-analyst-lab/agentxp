@@ -35,6 +35,7 @@ SKILLS_DIR = Path(__file__).resolve().parents[2] / ".claude" / "skills"
 SYMBOL_IMPORTS: dict[str, str] = {
     "allocate_experiment": "agentxp.workflows.design:allocate_experiment",
     "record_intent":       "agentxp.workflows.design:record_intent",
+    "load_intent":         "agentxp.workflows.design:load_intent",
     "distill_intent":      "agentxp.render.distill:distill_intent",
     "distill_design_brief": "agentxp.render.distill:distill_design_brief",
     "render_share_tail":   "agentxp.orchestrator.tools:render_share_tail",

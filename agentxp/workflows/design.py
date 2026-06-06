@@ -98,4 +98,40 @@ def record_intent(
     return intent_path
 
 
+def load_intent(intent_path: Path):
+    """Project the on-disk ``intent.yaml`` into a bundle-shaped IntentText.
+
+    The on-disk artifact carries audit metadata — ``schema_version`` (the
+    file format version) and ``captured_by`` (the email/handle of the user
+    who recorded the intent). The bundle type ``IntentText`` deliberately
+    does NOT carry these (R10 — the specialist sees only what the schema
+    declares; audit metadata stays on disk and on the render path).
+
+    Pre-load_intent callers wrote ``IntentText(**yaml.safe_load(path))``
+    which fails with ``Extra inputs are not permitted`` on the audit
+    fields. This helper does the projection. The smoke test that
+    surfaced the gap is ``working/architect-brief/SESSION_TRANSCRIPT.md``
+    Step-1 (the original session) and the post-build smoke run that
+    landed at ``experiments/exp_1f51bcf6/``.
+
+    Returns a ``(IntentText, audit_dict)`` pair so callers that need the
+    audit metadata for rendering or logging do not have to re-read the
+    YAML themselves.
+    """
+    import yaml
+
+    from agentxp.schemas.bundles import IntentText
+
+    raw = yaml.safe_load(Path(intent_path).read_text())
+    if not isinstance(raw, dict):
+        raise ValueError(f"intent.yaml at {intent_path} is not a mapping")
+
+    bundle = IntentText(text=raw["text"], captured_at=raw["captured_at"])
+    audit = {
+        "schema_version": raw.get("schema_version"),
+        "captured_by": raw.get("captured_by"),
+    }
+    return bundle, audit
+
+
 __all__ = ["allocate_experiment", "record_intent"]
