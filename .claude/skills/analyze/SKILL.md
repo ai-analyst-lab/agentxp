@@ -1,6 +1,17 @@
 ---
 name: analyze
 description: Drive a sealed brief through verdict + readout. Verifies the three-part integrity lock first (R11). SRM check first (R2). Verdict from the decision tree only (R3).
+imports:
+  verify_and_open:     agentxp.workflows.analyze:verify_and_open
+  verify_or_raise:     agentxp.schemas.brief_seal:verify_or_raise
+  probe_data:          agentxp.orchestrator.tools:probe_data
+  fan_out:             agentxp.render.fan_out:fan_out
+  render_share_tail:   agentxp.orchestrator.tools:render_share_tail
+  commit_artifact:     agentxp.orchestrator.tools:commit_artifact
+  open_dispatch:       agentxp.orchestrator.bridge:open_dispatch
+  complete_dispatch:   agentxp.orchestrator.bridge:complete_dispatch
+  dispatch_critic:     agentxp.orchestrator.bridge:dispatch_critic
+  build_provenance:    agentxp.render.provenance:build_provenance
 ---
 
 # Skill: `/analyze`

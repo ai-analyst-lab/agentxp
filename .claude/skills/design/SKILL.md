@@ -1,6 +1,24 @@
 ---
 name: design
 description: Drive an experiment from intent through a sealed brief. Pre-registration only — refuses outcome-column queries (R11). Terminates when brief.sealed.yaml lands and the user confirms.
+imports:
+  allocate_experiment: agentxp.workflows.design:allocate_experiment
+  record_intent:       agentxp.workflows.design:record_intent
+  load_intent:         agentxp.workflows.design:load_intent
+  distill_intent:      agentxp.render.distill:distill_intent
+  distill_design_brief: agentxp.render.distill:distill_design_brief
+  fan_out:             agentxp.render.fan_out:fan_out
+  render_share_tail:   agentxp.orchestrator.tools:render_share_tail
+  commit_artifact:     agentxp.orchestrator.tools:commit_artifact
+  commit_artifacts:    agentxp.orchestrator.tools:commit_artifacts
+  probe_data:          agentxp.orchestrator.tools:probe_data
+  seal_brief:          agentxp.schemas.brief_seal:seal_brief
+  verify_or_raise:     agentxp.schemas.brief_seal:verify_or_raise
+  open_dispatch:       agentxp.orchestrator.bridge:open_dispatch
+  complete_dispatch:   agentxp.orchestrator.bridge:complete_dispatch
+  dispatch_critic:     agentxp.orchestrator.bridge:dispatch_critic
+  ExpectedShape:       agentxp.schemas.brief_seal:ExpectedShape
+  CohortDefinition:    agentxp.schemas.brief_seal:CohortDefinition
 ---
 
 # Skill: `/design`
@@ -161,7 +179,38 @@ Commit `brief.yaml`. Dispatch critic.
 
 ### 7. Dispatch the designer for the data plan
 
-Same shape, `task="draft_data_plan"`. Commit `data_plan.yaml`. Dispatch critic.
+W1.6 + debate §C — the design verb produces a **prose `DataPlanDraft`**
+(``agentxp.schemas.bundles.DataPlanDraft``), not the warehouse-binding
+``DataPlanV2``. The two are different lifecycles:
+
+- ``DataPlanDraft`` lives in the design verb. Designer drafts it,
+  critic judges it in ``brief_consistency`` mode, orchestrator commits
+  it before brief seal. Fields: ``source_summary``,
+  ``assignment_table``, ``fact_sources``, ``notes``.
+- ``DataPlanV2`` is the warehouse fingerprint + assignment binding
+  generated at **analyze** entry. Linked to ``DataPlanDraft`` by the
+  experiment id, not by inheritance.
+
+```python
+data_plan_draft = dispatch_specialist(  # same shape as step 5
+    role="designer",
+    sources={
+        "intent": {"text": <intent_text>, "captured_at": <intent_bundle.captured_at>},
+        "semantic_models": <loaded>,
+        "metrics": <loaded>,
+        "assignment_surface": surface,
+        "prior_drafts": [{"path": str(exp_dir / "brief.yaml"), ...}],
+        "task": "draft_data_plan",
+    },
+    project_root=Path.cwd(),
+)
+```
+
+Commit ``data_plan.yaml`` via ``commit_artifact``. Dispatch critic in
+``brief_consistency`` mode against the draft. The critic checks the
+plan's ``fact_sources`` against the brief's metric snapshot — every
+metric the brief cites must read from a fact source the data plan
+declares.
 
 ### 8. Run the power-feasibility check
 
@@ -181,11 +230,20 @@ This is the **`confirm_brief_seal`** gate. Closing it crosses the design/analyze
 ```python
 from agentxp.schemas.brief_seal import seal_brief, ExpectedShape
 
+# W1.3 — cohort_definitions is list[CohortDefinition], not list[str].
+# Pre-W1.3 sealed briefs in the repo carry list[str]; the schema accepts
+# them via a backwards-compat validator and projects "name: definition"
+# strings. New seals should pass structured CohortDefinitions directly.
+from agentxp.schemas.brief_seal import CohortDefinition
+
 expected_shape = ExpectedShape(
     assignment_unit=<from brief>,
     arms=<from brief>,
     expected_arm_count_ratio=<from brief>,
-    cohort_definitions=<from brief>,
+    cohort_definitions=[
+        CohortDefinition(name=c["name"], definition=c["definition"])
+        for c in <brief.cohorts>
+    ],
 )
 
 sealed = seal_brief(

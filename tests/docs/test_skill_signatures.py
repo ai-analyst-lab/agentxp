@@ -58,10 +58,32 @@ def _iter_python_blocks(md_text: str) -> Iterable[str]:
         yield match.group(1)
 
 
-def _resolve(name: str):
-    if name not in SYMBOL_IMPORTS:
+def _parse_skill_imports(md_text: str) -> dict[str, str]:
+    """W7.4 — each SKILL.md may declare an ``imports:`` block in its YAML
+    frontmatter. Symbols declared there take precedence over SYMBOL_IMPORTS
+    so a skill that uses a non-standard helper does not need a global
+    registration.
+    """
+    frontmatter = re.match(r"^---\n(.*?)\n---", md_text, re.DOTALL)
+    if not frontmatter:
+        return {}
+    try:
+        import yaml
+
+        data = yaml.safe_load(frontmatter.group(1))
+    except Exception:
+        return {}
+    imports = data.get("imports") if isinstance(data, dict) else None
+    if not isinstance(imports, dict):
+        return {}
+    return {str(k): str(v) for k, v in imports.items()}
+
+
+def _resolve(name: str, skill_imports: dict[str, str]):
+    spec = skill_imports.get(name) or SYMBOL_IMPORTS.get(name)
+    if spec is None:
         return None
-    module_path, qualname = SYMBOL_IMPORTS[name].split(":")
+    module_path, qualname = spec.split(":")
     try:
         module = importlib.import_module(module_path)
         return getattr(module, qualname, None)
@@ -94,6 +116,7 @@ def _collect_drift_violations() -> list[tuple[Path, str, str, list[str]]]:
 
     for skill_md in SKILLS_DIR.glob("**/SKILL.md"):
         text = skill_md.read_text()
+        skill_imports = _parse_skill_imports(text)
         for block in _iter_python_blocks(text):
             # Strip leading prompt placeholders like `<from intent.yaml>`,
             # which break ast.parse. Allow lines that start with these
@@ -109,7 +132,7 @@ def _collect_drift_violations() -> list[tuple[Path, str, str, list[str]]]:
                 name = _call_name(call)
                 if name is None:
                     continue
-                target = _resolve(name)
+                target = _resolve(name, skill_imports)
                 if target is None:
                     continue
                 try:
