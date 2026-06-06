@@ -36,8 +36,11 @@ relationships:
     type: many_to_one
     description: Each row of this model belongs to one other_model.
 
-# If this model carries outcome-bearing columns, list them. The SQL safety
-# pipeline refuses to query these columns in design mode (R11 Layer 3d).
-# outcome_columns: [arm, treatment_id]
+# Outcome-bearing columns this entity carries. Required field (W1.8) —
+# an empty list explicitly declares "no outcomes" so the SQL safety
+# pipeline's Layer 3d (R11) does not silently treat a missing field as
+# "no outcomes". Populate when your model carries outcome columns
+# (e.g. `outcome_columns: [arm]` on an assignment table).
+outcome_columns: []
 
 schema_version: 1
