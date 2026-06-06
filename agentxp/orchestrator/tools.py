@@ -69,14 +69,7 @@ from agentxp.sql.safety import SafetyMode, SafetyResult, run_pipeline
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class ToolRefusal(Exception):
-    """A tool refused to execute because doing so would violate a rule.
-
-    Carries the rule citation (R1-R11) and a human-readable reason. The
-    orchestrator surfaces ``args[0]`` to the user along with the
-    suggested resolution (which tool to use instead, what brief to seal,
-    etc.). Not a bug — a designed refusal.
-    """
+from agentxp.orchestrator.errors import ToolRefusal  # W5.1 — canonical home
 
 
 class ExperimentNotFound(FileNotFoundError):
@@ -429,6 +422,91 @@ def commit_artifact(
     return sha_result.stdout.strip()
 
 
+def commit_artifacts(
+    *,
+    exp_dir: Path,
+    artifacts: list[tuple[str, str]],
+    log_entry: str,
+    git_message: str,
+) -> str:
+    """Batched form of :func:`commit_artifact` — one commit, one log entry.
+
+    W5.4 — Renders' ``fan_out`` helper (W6.4) writes six files (3
+    audiences × 2 formats) in tight succession per readout type. Without
+    a batched commit form, fan_out would produce six commits and six
+    ``log.md`` rows per render, polluting the audit chain with what
+    should be a single logical event. This overload:
+
+      * Writes every ``(name, content)`` pair atomically (each via
+        ``tmp + rename``).
+      * Appends a single ``log.md`` row covering all of them.
+      * Stages every artifact + the log row in one ``git add``.
+      * Produces one commit with ``git_message``.
+      * Returns the resulting commit SHA.
+
+    Parameters
+    ----------
+    exp_dir
+        Same as ``commit_artifact``.
+    artifacts
+        ``[(artifact_name, content), ...]``. Empty list raises
+        ``ToolRefusal`` — fan_out always has at least one file.
+    log_entry
+        Single human-readable line describing the batch (e.g.
+        ``"design_brief share-tail fan-out × 6"``). Goes through
+        ``redact_message`` like the single form.
+    git_message
+        Same as the single form's ``git_message``; here it's required
+        because batches have no obvious default.
+    """
+    if not artifacts:
+        raise ToolRefusal(
+            "commit_artifacts called with empty artifacts list; "
+            "every batched commit must include at least one file."
+        )
+
+    exp_dir.mkdir(parents=True, exist_ok=True)
+    written_paths: list[Path] = []
+    for name, content in artifacts:
+        art_path = exp_dir / name
+        art_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = art_path.with_suffix(art_path.suffix + ".tmp")
+        tmp.write_text(content)
+        tmp.replace(art_path)
+        written_paths.append(art_path)
+
+    ts = datetime.now(timezone.utc).isoformat()
+    log_path = exp_dir / "log.md"
+    safe_entry = redact_message(log_entry)
+    with log_path.open("a") as f:
+        f.write(f"- `{ts}` — {safe_entry}\n")
+
+    toplevel = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=exp_dir, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    project_root = Path(toplevel)
+    rels = [
+        str(p.resolve().relative_to(project_root.resolve()))
+        for p in written_paths
+    ]
+    rel_log = str(log_path.resolve().relative_to(project_root.resolve()))
+
+    subprocess.run(
+        ["git", "add", *rels, rel_log],
+        cwd=project_root, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", git_message],
+        cwd=project_root, check=True, capture_output=True, text=True,
+    )
+    sha_result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=project_root, check=True, capture_output=True, text=True,
+    )
+    return sha_result.stdout.strip()
+
+
 __all__ = [
     # Errors
     "ToolRefusal",
@@ -444,4 +522,5 @@ __all__ = [
     "verify_brief_seal_tool",
     "render_share_tail",
     "commit_artifact",
+    "commit_artifacts",
 ]
