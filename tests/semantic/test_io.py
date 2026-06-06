@@ -33,26 +33,22 @@ from agentxp.semantic.validators import (
 
 
 def _semantic_model() -> SemanticModel:
+    """T70-RECONCILE: payload uses the on-disk dbt/Looker-shaped schema
+    (primary_key + source_table + dimensions[] + outcome_columns)."""
     return SemanticModel.model_validate(
         {
             "schema_version": 1,
             "name": "user_events",
             "description": "User-level event facts.",
-            "entity": {"primary": "user_id", "related": []},
-            "fields": [
-                {
-                    "name": "user_id",
-                    "type": "string",
-                    "nullable": False,
-                    "role": "identifier",
-                },
-                {
-                    "name": "event_ts",
-                    "type": "timestamp",
-                    "nullable": False,
-                    "role": "event_time",
-                },
+            "primary_key": "user_id",
+            "source_table": "user_events",
+            "dimensions": [
+                {"name": "user_id", "type": "integer",
+                 "description": "Stable user id."},
+                {"name": "event_ts", "type": "timestamp",
+                 "description": "Event timestamp."},
             ],
+            "outcome_columns": [],
         }
     )
 
@@ -125,15 +121,15 @@ def test_load_yaml_raises_validation_error_on_schema_violation(tmp_path: Path) -
                 "schema_version": 1,
                 "name": "user_events",
                 "description": "x",
-                "entity": {"primary": "ghost", "related": []},
-                "fields": [
-                    {
-                        "name": "user_id",
-                        "type": "string",
-                        "nullable": False,
-                        "role": "identifier",
-                    }
+                # T70-RECONCILE: primary_key references a column that
+                # is not declared in dimensions[] — the model validator
+                # catches it and raises ValidationError.
+                "primary_key": "ghost",
+                "source_table": "user_events",
+                "dimensions": [
+                    {"name": "user_id", "type": "string"},
                 ],
+                "outcome_columns": [],
             }
         )
     )
@@ -181,15 +177,12 @@ def _concurrent_writer(project_root: str, marker: str) -> None:
             "schema_version": 1,
             "name": "user_events",
             "description": marker,
-            "entity": {"primary": "user_id", "related": []},
-            "fields": [
-                {
-                    "name": "user_id",
-                    "type": "string",
-                    "nullable": False,
-                    "role": "identifier",
-                }
+            "primary_key": "user_id",
+            "source_table": "user_events",
+            "dimensions": [
+                {"name": "user_id", "type": "string"},
             ],
+            "outcome_columns": [],
         }
     )
     write_yaml(target, sm, root)

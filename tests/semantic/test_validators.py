@@ -22,20 +22,30 @@ from agentxp.semantic.validators import (
 
 
 def _semantic_model_payload() -> dict:
+    """T70-RECONCILE: payload matches the on-disk YAML format every
+    experiment dir in the repo uses (dbt/Looker-shaped primary_key /
+    source_table / dimensions / relationships / outcome_columns rather
+    than the pre-T70 entity + fields[] + role taxonomy).
+    """
     return {
         "schema_version": 1,
         "name": "user_events",
+        "display_name": "User Events",
         "description": "User-level event facts.",
-        "entity": {
-            "primary": "user_id",
-            "related": [{"name": "session_id", "type": "session"}],
-        },
-        "fields": [
-            {"name": "user_id", "type": "string", "nullable": False, "role": "identifier"},
-            {"name": "event_ts", "type": "timestamp", "nullable": False, "role": "event_time"},
-            {"name": "country", "type": "string", "nullable": True, "role": "dimension",
-             "levels": ["US", "GB", "DE"]},
+        "primary_key": "user_id",
+        "source_table": "user_events",
+        "dimensions": [
+            {"name": "user_id", "type": "integer", "description": "Stable user id."},
+            {"name": "event_ts", "type": "timestamp", "description": "Event timestamp."},
+            {"name": "country", "type": "string",
+             "description": "User country.",
+             "enum": ["US", "GB", "DE"]},
         ],
+        "relationships": [
+            {"to": "session", "join_on": "session_id",
+             "type": "many_to_one", "description": "Each event belongs to a session."},
+        ],
+        "outcome_columns": [],
     }
 
 
@@ -107,8 +117,10 @@ def _assignment_payload() -> dict:
 def test_semantic_model_happy_path():
     sm = SemanticModel.model_validate(_semantic_model_payload())
     assert sm.name == "user_events"
-    assert sm.entity.primary == "user_id"
-    assert len(sm.fields) == 3
+    assert sm.primary_key == "user_id"
+    assert len(sm.dimensions) == 3
+    assert len(sm.relationships) == 1
+    assert sm.outcome_columns == []
 
 
 def test_semantic_model_rejects_unknown_field():
@@ -118,36 +130,45 @@ def test_semantic_model_rejects_unknown_field():
         SemanticModel.model_validate(payload)
 
 
-def test_semantic_model_rejects_primary_not_in_fields():
+def test_semantic_model_rejects_primary_key_not_in_dimensions():
     payload = _semantic_model_payload()
-    payload["entity"]["primary"] = "ghost_id"
+    payload["primary_key"] = "ghost_id"
     with pytest.raises(ValidationError, match="ghost_id"):
         SemanticModel.model_validate(payload)
 
 
-def test_semantic_model_rejects_primary_with_non_identifier_role():
+def test_semantic_model_accepts_compound_primary_key():
     payload = _semantic_model_payload()
-    # Point primary at the event_time field instead of the identifier.
-    payload["entity"]["primary"] = "event_ts"
-    with pytest.raises(ValidationError, match="identifier"):
-        SemanticModel.model_validate(payload)
-
-
-def test_semantic_model_rejects_multiple_event_time_fields():
-    payload = _semantic_model_payload()
-    payload["fields"].append(
-        {"name": "ingested_ts", "type": "timestamp", "nullable": False, "role": "event_time"}
+    # Add session_id as a dimension and use the compound key shape.
+    payload["dimensions"].append(
+        {"name": "session_id", "type": "integer", "description": "Session id."}
     )
-    with pytest.raises(ValidationError, match="event_time"):
-        SemanticModel.model_validate(payload)
+    payload["primary_key"] = ["user_id", "session_id"]
+    sm = SemanticModel.model_validate(payload)
+    assert sm.primary_key == ["user_id", "session_id"]
 
 
-def test_semantic_model_rejects_levels_on_non_dimension_field():
+def test_semantic_model_outcome_columns_required():
     payload = _semantic_model_payload()
-    # Add levels to the identifier field — should be rejected.
-    payload["fields"][0]["levels"] = ["a", "b"]
-    with pytest.raises(ValidationError, match="dimension"):
+    del payload["outcome_columns"]
+    with pytest.raises(ValidationError, match="outcome_columns"):
         SemanticModel.model_validate(payload)
+
+
+def test_semantic_model_accepts_outcome_columns_declaration():
+    payload = _semantic_model_payload()
+    payload["outcome_columns"] = ["arm"]
+    sm = SemanticModel.model_validate(payload)
+    assert sm.outcome_columns == ["arm"]
+
+
+def test_semantic_model_dimension_enum_optional():
+    payload = _semantic_model_payload()
+    # The country dimension already carries an enum; drop it and confirm OK.
+    for d in payload["dimensions"]:
+        d.pop("enum", None)
+    sm = SemanticModel.model_validate(payload)
+    assert all(d.enum is None for d in sm.dimensions)
 
 
 def test_semantic_model_rejects_uppercase_name():
@@ -169,6 +190,30 @@ def test_semantic_model_rejects_wrong_schema_version():
     payload["schema_version"] = 2
     with pytest.raises(ValidationError):
         SemanticModel.model_validate(payload)
+
+
+def test_relationship_uses_join_on_not_on():
+    """The pre-T70 spec used ``on:`` for the join column, but PyYAML 1.1
+    parses bare ``on`` as the boolean True. ``join_on`` sidesteps the
+    quirk."""
+    payload = _semantic_model_payload()
+    sm = SemanticModel.model_validate(payload)
+    assert sm.relationships[0].join_on == "session_id"
+
+
+def test_semantic_model_admits_every_on_disk_yaml():
+    """Repo-wide invariant: every shipped semantic_models/*.yaml loads
+    cleanly through the canonical schema."""
+    import yaml as _yaml
+    from pathlib import Path as _Path
+    repo = _Path(__file__).resolve().parents[2]
+    paths = sorted((repo / "semantic_models").glob("*.yaml"))
+    paths = [p for p in paths if not p.stem.startswith("_")]
+    assert paths, "no on-disk semantic models found"
+    for p in paths:
+        raw = _yaml.safe_load(p.read_text())
+        # If T70 broke compatibility, this raises.
+        SemanticModel.model_validate(raw)
 
 
 # ─────────────────────────────────────────────────────────────────────────

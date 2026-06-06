@@ -32,7 +32,7 @@ dimensions:
 
 relationships:
   - to: other_model
-    on: other_id
+    join_on: other_id
     type: many_to_one
     description: Each row of this model belongs to one other_model.
 

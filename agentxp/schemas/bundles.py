@@ -148,54 +148,24 @@ domain content and must not register as a blindness violation.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Placeholder types — superseded by later tasks (see module docstring).
+# T70-RECONCILE — the canonical SemanticModel from agentxp.semantic.validators
+# is now the bundle-side type. The W1.7-era BundleSemanticModel is gone;
+# BundleSemanticModel is re-exported as an alias only for backwards-compat
+# with any external caller that imported the symbol during W1.7's lifetime.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class BundleSemanticModel(BaseModel):
-    """Semantic-model shape accepted by every specialist bundle.
+from agentxp.semantic.validators import SemanticModel as BundleSemanticModel  # noqa: E402
 
-    W1.7 partial close — replaces the pre-W1.7 ``_SemanticModelPlaceholder``
-    stub (DIAGNOSTIC §B.2 #5). The stub had four strict fields and refused
-    the eight-plus fields the on-disk ``semantic_models/*.yaml`` files
-    carry, forcing the orchestrator to hand-flatten every entry before
-    bundle assembly. This schema is permissive enough to admit the on-disk
-    shape directly: ``yaml.safe_load(open(path))`` round-trips into the
-    bundle without an adapter.
-
-    **Why not import** ``agentxp.semantic.validators.SemanticModel`` per
-    the original Round 1 plan: the canonical type at
-    ``agentxp/semantic/validators.py:119`` declares a *different* on-disk
-    contract (``entity``, ``fields[]``, ``fingerprint_sha256``) than the
-    YAMLs the design verb consumes (``dimensions[]``, ``relationships[]``,
-    ``outcome_columns[]``, ``primary_key`` as a list, etc.). Reconciling
-    the two is an architectural decision that affects every existing
-    experiment dir — deferred as **T70-RECONCILE**, documented in
-    ``working/plans/SESSION_LOG.md`` for follow-up. For the bundle layer,
-    a permissive schema that admits the on-disk shape closes the immediate
-    R10 break without forcing that decision.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    name: str
-    primary_key: list[str] | str = Field(
-        description="Primary key column(s); list shape supported for compound keys.",
-    )
-    source_table: str
-    outcome_columns: list[str] = Field(
-        ...,  # W1.8 — required, no default. An entity must declare its outcomes
-              # explicitly (empty list = "no outcomes") so the SQL safety
-              # pipeline's Layer 3d (R11) cannot silently treat a missing field
-              # as "no outcomes" when the YAML author simply forgot to add it.
-        description=(
-            "Names of outcome-bearing columns this entity carries. Layer 3d "
-            "of the SQL safety pipeline (R11) consults this declaration when "
-            "refusing design-mode queries that touch outcome surfaces. An "
-            "empty list means the entity exposes no outcomes; ``None`` and "
-            "a missing field are both rejected."
-        ),
-    )
+# Backwards-compat alias only. The pre-T70 BundleSemanticModel was an
+# `extra="allow"` shim added in W1.7 to accept the on-disk YAML without
+# forcing the canonical schema rewrite. T70-RECONCILE rewrote
+# agentxp.semantic.validators.SemanticModel to match the on-disk format
+# (primary_key / source_table / dimensions / relationships /
+# outcome_columns); the bundle and the on-disk YAML share one schema and
+# there is no projection layer. Any external caller that imported
+# ``BundleSemanticModel`` during W1.7's lifetime still resolves to the
+# canonical type.
 
 
 class WarehouseProfile(BaseModel):

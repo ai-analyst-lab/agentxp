@@ -19,18 +19,36 @@ from pydantic import ValidationError
 from agentxp.schemas.bundles import BundleSemanticModel
 
 
+def _valid_payload(**overrides):
+    """Minimal valid payload after T70-RECONCILE: primary_key columns
+    must appear as dimensions (model validator), so dimensions[] cannot
+    be empty when primary_key is set."""
+    payload = dict(
+        name="x",
+        primary_key="id",
+        source_table="t",
+        dimensions=[{"name": "id", "type": "integer"}],
+        outcome_columns=[],
+    )
+    payload.update(overrides)
+    return payload
+
+
 def test_missing_outcome_columns_refused() -> None:
-    """A YAML without outcome_columns cannot construct a BundleSemanticModel."""
+    """A YAML without outcome_columns cannot construct a SemanticModel."""
+    payload = _valid_payload()
+    del payload["outcome_columns"]
     with pytest.raises(ValidationError) as exc_info:
-        BundleSemanticModel(name="x", primary_key="id", source_table="t")
+        BundleSemanticModel(**payload)
     assert "outcome_columns" in str(exc_info.value)
 
 
 def test_empty_outcome_columns_accepted() -> None:
     """Explicit empty list = "entity has no outcomes" is the safe declaration."""
-    sm = BundleSemanticModel(
-        name="user", primary_key="user_id", source_table="users", outcome_columns=[]
-    )
+    sm = BundleSemanticModel(**_valid_payload(
+        name="user", primary_key="user_id", source_table="users",
+        dimensions=[{"name": "user_id", "type": "integer"}],
+    ))
     assert sm.outcome_columns == []
 
 
@@ -39,6 +57,11 @@ def test_outcome_columns_accepts_arm_style_declaration() -> None:
         name="assignment",
         primary_key=["user_id", "experiment_id"],
         source_table="assignments",
+        dimensions=[
+            {"name": "user_id", "type": "integer"},
+            {"name": "experiment_id", "type": "string"},
+            {"name": "arm", "type": "string"},
+        ],
         outcome_columns=["arm"],
     )
     assert sm.outcome_columns == ["arm"]
@@ -63,6 +86,6 @@ def test_every_on_disk_semantic_model_declares_outcome_columns(yaml_path: Path) 
 def test_none_outcome_columns_refused() -> None:
     """Explicit None must also raise — only an empty list expresses "no outcomes"."""
     with pytest.raises(ValidationError):
-        BundleSemanticModel(
-            name="x", primary_key="id", source_table="t", outcome_columns=None  # type: ignore[arg-type]
-        )
+        BundleSemanticModel(**_valid_payload(outcome_columns=None))  # type: ignore[arg-type]
+
+

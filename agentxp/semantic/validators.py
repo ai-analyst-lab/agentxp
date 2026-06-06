@@ -72,89 +72,119 @@ AssignmentType = Literal["inline", "external"]
 
 # ─────────────────────────────────────────────────────────────────────────
 # semantic_models/{entity}.yaml — schema_version: 1
+#
+# T70-RECONCILE — rewritten to match the on-disk format used by every
+# experiment dir in the repo. The pre-T70 schema (entity + typed
+# fields[] + role taxonomy) was drafted from OPENXP_V01_PLAN.md §8 but
+# never adopted by the design-verb runtime code; the on-disk YAMLs use
+# a dbt/Looker-shaped layout instead (display_name + primary_key +
+# source_table + dimensions[] + relationships[] + outcome_columns[]).
+# Choosing on-disk as canonical preserves every existing experiment;
+# the typed role taxonomy is recoverable later by adding optional
+# per-dimension `role:` declarations.
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class SemanticField(BaseModel):
-    """A single column in a semantic model. ``levels`` is only meaningful
-    for ``role='dimension'`` and is rejected on other roles.
+class Dimension(BaseModel):
+    """A single dimension column on a semantic model.
+
+    Fields mirror the dbt-style on-disk shape: ``name`` + ``type`` +
+    ``description``, plus an optional ``enum`` listing the closed value
+    set (used by ``page_event.event_name`` and similar).
     """
 
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., min_length=1)
-    type: FieldType
-    nullable: bool
-    role: FieldRole
-    levels: Optional[list[str]] = None  # only valid for role="dimension"
-
-    @field_validator("levels")
-    @classmethod
-    def _levels_only_for_dimension(cls, v, info):
-        if v is not None and info.data.get("role") != "dimension":
-            raise ValueError("levels is only valid for role='dimension'")
-        return v
+    type: Literal["string", "integer", "float", "bool", "timestamp", "date"]
+    description: Optional[str] = None
+    enum: Optional[list[str]] = Field(
+        default=None,
+        description="Closed set of accepted values (e.g. event_name = product_view | click_buy_now | ...).",
+    )
 
 
-class RelatedEntity(BaseModel):
-    """A non-primary entity referenced by the semantic model (e.g., the
-    session attached to a user-event fact).
+class Relationship(BaseModel):
+    """A foreign-key edge from this semantic model to another.
+
+    ``join_on`` is the local column joining the related entity. Pre-T70 the
+    on-disk YAMLs used ``on:`` for this slot, but PyYAML parses bare ``on``
+    as the boolean ``True`` (YAML 1.1 reserved word) which corrupts the
+    dict. Renaming to ``join_on:`` sidesteps the parser quirk; the YAMLs
+    were migrated in the same change that introduced this schema.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., min_length=1)
-    type: EntityType
-
-
-class Entity(BaseModel):
-    """Entity block: primary identifier column + zero or more related entities."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    primary: str = Field(..., min_length=1)
-    related: list[RelatedEntity] = Field(default_factory=list)
+    to: str = Field(..., min_length=1, description="Target entity name.")
+    join_on: str = Field(
+        ..., min_length=1,
+        description="Local column the join is on.",
+    )
+    type: Literal["one_to_one", "one_to_many", "many_to_one", "many_to_many"]
+    description: Optional[str] = None
 
 
 class SemanticModel(BaseModel):
-    """Validates ``semantic_models/{entity}.yaml`` per §8.
+    """Validates ``semantic_models/{entity}.yaml`` per §8 (T70-rewritten).
 
-    Enforces three structural invariants beyond shape:
+    Structural invariants:
       1. ``schema_version == 1`` per §1.8.6.
-      2. At most one field has ``role='event_time'``.
-      3. ``entity.primary`` names a field whose role is ``identifier``.
+      2. ``primary_key`` names columns; the shape is a single name string
+         or a list of names for compound keys (assignment, page_event).
+      3. ``outcome_columns`` is required (W1.8); an empty list explicitly
+         declares "this entity has no outcome surface" so SQL safety
+         Layer 3d (R11) does not silently treat a missing field as "no
+         outcomes".
     """
 
     model_config = ConfigDict(extra="forbid")
 
     schema_version: Literal[1] = 1
     name: str = Field(..., min_length=1, pattern=r"^[a-z][a-z0-9_]*$")
-    description: str
-    entity: Entity
-    fields: list[SemanticField] = Field(..., min_length=1)
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    primary_key: str | list[str] = Field(
+        ...,
+        description="Single column name or list[str] for compound keys.",
+    )
+    source_table: str = Field(..., min_length=1)
+    dimensions: list[Dimension] = Field(default_factory=list)
+    relationships: list[Relationship] = Field(default_factory=list)
+    outcome_columns: list[str] = Field(
+        ...,
+        description=(
+            "Names of outcome-bearing columns this entity carries (W1.8 — "
+            "required, no default). Layer 3d of the SQL safety pipeline "
+            "(R11) consults this declaration when refusing design-mode "
+            "queries that touch outcome surfaces. An empty list means "
+            "the entity exposes no outcomes; ``None`` is rejected."
+        ),
+    )
     fingerprint_sha256: Optional[str] = Field(
         default=None, min_length=64, max_length=64
     )
 
-    @field_validator("fields")
-    @classmethod
-    def _at_most_one_event_time(cls, v):
-        event_times = [f for f in v if f.role == "event_time"]
-        if len(event_times) > 1:
-            raise ValueError(
-                f"at most one field can have role='event_time'; got {len(event_times)}"
-            )
-        return v
-
     @model_validator(mode="after")
-    def _primary_key_is_an_identifier(self):
-        pk = self.entity.primary
-        pk_fields = [f for f in self.fields if f.name == pk]
-        if not pk_fields:
-            raise ValueError(f"entity.primary={pk!r} not found in fields[]")
-        if pk_fields[0].role != "identifier":
+    def _primary_key_columns_appear_in_dimensions(self):
+        """Every column the primary key names must be declared as a dimension.
+
+        Catches the case where a YAML author types ``primary_key: user_id``
+        but forgets to add ``user_id`` to ``dimensions[]`` — the SQL
+        pipeline would later reject queries against the entity because
+        the column is undeclared.
+        """
+        pk_names = (
+            [self.primary_key] if isinstance(self.primary_key, str)
+            else list(self.primary_key)
+        )
+        dim_names = {d.name for d in self.dimensions}
+        missing = [n for n in pk_names if n not in dim_names]
+        if missing:
             raise ValueError(
-                f"primary key field {pk!r} must have role='identifier'"
+                f"primary_key column(s) {missing!r} not declared in "
+                f"dimensions[]; either add the dimension or correct the "
+                f"primary_key field."
             )
         return self
 

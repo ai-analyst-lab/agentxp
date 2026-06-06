@@ -432,6 +432,16 @@ def layer_3b_semantic_model_check(
 
     declared: set[str] = set()
     for model in semantic_models:
+        # T70-RECONCILE: the on-disk SemanticModel schema declares its
+        # underlying physical table via ``source_table: str``. The pre-T70
+        # spec used a separate ``fact_sources: list[FactSource]``. Accept
+        # both shapes so the check works either way.
+        source_table = getattr(model, "source_table", None)
+        if source_table is None and isinstance(model, dict):
+            source_table = model.get("source_table")
+        if source_table:
+            declared.add(source_table.lower())
+
         sources = getattr(model, "fact_sources", None)
         if sources is None and isinstance(model, dict):
             sources = model.get("fact_sources", [])
