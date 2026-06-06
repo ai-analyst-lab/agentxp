@@ -70,3 +70,26 @@ def audit_voice_file(path: Path) -> list:
     path = Path(path)
     text = path.read_text(encoding="utf-8")
     return audit_voice(text, source_label=str(path))
+
+
+class BannedVocabularyError(Exception):
+    """W6.2 — raised when a render's text contains banned vocabulary.
+
+    Pre-W6.2 audit_voice fired nowhere on the render path; the
+    voice-audit gate was advisory only (D5). Post-W6.2 callers that
+    want strict enforcement can pass ``strict=True`` to
+    ``render_share_tail``; on violation this exception aborts the catalog
+    append so the failed render never lands in the chain.
+
+    The advisory mode (default) is preserved to avoid breaking existing
+    callers that might render text with edge-case vocab. The voice CI
+    runs either way; only the behavior on violation differs.
+    """
+
+    def __init__(self, path: Path, violations: list) -> None:
+        super().__init__(
+            f"voice audit found {len(violations)} banned-vocabulary "
+            f"violation(s) in {path}; see stderr for the per-rule list."
+        )
+        self.path = path
+        self.violations = violations

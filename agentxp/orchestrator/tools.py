@@ -239,6 +239,19 @@ def verify_brief_seal_tool(
 _SHARE_TAIL_KINDS = {"intent", "design_brief", "monitor_check", "verdict", "audit"}
 
 
+def _new_entry_id(prefix: str = "r") -> str:
+    """Collision-resistant entry id for the renders catalog.
+
+    W6.3 — replaces the pre-W6.3 second-resolution timestamp default
+    ``rndr_{ts.timestamp():.0f}``, which collided when ``fan_out``'s six
+    variants landed within the same second. Uses uuid4 (122 bits of
+    randomness) which is collision-resistant under tight succession.
+    The ``prefix`` keeps the id human-skimmable (e.g. ``r_<uuid>``).
+    """
+    import uuid
+    return f"{prefix}_{uuid.uuid4().hex[:16]}"
+
+
 def render_share_tail(
     *,
     exp_dir: Path,
@@ -250,6 +263,7 @@ def render_share_tail(
     fmt: Literal["html", "md", "png", "json", "pdf"] = "md",
     entry_id: Optional[str] = None,
     timestamp: Optional[datetime] = None,
+    strict_voice: bool = False,
 ) -> Path:
     """Render a share-tail readout to disk and append to the catalog.
 
@@ -333,11 +347,27 @@ def render_share_tail(
 
     computed_status = build_provenance_for_brief(exp_dir, readout_type)
 
+    # W6.2 — voice audit fires before the catalog row appends. Advisory by
+    # default (D5); strict_voice=True raises BannedVocabularyError and refuses
+    # the catalog row so the failed render never lands in the chain.
+    from agentxp.render.voice_audit import (
+        BannedVocabularyError,
+        audit_voice_file,
+    )
+
+    voice_violations: list = []
+    try:
+        voice_violations = audit_voice_file(out_path)
+    except Exception:  # noqa: BLE001 — voice audit must never crash render
+        pass
+    if strict_voice and voice_violations:
+        raise BannedVocabularyError(out_path, voice_violations)
+
     catalog = exp_dir / "readouts" / "catalog.jsonl"
     catalog_append(
         catalog_path=catalog,
         experiment_id=experiment_id,
-        entry_id=entry_id or f"rndr_{ts.timestamp():.0f}",
+        entry_id=entry_id or _new_entry_id(),
         payload=RenderCompletedEvent(
             readout_type=readout_type,
             audience=audience,

@@ -13,6 +13,7 @@ the single place numbers are formatted; adapters never re-derive a value.
 from __future__ import annotations
 
 from agentxp.render.distill import distill
+from agentxp.render.fan_out import FORMATS, PERSONAS, fan_out
 from agentxp.render.provenance import (
     Provenance,
     ProvenanceCache,
@@ -29,6 +30,9 @@ __all__ = [
     "write_report",
     "build_provenance",
     "build_provenance_for_brief",
+    "fan_out",
+    "FORMATS",
+    "PERSONAS",
     "Provenance",
     "ProvenanceCache",
     "RenderStatus",
