@@ -45,7 +45,7 @@ from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from agentxp.schemas._types import Sha256Hex
+from agentxp.schemas._types import AwareUtcDatetime, Sha256Hex
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -77,7 +77,13 @@ class IntentText(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str = Field(min_length=1, max_length=4000)
-    captured_at: str = Field(description="ISO-8601 UTC")
+    captured_at: AwareUtcDatetime = Field(
+        description=(
+            "Timezone-aware UTC datetime. yaml.safe_load emits datetime "
+            "directly, so callers no longer need to re-parse ISO strings "
+            "(DIAGNOSTIC §B.2 #4)."
+        )
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

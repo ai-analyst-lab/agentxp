@@ -241,6 +241,8 @@ def distill_index(rows: list[IndexRowVM]) -> IndexVM:
 # tests/render/test_spine_vms.py.
 # ──────────────────────────────────────────────────────────────────────────
 
+from datetime import datetime   # noqa: E402
+
 from agentxp.render.viewmodel import (   # noqa: E402 — at bottom for layer ordering
     DesignBriefVM,
     IntentVM,
@@ -249,22 +251,50 @@ from agentxp.render.viewmodel import (   # noqa: E402 — at bottom for layer or
 )
 
 
+def _to_iso_utc(value: str | datetime) -> str:
+    """W6.1 — coerce a `datetime | str` timestamp to an ISO-8601 UTC string.
+
+    The ViewModel layer (``IntentVM``, ``DesignBriefVM``, ``MidRunVM``) declares
+    timestamps as ``str`` because templates interpolate strings, not datetimes.
+    The bundle layer (``IntentText`` etc.) declares them as
+    :class:`AwareUtcDatetime` so ``yaml.safe_load`` can pass values through
+    without manual re-parsing (DIAGNOSTIC §B.2 #4). This adapter sits between
+    them, preserving both contracts.
+
+    Naive datetimes raise — the bundle's ``AwareUtcDatetime`` already refuses
+    them upstream; reaching this helper with one is a contract bug, not a
+    silent coercion.
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            raise ValueError(
+                "naive datetime cannot be coerced; expected timezone-aware UTC"
+            )
+        return value.isoformat()
+    return value
+
+
 def distill_intent(
     *,
     experiment_id: str,
     intent_text: str,
-    captured_at: str,
+    captured_at: str | datetime,
     captured_by: str,
 ) -> IntentVM:
     """T41 — pure distill for the intent share-tail moment (design verb).
 
     Renders the user's pre-registered intent without any analysis context.
     Identical inputs produce identical output (audit replay).
+
+    ``captured_at`` accepts either a ``str`` (pre-W6.1 callers) or a
+    timezone-aware ``datetime`` (post-W1.2 ``IntentText.captured_at``).
+    Coerced to the ISO string the template interpolates via
+    :func:`_to_iso_utc`.
     """
     return IntentVM(
         experiment_id=experiment_id,
         intent_text=intent_text,
-        captured_at=captured_at,
+        captured_at=_to_iso_utc(captured_at),
         captured_by=captured_by,
     )
 
@@ -447,7 +477,7 @@ def distill_design_brief(
         design_chain_hash_short=(chain_hash[:12] + "…") if chain_hash else "",
         metric_snapshot=metric_snapshot,
         metric_snapshot_count=len(metric_snapshot),
-        sealed_at=integrity_lock.get("sealed_at", ""),
+        sealed_at=_to_iso_utc(integrity_lock.get("sealed_at", "")) if integrity_lock.get("sealed_at") else "",
         sealed_by=integrity_lock.get("sealed_by", ""),
     )
 
@@ -457,7 +487,7 @@ def distill_mid_run(
     experiment_id: str,
     halt_reason: str,
     halt_summary_text: str,
-    triggered_at: str,
+    triggered_at: str | datetime,
     elapsed_text: str,
     suggested_resolutions: list[str],
     srm_chi2: Optional[float] = None,
@@ -480,7 +510,7 @@ def distill_mid_run(
         experiment_id=experiment_id,
         halt_reason=halt_reason,    # type: ignore[arg-type]
         halt_summary_text=halt_summary_text,
-        triggered_at=triggered_at,
+        triggered_at=_to_iso_utc(triggered_at),
         elapsed_text=elapsed_text,
         suggested_resolutions=suggested_resolutions,
         srm_chi2=srm_chi2,

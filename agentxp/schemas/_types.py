@@ -16,9 +16,35 @@ new hash-shaped field without using this type fails the closure test.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import AfterValidator, Field
+
+
+def _enforce_utc(v: datetime) -> datetime:
+    """Refuse naive datetimes and refuse aware-but-non-UTC datetimes.
+
+    Centralised here (W1.1) so brief_seal, bundles, and any future
+    timestamp field share one definition rather than duplicating the
+    inline check brief_seal.py used to carry. Two failure modes:
+    timezone-unaware (``v.tzinfo is None``) and aware-but-not-UTC
+    (offset mismatch against ``timezone.utc``).
+    """
+    if v.tzinfo is None or v.tzinfo.utcoffset(v) != timezone.utc.utcoffset(v):
+        raise ValueError("datetime must be timezone-aware UTC")
+    return v
+
+
+AwareUtcDatetime = Annotated[datetime, AfterValidator(_enforce_utc)]
+"""Timezone-aware UTC datetime. Naive datetimes raise at validation.
+
+Replaces the previous pattern of declaring ``captured_at: str`` and
+manually re-parsing strings through ``datetime.fromisoformat`` at the
+call site (DIAGNOSTIC §B.2 #4): pydantic accepts ``datetime`` instances
+directly, ``yaml.safe_load`` emits them, and the validator catches naive
+or off-UTC values before they reach domain code.
+"""
 
 Sha256Hex = Annotated[
     str,
@@ -37,4 +63,4 @@ Usage:
         prior_hash: Optional[Sha256Hex] = None
 """
 
-__all__ = ["Sha256Hex"]
+__all__ = ["AwareUtcDatetime", "Sha256Hex"]

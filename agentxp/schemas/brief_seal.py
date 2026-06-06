@@ -33,7 +33,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from agentxp.schemas._types import Sha256Hex
+from agentxp.schemas._types import AwareUtcDatetime, Sha256Hex
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -126,16 +126,9 @@ class SealedBrief(BaseModel):
     expected_shape: ExpectedShape
 
     # Audit metadata
-    sealed_at: datetime = Field(description="UTC; timezone-aware.")
+    sealed_at: AwareUtcDatetime = Field(description="UTC; timezone-aware.")
     sealed_by: str = Field(min_length=1, description="User identifier of the sealer.")
     agentxp_version: str = Field(description="agentxp.__version__ at seal time.")
-
-    @field_validator("sealed_at")
-    @classmethod
-    def _enforce_utc(cls, v: datetime) -> datetime:
-        if v.tzinfo is None or v.tzinfo.utcoffset(v) != timezone.utc.utcoffset(v):
-            raise ValueError("sealed_at must be timezone-aware UTC")
-        return v
 
 
 # ─────────────────────────────────────────────────────────────────────────────
