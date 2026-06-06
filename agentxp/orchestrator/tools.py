@@ -253,7 +253,6 @@ def render_share_tail(
     readout_type: Literal["intent", "design_brief", "monitor_check", "verdict", "audit"],
     vm: IntentVM | DesignBriefVM | MidRunVM | VerdictVM,
     vm_sha256: str,
-    provenance_render_status: Literal["VERIFIED", "DRAFT_UNVERIFIED", "UNVERIFIABLE"],
     audience: Literal["exec", "operator", "engineer"] = "exec",
     fmt: Literal["html", "md", "png", "json", "pdf"] = "md",
     entry_id: Optional[str] = None,
@@ -331,6 +330,16 @@ def render_share_tail(
         json_path.write_text(vm.model_dump_json(indent=2))
         out_path = json_path
 
+    # W4.2 — render status is COMPUTED, not passed. Pre-W4.2 callers passed
+    # provenance_render_status as a Literal string; render_share_tail trusted
+    # the label. That was the R9 bypass (DIAGNOSTIC §A / debate §3.4). Now the
+    # status is a function of the on-disk state (sealed brief verification +
+    # readout type), so a caller cannot upgrade a render to VERIFIED by
+    # passing the wrong label.
+    from agentxp.render.provenance import build_provenance_for_brief
+
+    computed_status = build_provenance_for_brief(exp_dir, readout_type)
+
     catalog = exp_dir / "readouts" / "catalog.jsonl"
     catalog_append(
         catalog_path=catalog,
@@ -342,7 +351,7 @@ def render_share_tail(
             format=fmt,
             path=str(out_path.relative_to(exp_dir)),
             vm_sha256=vm_sha256,
-            provenance_render_status=provenance_render_status,
+            provenance_render_status=computed_status.value.upper(),
         ),
         timestamp=ts,
     )

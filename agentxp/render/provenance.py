@@ -236,6 +236,95 @@ def build_provenance(report: Report, exp_dir: Path) -> Provenance:
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# W4.1 — build_provenance_for_brief
+#
+# Design-verb renders (intent, design_brief, monitor_check) cannot share
+# build_provenance's contract: that function takes a `Report`, which is
+# the analyze-verb terminal artifact. The design verb has no Report yet —
+# it has at most a sealed brief and a renders catalog. The provenance
+# decision is therefore over a different surface, with the same status
+# values.
+#
+# Rules:
+#   - intent           → DRAFT_UNVERIFIED (the user's prose, not sealed)
+#   - design_brief     → VERIFIED iff brief.sealed.yaml exists and the
+#                        three-part integrity lock verifies; else
+#                        DRAFT_UNVERIFIED
+#   - monitor_check    → DRAFT_UNVERIFIED (the monitor halt is operational
+#                        context, not a sealed claim)
+#
+# Closes the R9 bypass DIAGNOSTIC §A surfaced: pre-W4.1 callers passed
+# `provenance_render_status="VERIFIED"` as a string parameter, and the
+# render layer accepted whatever label was passed. Post-W4.1, the status
+# is computed from disk; render_share_tail no longer accepts the
+# parameter (W4.2).
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def build_provenance_for_brief(
+    exp_dir: Path,
+    readout_type: str,
+) -> RenderStatus:
+    """Compute the render status for a design-verb share-tail.
+
+    Pure function over the experiment dir's current state. No external
+    network, no LLM call — disk reads only, deterministic given the dir.
+
+    Parameters
+    ----------
+    exp_dir
+        ``experiments/<id>/``.
+    readout_type
+        One of ``"intent"``, ``"design_brief"``, ``"monitor_check"``.
+
+    Returns
+    -------
+    RenderStatus.VERIFIED
+        Only for ``design_brief`` when the sealed brief verifies cleanly.
+    RenderStatus.DRAFT_UNVERIFIED
+        For every other case (intent, monitor_check, design_brief with a
+        missing/invalid seal).
+    RenderStatus.UNVERIFIABLE
+        Reserved for catastrophic failures (currently: an unknown
+        ``readout_type``). The orchestrator should treat this as a bug,
+        not a "draft" — it surfaces immediately rather than landing in
+        the catalog.
+    """
+    if readout_type not in {"intent", "design_brief", "monitor_check"}:
+        return RenderStatus.UNVERIFIABLE
+
+    if readout_type in {"intent", "monitor_check"}:
+        return RenderStatus.DRAFT_UNVERIFIED
+
+    # design_brief — verify the seal
+    sealed_path = exp_dir / "brief.sealed.yaml"
+    if not sealed_path.exists():
+        return RenderStatus.DRAFT_UNVERIFIED
+
+    try:
+        import yaml
+
+        from agentxp.schemas.brief_seal import SealedBrief, verify_or_raise
+
+        raw = yaml.safe_load(sealed_path.read_text())
+        sealed = SealedBrief.model_validate(raw)
+        project_root = exp_dir.parent.parent
+        metric_paths = {
+            name: project_root / "metrics" / f"{name}.yaml"
+            for name in sealed.metric_snapshot
+        }
+        verify_or_raise(
+            sealed=sealed,
+            design_chain_path=exp_dir / "log.md",
+            metric_paths=metric_paths,
+        )
+    except Exception:  # noqa: BLE001 — any verification failure → not VERIFIED
+        return RenderStatus.DRAFT_UNVERIFIED
+
+    return RenderStatus.VERIFIED
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Process-local cache — verification touches disk; render once, reuse.
 # ──────────────────────────────────────────────────────────────────────────
 

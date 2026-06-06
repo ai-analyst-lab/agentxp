@@ -18,6 +18,7 @@ from agentxp.render.provenance import (
     ProvenanceCache,
     RenderStatus,
     build_provenance,
+    build_provenance_for_brief,
 )
 from agentxp.render.report import render_report, write_report
 from agentxp.render.viewmodel import ReportVM, ViewBundle
@@ -27,6 +28,7 @@ __all__ = [
     "render_report",
     "write_report",
     "build_provenance",
+    "build_provenance_for_brief",
     "Provenance",
     "ProvenanceCache",
     "RenderStatus",
