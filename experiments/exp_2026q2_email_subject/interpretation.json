@@ -1,0 +1,23 @@
+{
+  "verdict": "NO-LIFT",
+  "terminal_step": 4,
+  "step_fired": [
+    "1: SRM gate (pass)",
+    "2: guardrails clear",
+    "3: sample adequacy check (n=50000, required=40000)",
+    "4: well-powered, wide null (CI half-width 0.005197 > 2.0 * mde_absolute 0.002) \u2014 NO-LIFT"
+  ],
+  "diagnostics": {
+    "mde_absolute": 0.002,
+    "mde_pct": 2.0,
+    "baseline": 0.1,
+    "srm_pass": true,
+    "srm_override_resolved": false,
+    "guardrails_violated": [],
+    "n_observed": 50000,
+    "n_required": 40000,
+    "primary_ci_lower_95": -0.004668783310024301,
+    "primary_ci_upper_95": 0.005724895470190457,
+    "primary_ci_half_width_95": 0.005196839390107379
+  }
+}

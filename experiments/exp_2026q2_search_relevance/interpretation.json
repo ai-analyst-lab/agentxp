@@ -1,0 +1,23 @@
+{
+  "verdict": "NO-SHIP-GUARDRAIL",
+  "terminal_step": 2,
+  "step_fired": [
+    "1: SRM gate (pass)",
+    "2: guardrail breach (revenue_per_user) \u2014 NO-SHIP-GUARDRAIL"
+  ],
+  "diagnostics": {
+    "mde_absolute": 0.002,
+    "mde_pct": 2.0,
+    "baseline": 0.1,
+    "srm_pass": true,
+    "srm_override_resolved": false,
+    "guardrails_violated": [
+      {
+        "metric_name": "revenue_per_user",
+        "direction": "higher_is_better",
+        "ci_lower_90": -0.24263016387608005,
+        "ci_upper_90": -0.14263016387608002
+      }
+    ]
+  }
+}

@@ -45,6 +45,7 @@ from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from agentxp.metrics.schema import MetricDefinition
 from agentxp.schemas._types import AwareUtcDatetime, Sha256Hex
 
 
@@ -150,37 +151,50 @@ domain content and must not register as a blindness violation.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class _SemanticModelPlaceholder(BaseModel):
-    """Minimal entity definition (user, session, etc.).
+class BundleSemanticModel(BaseModel):
+    """Semantic-model shape accepted by every specialist bundle.
 
-    TODO(T70): replace with the canonical SemanticModel loader output from
-    ``agentxp.semantic.io``; this stub carries the fields a downstream
-    bundle needs to validate.
+    W1.7 partial close — replaces the pre-W1.7 ``_SemanticModelPlaceholder``
+    stub (DIAGNOSTIC §B.2 #5). The stub had four strict fields and refused
+    the eight-plus fields the on-disk ``semantic_models/*.yaml`` files
+    carry, forcing the orchestrator to hand-flatten every entry before
+    bundle assembly. This schema is permissive enough to admit the on-disk
+    shape directly: ``yaml.safe_load(open(path))`` round-trips into the
+    bundle without an adapter.
+
+    **Why not import** ``agentxp.semantic.validators.SemanticModel`` per
+    the original Round 1 plan: the canonical type at
+    ``agentxp/semantic/validators.py:119`` declares a *different* on-disk
+    contract (``entity``, ``fields[]``, ``fingerprint_sha256``) than the
+    YAMLs the design verb consumes (``dimensions[]``, ``relationships[]``,
+    ``outcome_columns[]``, ``primary_key`` as a list, etc.). Reconciling
+    the two is an architectural decision that affects every existing
+    experiment dir — deferred as **T70-RECONCILE**, documented in
+    ``working/plans/SESSION_LOG.md`` for follow-up. For the bundle layer,
+    a permissive schema that admits the on-disk shape closes the immediate
+    R10 break without forcing that decision.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     name: str
-    entity_type: Literal["user", "session", "order", "page_event", "other"]
-    primary_key: str
+    primary_key: list[str] | str = Field(
+        description="Primary key column(s); list shape supported for compound keys.",
+    )
     source_table: str
-
-
-class _MetricPlaceholder(BaseModel):
-    """Minimal metric definition.
-
-    TODO(T70): replace with ``agentxp.metrics.schema.MetricDefinition`` once
-    that is also a Pydantic model (it is currently a dataclass — a separate
-    cleanup task may convert it). For now, this stub mirrors the fields the
-    designer and analyst-narrator need.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str
-    metric_type: Literal["proportion", "mean", "ratio"]
-    description: str
-    unit: str
+    outcome_columns: list[str] = Field(
+        ...,  # W1.8 — required, no default. An entity must declare its outcomes
+              # explicitly (empty list = "no outcomes") so the SQL safety
+              # pipeline's Layer 3d (R11) cannot silently treat a missing field
+              # as "no outcomes" when the YAML author simply forgot to add it.
+        description=(
+            "Names of outcome-bearing columns this entity carries. Layer 3d "
+            "of the SQL safety pipeline (R11) consults this declaration when "
+            "refusing design-mode queries that touch outcome surfaces. An "
+            "empty list means the entity exposes no outcomes; ``None`` and "
+            "a missing field are both rejected."
+        ),
+    )
 
 
 class WarehouseProfile(BaseModel):
@@ -233,6 +247,55 @@ class _BriefDraftPlaceholder(BaseModel):
     decision_rules: list[str]
     mde: float
     cohorts: list[str]
+
+
+class DataPlanDraft(BaseModel):
+    """Prose data plan produced by the designer (W1.6).
+
+    Sibling artifact to ``BriefDraft`` — not a sub-field, per debate-summary
+    §3 (the data plan is judged independently by the critic in
+    ``brief_consistency`` mode, so it needs its own commit-worthy artifact).
+    The warehouse-binding ``DataPlanV2`` in ``agentxp.schemas.data_plan`` is
+    generated at *analyze* entry (see Skill Author round 2 §C), not at
+    brief seal, so the two have separate lifecycles:
+
+    * ``DataPlanDraft`` lives in the design verb. The designer drafts it,
+      the critic judges it, the orchestrator commits it before brief seal.
+    * ``DataPlanV2`` is the warehouse fingerprint + assignment binding
+      produced at analyze open. The two are linked by the experiment id,
+      not by inheritance.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_summary: str = Field(
+        min_length=1,
+        description=(
+            "Plain-English summary of the warehouse the brief assumes — e.g. "
+            "'agentxp_demo.duckdb, registered_as=agentxp_demo, accrual "
+            "≈9k users/day over a 15-day window'."
+        ),
+    )
+    assignment_table: str = Field(
+        min_length=1,
+        description="Logical name of the assignment table (e.g. 'assignments').",
+    )
+    fact_sources: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Logical names of the fact tables the brief's primary metric and "
+            "guardrails read from (e.g. ['orders', 'page_events']). The "
+            "critic checks these against the brief's metric snapshot."
+        ),
+    )
+    notes: str = Field(
+        default="",
+        description=(
+            "Optional caveats: data quality notes, late-arriving rows, "
+            "timestamp conventions, etc. Free-form prose; the critic "
+            "judges for consistency, not completeness."
+        ),
+    )
 
 
 class _SealedBriefPlaceholder(BaseModel):
@@ -462,8 +525,8 @@ class DesignerBundle(BundleBase):
     model_config = ConfigDict(extra="forbid")
 
     intent: IntentText
-    semantic_models: list[_SemanticModelPlaceholder]
-    metrics: list[_MetricPlaceholder]
+    semantic_models: list[BundleSemanticModel]
+    metrics: list[MetricDefinition]
     assignment_surface: AssignmentSurface
     prior_drafts: list[ArtifactRef] = Field(default_factory=list)
     task: Literal["draft_hypothesis", "draft_brief", "draft_data_plan"]
@@ -528,7 +591,7 @@ class SqlSpecialistBundle(BundleBase):
 
     intent: SqlIntent
     warehouse_schema: WarehouseSchema
-    semantic_models: list[_SemanticModelPlaceholder]
+    semantic_models: list[BundleSemanticModel]
     verb: Literal["design", "analyze"]
     brief_ref: Optional[ArtifactRef] = Field(
         default=None,

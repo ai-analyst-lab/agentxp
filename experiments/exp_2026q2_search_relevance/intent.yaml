@@ -1,0 +1,5 @@
+schema_version: 1
+text: |
+  Test the exp_2026q2_search_relevance change against the demo warehouse. Primary metric: conversion_rate. Pre-registered: NO-SHIP-GUARDRAIL is the target verdict path.
+captured_at: 2026-06-05T15:42:08.485822+00:00
+captured_by: walk_experiment_demo

@@ -1,0 +1,704 @@
+
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title></title>
+<style>
+@page { size: 8.5in 11in; margin: 0.6in 0.7in; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #F5F4EE;
+  color: #1A1A1A;
+  font-family: 'Inter', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 64px 72px 64px;
+  background: #F5F4EE;
+}
+.doc-rule-top {
+  height: 6px;
+  background: #006BA2;
+  margin: -56px -64px 0 -64px;
+}
+.doc-rule-mid {
+  height: 1px;
+  background: #1A1A1A;
+  margin: 0 -64px 32px -64px;
+}
+
+/* Eyebrow — small caps over the headline */
+.eyebrow {
+  font-size: 11px;
+  color: #006BA2;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  margin-top: 24px;
+}
+.eyebrow + .eyebrow-meta {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-top: 4px;
+}
+
+/* Document-level headline */
+.headline {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  line-height: 1.05;
+  margin-top: 14px;
+  color: #1A1A1A;
+}
+.headline.verdict-ship    { color: #2D8659; }
+.headline.verdict-noship  { color: #C8102E; }
+.headline.verdict-caveat  { color: #B8941F; }
+.headline.verdict-nolift  { color: #5A5A55; }
+.headline.verdict-invalid { color: #C8102E; }
+.headline.verdict-inconc  { color: #5A5A55; }
+.headline.verdict-unver   { color: #5A5A55; }
+
+.lede {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 19px;
+  color: #3A3A35;
+  margin-top: 16px;
+  line-height: 1.45;
+}
+
+/* Section heading rhythm — eyebrow has no top border by default; the
+   adjacent .hero already paints a bottom border, so layering both
+   produces a visible double-rule with empty space between. */
+.section {
+  margin-top: 32px;
+}
+.section-eyebrow {
+  font-size: 10px;
+  color: #006BA2;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.section-title {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1A1A1A;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin-bottom: 10px;
+}
+.section-prose {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 15px;
+  color: #3A3A35;
+  line-height: 1.55;
+  margin-bottom: 16px;
+  max-width: 64ch;
+}
+
+/* TL;DR card at the top of analysis docs */
+.tldr {
+  background: #FBFAF5;
+  border-left: 4px solid #1A1A1A;
+  padding: 18px 22px;
+  margin-top: 28px;
+}
+.tldr-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #006BA2;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tldr-decision {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 21px;
+  font-weight: 700;
+  color: #1A1A1A;
+  line-height: 1.25;
+}
+.tldr-decision .verdict-chip {
+  display: inline-block;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  vertical-align: 5px;
+  margin-right: 10px;
+}
+.tldr-because {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 15px;
+  color: #3A3A35;
+  margin-top: 10px;
+  line-height: 1.55;
+}
+
+/* Hero number — the single dominant figure */
+.hero {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  margin-top: 36px;
+  padding: 24px 0 18px;
+  border-top: 1px solid #1A1A1A;
+  border-bottom: 1px solid #E5E3DC;
+}
+.hero-main {
+  flex: none;
+}
+.hero-main .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #8A8580;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.hero-main .val {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 72px;
+  font-weight: 700;
+  color: #006BA2;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-feature-settings: "tnum";
+}
+.hero-main .val.neg { color: #C8102E; }
+.hero-main .val.flat { color: #5A5A55; }
+.hero-main .unit {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #5A5A55;
+  margin-top: 8px;
+  max-width: 28ch;
+}
+.hero-side {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 22px;
+  padding-bottom: 6px;
+}
+.hero-side .item .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #8A8580;
+  font-weight: 700;
+}
+.hero-side .item .val {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin-top: 2px;
+  font-feature-settings: "tnum";
+}
+
+/* Inline key-value rows (Hypothesis card, etc.) */
+.kv {
+  background: #FBFAF5;
+  border-left: 4px solid #1A1A1A;
+  padding: 16px 22px;
+  margin: 14px 0;
+}
+.kv .row {
+  display: flex;
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 4px 0;
+}
+.kv .k {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #8A8580;
+  width: 130px;
+  flex: none;
+  font-weight: 700;
+  padding-top: 3px;
+}
+.kv .v { color: #1A1A1A; max-width: 56ch; }
+
+/* Metric rows */
+.metric-row {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 14px;
+}
+.metric-row:first-of-type { border-top: 1px solid #1A1A1A; }
+.metric-row .lab {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: 110px;
+  flex: none;
+  color: #006BA2;
+  font-weight: 700;
+  padding-top: 3px;
+}
+.metric-row .body { flex: 1; }
+.metric-row .name { font-weight: 700; color: #1A1A1A; font-size: 14px; }
+.metric-row .spec { font-size: 13px; color: #5A5A55; margin-top: 3px; line-height: 1.55; max-width: 60ch; }
+
+/* Decision rules table */
+.rules { border-top: 1px solid #1A1A1A; margin-top: 6px; }
+.rule {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.rule:last-child { border-bottom: 1px solid #1A1A1A; }
+.rule .when {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: 130px;
+  flex: none;
+  font-weight: 700;
+  color: #006BA2;
+  padding-top: 4px;
+}
+.rule .then { flex: 1; color: #1A1A1A; max-width: 60ch; }
+
+/* Badges */
+.badge {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 9px;
+  text-transform: uppercase;
+  display: inline-block;
+}
+.badge.pass    { background: #2D8659; color: #F5F4EE; }
+.badge.warn    { background: #C8102E; color: #F5F4EE; }
+.badge.neutral { background: #5A5A55; color: #F5F4EE; }
+.badge.draft   { background: #B8941F; color: #F5F4EE; }
+
+/* Charts */
+.chart {
+  margin-top: 16px;
+}
+.chart-caption {
+  font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: #5A5A55;
+  margin-top: 6px;
+  line-height: 1.5;
+  max-width: 60ch;
+}
+.chart-axis-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #8A8580;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Guardrail card — bar is the dominant visual element */
+.guard {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  border-top: 1px solid #E5E3DC;
+  padding: 16px 0;
+}
+.guard:first-of-type { border-top: 1px solid #1A1A1A; }
+.guard:last-of-type  { border-bottom: 1px solid #1A1A1A; }
+.guard-name {
+  flex: none;
+  width: 200px;
+}
+.guard-name .n {
+  font-weight: 700;
+  color: #1A1A1A;
+  font-size: 15px;
+}
+.guard-name .meta {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8A8580;
+  margin-top: 3px;
+}
+.guard-detail {
+  flex: 1;
+  font-size: 13px;
+  color: #1A1A1A;
+}
+.guard-detail .ci-bar {
+  height: 32px;
+  position: relative;
+  margin: 6px 0 8px;
+  background: linear-gradient(to right, #FDE6E6 0%, #FDE6E6 50%, #E7F2EA 50%, #E7F2EA 100%);
+  border: 1px solid #E5E3DC;
+}
+.guard-detail .ci-bar .zero {
+  position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: #1A1A1A;
+}
+.guard-detail .ci-bar .ci {
+  position: absolute; top: 8px; bottom: 8px; background: #1A1A1A; opacity: 0.85;
+}
+.guard-detail .ci-bar .ci.harm { background: #C8102E; }
+.guard-detail .ci-bar .ci.pass { background: #2D8659; }
+.guard-detail .stat-line {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  color: #5A5A55;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+
+/* Decision-tree trail (engineer) */
+.trail { border-top: 1px solid #1A1A1A; margin-top: 8px; }
+.trail-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid #E5E3DC;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.trail-row.fired { background: #F0F7F1; }
+.trail-row .num {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8A8580;
+  width: 32px;
+  flex: none;
+  padding-top: 2px;
+}
+.trail-row .what { flex: 1; color: #1A1A1A; }
+.trail-row .stat {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #5A5A55;
+  width: 180px;
+  flex: none;
+  padding-top: 2px;
+}
+
+/* Provenance block */
+.prov {
+  background: #FBFAF5;
+  border: 1px solid #E5E3DC;
+  padding: 16px 20px;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #1A1A1A;
+  line-height: 1.8;
+  margin-top: 10px;
+}
+.prov .pk {
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  font-weight: 700;
+  display: inline-block;
+  width: 150px;
+}
+.prov .pv { color: #1A1A1A; }
+
+/* Footer */
+.footer {
+  margin-top: 56px;
+  padding-top: 18px;
+  border-top: 1px solid #1A1A1A;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  color: #8A8580;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.footer .mk { color: #1A1A1A; font-weight: 700; }
+</style>
+</head>
+
+<body>
+<div class="doc">
+  <div class="doc-rule-top"></div>
+  <div class="doc-rule-mid"></div>
+
+  <div class="eyebrow">exp_2026q2_checkout_above_fold · Verdict report · ENGINEER</div>
+  <div class="eyebrow-meta">Growth · Checkout · 2026-06-05 · 10,000 units · 14 days</div>
+
+  
+  <h1 class="headline verdict-ship">Ship.</h1>
+  <p class="lede">Primary CI clears zero on the benefit side. Guardrails clean. Late-window stable.</p>
+
+  
+  <div class="tldr">
+    <div class="tldr-label">TL;DR</div>
+    <div class="tldr-decision">
+      <span class="verdict-chip badge pass">Ship.</span>
+      Roll the change to 100% of users.
+    </div>
+    <div class="tldr-because">Lift of +1.70pp on conversion_rate cleared the 2.0% MDE bar and all guardrails came back clean. Late-window effect held steady.</div>
+  </div>
+
+  
+  <div class="hero">
+    <div class="hero-main">
+      <div class="lab">Lift on conversion_rate</div>
+      <div class="val ">+1.70pp</div>
+      <div class="unit">treatment vs control · +17.2% relative</div>
+    </div>
+    <div class="hero-side">
+      
+      <div class="item"><div class="lab">95% CI on lift</div><div class="val">[+0.49, +2.91]pp</div></div>
+      
+      <div class="item"><div class="lab">P-value</div><div class="val">0.0061</div></div>
+      
+      <div class="item"><div class="lab">Confidence</div><div class="val">highly likely positive</div></div>
+      
+      <div class="item"><div class="lab">Decision step</div><div class="val">step 7</div></div>
+      
+    </div>
+  </div>
+
+  
+  
+
+  
+  
+  <div class="section">
+    <div class="section-eyebrow">Primary metric · conversion_rate</div>
+    <div class="section-title">Treatment 11.59% vs Control 9.89%</div>
+    <div class="section-prose">Treatment and control rates on the same axis. The dark blue segment on the treatment bar is the absolute lift; the dotted line shows the lift relative to the control end.</div>
+
+    <div class="chart">
+      <svg viewBox="0 0 640 150" width="100%" height="150" xmlns="http://www.w3.org/2000/svg">
+        <line x1="120" y1="118" x2="600" y2="118" stroke="#1A1A1A" stroke-width="1"/>
+        
+        <line x1="120.0" y1="116" x2="120.0" y2="120" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="120.0" y="136" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">0.0%</text>
+        
+        <line x1="240.0" y1="116" x2="240.0" y2="120" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="240.0" y="136" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">4.1%</text>
+        
+        <line x1="360.0" y1="116" x2="360.0" y2="120" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="360.0" y="136" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">8.1%</text>
+        
+        <line x1="480.0" y1="116" x2="480.0" y2="120" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="480.0" y="136" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">12.2%</text>
+        
+        <line x1="600.0" y1="116" x2="600.0" y2="120" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="600.0" y="136" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">16.2%</text>
+        
+
+        <rect x="120" y="18" width="292.5921068073092" height="34" fill="#B8B5AC"/>
+        <text x="112" y="39" text-anchor="end" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="11" fill="#1A1A1A" font-weight="700">CONTROL</text>
+        <text x="420.5921068073092" y="39" font-family="'Charter','Iowan Old Style','Georgia',serif" font-size="17" fill="#1A1A1A" font-weight="700">9.89%</text>
+
+        <rect x="120" y="60" width="342.8571428571429" height="34" fill="#006BA2"/>
+        
+        <rect x="412.5921068073092" y="60" width="50.26503604983367" height="34" fill="#003D5C"/>
+        
+        <text x="112" y="81" text-anchor="end" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="11" fill="#006BA2" font-weight="700">TREATMENT</text>
+        <text x="470.8571428571429" y="81" font-family="'Charter','Iowan Old Style','Georgia',serif" font-size="17" fill="#1A1A1A" font-weight="700">11.59%</text>
+
+        <line x1="412.5921068073092" y1="18" x2="412.5921068073092" y2="112" stroke="#1A1A1A" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="462.8571428571429" y1="60" x2="462.8571428571429" y2="112" stroke="#006BA2" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="412.5921068073092" y1="108" x2="462.8571428571429" y2="108" stroke="#006BA2" stroke-width="1.5"/>
+        <text x="438" y="104" text-anchor="middle" font-family="'Charter','Iowan Old Style','Georgia',serif" font-style="italic" font-size="12" fill="#006BA2" font-weight="700">+1.70pp absolute</text>
+      </svg>
+      <div class="chart-caption">Per-arm conversion. The lift is +1.70pp absolute (+17.2% relative).</div>
+    </div>
+  </div>
+  
+
+  
+  
+  <div class="section">
+    <div class="section-eyebrow">Confidence interval on lift</div>
+    <div class="section-title">95% CI on lift: (+0.49, +2.91)pp — clears zero on the benefit side.</div>
+    <div class="section-prose">The whole confidence interval lies above zero. We can rule out the null at α = 0.05; the magnitude is what the verdict tree then weighs against the MDE.</div>
+
+    <div class="chart">
+      <svg viewBox="0 0 640 90" width="100%" height="90" xmlns="http://www.w3.org/2000/svg">
+        <line x1="80" y1="60" x2="600" y2="60" stroke="#1A1A1A" stroke-width="1"/>
+        
+        <line x1="80.0" y1="58" x2="80.0" y2="62" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="80.0" y="78" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">-0.58</text>
+        
+        <line x1="166.66666666666666" y1="58" x2="166.66666666666666" y2="62" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="166.66666666666666" y="78" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">+0.10</text>
+        
+        <line x1="253.33333333333331" y1="58" x2="253.33333333333331" y2="62" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="253.33333333333331" y="78" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">+0.78</text>
+        
+        <line x1="340.0" y1="58" x2="340.0" y2="62" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="340.0" y="78" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">+1.46</text>
+        
+        <line x1="426.66666666666663" y1="58" x2="426.66666666666663" y2="62" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="426.66666666666663" y="78" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">+2.14</text>
+        
+        <line x1="513.3333333333333" y1="58" x2="513.3333333333333" y2="62" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="513.3333333333333" y="78" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">+2.82</text>
+        
+        <line x1="600.0" y1="58" x2="600.0" y2="62" stroke="#1A1A1A" stroke-width="1"/>
+        <text x="600.0" y="78" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="10" fill="#5A5A55">+3.50</text>
+        
+        <line x1="154.28571428571428" y1="14" x2="154.28571428571428" y2="60" stroke="#1A1A1A" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="154.28571428571428" y="10" text-anchor="middle" font-family="'JetBrains Mono','SF Mono',Menlo,monospace" font-size="9" fill="#5A5A55" letter-spacing="0.1em">ZERO</text>
+
+        
+        <line x1="216.16418027433375" y1="36" x2="525.7142857142858" y2="36" stroke="#2D8659" stroke-width="3"/>
+        <line x1="216.16418027433375" y1="28" x2="216.16418027433375" y2="44" stroke="#2D8659" stroke-width="2"/>
+        <line x1="525.7142857142858" y1="28" x2="525.7142857142858" y2="44" stroke="#2D8659" stroke-width="2"/>
+        <circle cx="370.9392329943098" cy="36" r="5" fill="#2D8659" stroke="#F5F4EE" stroke-width="2"/>
+        <text x="370.9392329943098" y="22" text-anchor="middle" font-family="'Charter','Iowan Old Style','Georgia',serif" font-size="12" fill="#2D8659" font-weight="700">+1.70pp</text>
+      </svg>
+      <div class="chart-caption">The CI bar shows the range of plausible true lifts. The crossbars are the 95% bounds; the dot is the point estimate.</div>
+    </div>
+  </div>
+  
+
+  
+  <div class="section">
+    <div class="section-eyebrow">Guardrails</div>
+    <div class="section-title">Guardrail clear.</div>
+    <div class="section-prose">The pre-registered guardrails are revenue and (where wired) latency. None crossed their harm thresholds.</div>
+
+    
+    <div class="guard">
+      <div class="guard-name">
+        <div class="n">revenue_per_user</div>
+        <div class="meta">threshold ≥ -5.0% · higher_is_better</div>
+      </div>
+      <div class="guard-detail">
+        <div class="ci-bar">
+          <div class="zero"></div>
+          <div class="ci pass" style="left: 92.18520482584518%; right: 0%;"></div>
+        </div>
+        <div class="stat-line">90% CI [+12.66, +22.66]% · realized +17.66% · <span class="badge pass" style="padding:2px 6px;font-size:9px;">CLEAR</span></div>
+      </div>
+    </div>
+    
+  </div>
+
+  
+  
+
+  
+  
+  <div class="section">
+    <div class="section-eyebrow">Decision tree · how the verdict was reached</div>
+    <div class="section-title">Walked 8 steps; step 7 fired the verdict.</div>
+    <div class="section-prose">Each row is a checkpoint in the verdict tree. Walking stops at the row marked FIRED; that step's logic is what produced the verdict above.</div>
+    <div class="trail">
+      
+      <div class="trail-row">
+        <div class="num">0</div>
+        <div class="what">Required inputs present (UNVERIFIABLE guard)</div>
+        <div class="stat">all non-null</div>
+      </div>
+      
+      <div class="trail-row">
+        <div class="num">1</div>
+        <div class="what">SRM passes (or override resolved)</div>
+        <div class="stat">srm_pass = True</div>
+      </div>
+      
+      <div class="trail-row">
+        <div class="num">2</div>
+        <div class="what">Guardrails clear (no 90% CI on harm side)</div>
+        <div class="stat">guard_lift = +17.66%</div>
+      </div>
+      
+      <div class="trail-row">
+        <div class="num">3</div>
+        <div class="what">Powered (n_observed ≥ n_required)</div>
+        <div class="stat">n = 10,000 / 8,000</div>
+      </div>
+      
+      <div class="trail-row">
+        <div class="num">4</div>
+        <div class="what">Primary CI excludes 0</div>
+        <div class="stat">CI [+0.49, +2.91] pp</div>
+      </div>
+      
+      <div class="trail-row">
+        <div class="num">5</div>
+        <div class="what">Primary CI not on harm side</div>
+        <div class="stat">direction = higher_is_better</div>
+      </div>
+      
+      <div class="trail-row">
+        <div class="num">6</div>
+        <div class="what">Lift magnitude ≥ MDE/2</div>
+        <div class="stat">|lift| = 1.699pp vs MDE/2 = 0.100pp</div>
+      </div>
+      
+      <div class="trail-row fired">
+        <div class="num">7</div>
+        <div class="what">Novelty stable (late_ratio ≥ 0.7) · <strong>FIRED</strong></div>
+        <div class="stat">late_ratio = —</div>
+      </div>
+      
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Provenance · auditable chain</div>
+    <div class="section-title">Reproducible from sealed brief + warehouse fixture.</div>
+    <div class="section-prose">Every quantitative claim above resolves to a row in the
+    warehouse, a function in <code>agentxp.stats.*</code>, or a step in
+    <code>agentxp.interpret.tree</code>. The chain hash below covers the brief,
+    every stat result, and the verdict tree's terminal step.</div>
+    <div class="prov">
+      <div><span class="pk">experiment_id</span><span class="pv">exp_2026q2_checkout_above_fold</span></div>
+      <div><span class="pk">chain_hash</span><span class="pv">b563b8074d71d49329d749325b4f50c984fe4383f4232842bc4375ac79f24ab4</span></div>
+      <div><span class="pk">render_status</span><span class="pv">VERIFIED</span></div>
+      <div><span class="pk">agentxp_version</span><span class="pv">0.3.0-v3</span></div>
+      <div><span class="pk">generated_at</span><span class="pv">2026-06-05T15:41:53Z</span></div>
+      <div><span class="pk">primary_metric</span><span class="pv">conversion_rate · proportion_test</span></div>
+      <div><span class="pk">srm_test</span><span class="pv">srm_chi_squared · threshold 0.0005</span></div>
+      <div><span class="pk">tree_module</span><span class="pv">agentxp.interpret.tree.walk_tree</span></div>
+      <div><span class="pk">reproduce</span><span class="pv">python scratch/walk_experiment.py exp_2026q2_checkout_above_fold</span></div>
+    </div>
+  </div>
+  
+
+  <div class="footer">
+    <span class="mk">report.md · report.json</span>
+    <span>Ship. · step 7 · VERIFIED</span>
+  </div>
+</div>
+</body>
+</html>

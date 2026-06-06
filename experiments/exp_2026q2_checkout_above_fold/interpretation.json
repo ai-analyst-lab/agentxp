@@ -1,0 +1,32 @@
+{
+  "verdict": "SHIP",
+  "terminal_step": 7,
+  "step_fired": [
+    "1: SRM gate (pass)",
+    "2: guardrails clear",
+    "3: sample adequacy check (n=10000, required=8000)",
+    "4: not NO-LIFT (CI half-width 0.01214 vs 2.0*mde 0.004)",
+    "5: no directional-only signal",
+    "7: late_ratio unavailable (treated as >= 0.7) \u2014 SHIP"
+  ],
+  "diagnostics": {
+    "mde_absolute": 0.002,
+    "mde_pct": 2.0,
+    "baseline": 0.1,
+    "srm_pass": true,
+    "srm_override_resolved": false,
+    "guardrails_violated": [],
+    "n_observed": 10000,
+    "n_required": 8000,
+    "primary_ci_lower_95": 0.004853281257184349,
+    "primary_ci_upper_95": 0.029132062265871027,
+    "primary_ci_half_width_95": 0.012139390504343338,
+    "primary_ci_lower_90": 0.006807723128383628,
+    "primary_ci_upper_90": 0.02717762039467175,
+    "primary_lift_magnitude": 0.01699267176152769,
+    "primary_direction": "higher_is_better",
+    "benefit_side_95": true,
+    "late_ratio": null,
+    "late_ratio_unavailable": true
+  }
+}

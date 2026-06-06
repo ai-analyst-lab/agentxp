@@ -1,0 +1,26 @@
+schema_version: 1
+hypothesis: The exp_2026q2_invalid_split change moves conversion_rate by a magnitude
+  consistent with the INVALID-SRM verdict path.
+primary_metric: conversion_rate
+primary_metric_type: proportion
+primary_decision_rule: Ship if 95% CI excludes 0 on benefit side AND no guardrail
+  breach
+mde_text: 2.0% relative
+mde_pct: 2.0
+baseline: 0.1
+n_required: 8000
+guardrails:
+- metric_name: revenue_per_user
+  direction: higher_is_better
+  nim_relative: -0.05
+cohorts_summary:
+- all assigned users
+cohorts:
+- all assigned users
+assignment_unit: user_id
+arms:
+- control
+- treatment
+expected_arm_ratio_text: 50 / 50
+primary_direction: higher_is_better
+late_ratio: null

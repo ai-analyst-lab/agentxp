@@ -1,0 +1,43 @@
+schema_version: 1
+brief_content:
+  schema_version: 1
+  hypothesis: The exp_2026q2_checkout_above_fold change moves conversion_rate by a
+    magnitude consistent with the SHIP verdict path.
+  primary_metric: conversion_rate
+  primary_metric_type: proportion
+  primary_decision_rule: Ship if 95% CI excludes 0 on benefit side AND no guardrail
+    breach
+  mde_text: 2.0% relative
+  mde_pct: 2.0
+  baseline: 0.1
+  n_required: 8000
+  guardrails:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    nim_relative: -0.05
+  cohorts_summary:
+  - all assigned users
+  cohorts:
+  - all assigned users
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_ratio_text: 50 / 50
+  primary_direction: higher_is_better
+  late_ratio: null
+design_chain_hash: b563b8074d71d49329d749325b4f50c984fe4383f4232842bc4375ac79f24ab4
+metric_snapshot:
+  conversion_rate: f775e246e2992c91fa7a04f5d22bb93d2cb9ed5078144479b7792e6cdf9a5fe1
+expected_shape:
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_count_ratio:
+    control: 0.5
+    treatment: 0.5
+  cohort_definitions: []
+sealed_at: '2026-06-05T17:09:28.896753Z'
+sealed_by: walk_experiment_demo
+agentxp_version: 0.1.0

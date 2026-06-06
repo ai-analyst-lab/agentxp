@@ -1,0 +1,32 @@
+{
+  "verdict": "LIFT-WITH-CAVEAT",
+  "terminal_step": 7,
+  "step_fired": [
+    "1: SRM gate (pass)",
+    "2: guardrails clear",
+    "3: sample adequacy check (n=15000, required=12000)",
+    "4: not NO-LIFT (CI half-width 0.01003 vs 2.0*mde 0.02)",
+    "5: no directional-only signal",
+    "7: late_ratio 0.55 < 0.7 \u2014 LIFT-WITH-CAVEAT (novelty)"
+  ],
+  "diagnostics": {
+    "mde_absolute": 0.010000000000000002,
+    "mde_pct": 10.0,
+    "baseline": 0.1,
+    "srm_pass": true,
+    "srm_override_resolved": false,
+    "guardrails_violated": [],
+    "n_observed": 15000,
+    "n_required": 12000,
+    "primary_ci_lower_95": 0.008234778456703439,
+    "primary_ci_upper_95": 0.028301060821571813,
+    "primary_ci_half_width_95": 0.010033141182434188,
+    "primary_ci_lower_90": 0.009850114187075341,
+    "primary_ci_upper_90": 0.02668572509119991,
+    "primary_lift_magnitude": 0.018267919639137625,
+    "primary_direction": "higher_is_better",
+    "benefit_side_95": true,
+    "late_ratio": 0.55,
+    "lift_with_caveat_reason": "novelty"
+  }
+}

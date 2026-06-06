@@ -1,0 +1,14 @@
+{
+  "verdict": "INVALID-SRM",
+  "terminal_step": 1,
+  "step_fired": [
+    "1: SRM gate (fail, no override) \u2014 INVALID-SRM"
+  ],
+  "diagnostics": {
+    "mde_absolute": 0.002,
+    "mde_pct": 2.0,
+    "baseline": 0.1,
+    "srm_pass": false,
+    "srm_override_resolved": false
+  }
+}
