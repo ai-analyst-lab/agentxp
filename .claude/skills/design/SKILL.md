@@ -35,7 +35,7 @@ from agentxp.workflows.design import allocate_experiment
 exp_dir = allocate_experiment(
     project_root=Path.cwd(),
     data_path=Path(args.data) if args.data else None,
-    exp_id=args.exp_id,  # None → ULID-flavored auto-id
+    experiment_id=args.exp_id,  # None → ULID-flavored auto-id
 )
 ```
 
@@ -58,22 +58,25 @@ intent_path = record_intent(
 This writes `intent.yaml` and appends to `log.md`. Then render the intent share-tail:
 
 ```python
+from agentxp.render import fan_out
 from agentxp.render.distill import distill_intent
-from agentxp.orchestrator.tools import render_share_tail
 
 vm = distill_intent(
     experiment_id=exp_dir.name,
     intent_text=user_supplied_text,
-    captured_at=<from intent.yaml>,
+    captured_at=<from intent.yaml>,  # datetime or ISO string both accepted (W6.1)
     captured_by=user_email_or_handle,
 )
-render_share_tail(
+# W6.4 — fan_out produces the canonical 6-file layout (PERSONAS × FORMATS)
+# in one call. Render status is COMPUTED by build_provenance_for_brief
+# (W4.2) — no more `provenance_render_status` parameter; for intent the
+# computed value is structurally DRAFT_UNVERIFIED.
+fan_out(
     exp_dir=exp_dir,
     experiment_id=exp_dir.name,
     readout_type="intent",
     vm=vm,
     vm_sha256=<sha of vm.model_dump_json()>,
-    provenance_render_status="DRAFT_UNVERIFIED",
 )
 ```
 
@@ -209,13 +212,15 @@ vm = distill_design_brief(
         "sealed_at": sealed.sealed_at.isoformat(),
     },
 )
-render_share_tail(
+# W6.4 — fan_out produces the canonical 12-file layout (3 personas × 2
+# formats × {intent + design_brief}). Render status is computed by
+# build_provenance_for_brief — for a verified seal it returns VERIFIED.
+fan_out(
     exp_dir=exp_dir,
     experiment_id=exp_dir.name,
     readout_type="design_brief",
     vm=vm,
     vm_sha256=<sha>,
-    provenance_render_status="VERIFIED",
 )
 ```
 
@@ -235,8 +240,10 @@ The design verb is done.
 | `allocate_experiment` / `record_intent` | `agentxp.workflows.design` |
 | `dispatch_specialist` / `dispatch_critic` / `require_critic_pass` | `agentxp.orchestrator.loop` |
 | `probe_data(mode="design")` | `agentxp.orchestrator.tools` |
-| `seal_brief` / `verify_brief_seal` | `agentxp.schemas.brief_seal` |
-| `commit_artifact` / `render_share_tail` | `agentxp.orchestrator.tools` |
+| `seal_brief` / `verify_or_raise` | `agentxp.schemas.brief_seal` |
+| `commit_artifact` / `commit_artifacts` (batched) / `render_share_tail` | `agentxp.orchestrator.tools` |
+| `fan_out` (persona × format share-tails) | `agentxp.render.fan_out` |
+| `dispatch_critic` / `open_dispatch` / `complete_dispatch` | `agentxp.orchestrator.bridge` |
 | `distill_intent` / `distill_design_brief` | `agentxp.render.distill` |
 
 See `agentxp/INDEX.md` for full signatures.

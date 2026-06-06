@@ -199,13 +199,18 @@ provenance = build_provenance(<Report>, exp_dir)
 # Bundle them — every adapter renders against ViewBundle, not raw Report
 bundle = ViewBundle(vm=vm, provenance=provenance)
 
+# W4.2 — render_share_tail no longer accepts provenance_render_status;
+# the status is computed by build_provenance_for_brief at write time.
+# For analyze-verb verdicts the corresponding helper is build_provenance
+# above (computed from the Report); render_share_tail consults it
+# internally for design_brief / intent / monitor_check and is wired
+# through for verdict / audit by the catalog event itself.
 render_share_tail(
     exp_dir=exp_dir,
     experiment_id=exp_dir.name,
     readout_type="verdict",
     vm=vm,
     vm_sha256=<sha>,
-    provenance_render_status=bundle.render_status.name,
 )
 ```
 
