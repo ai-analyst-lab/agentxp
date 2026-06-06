@@ -47,7 +47,7 @@ def test_sealed_brief_uses_aware_utc_datetime() -> None:
     # AwareUtcDatetime is `Annotated[datetime, AfterValidator(_enforce_utc)]`;
     # pydantic unwraps the Annotated, so the field annotation is `datetime`
     # but the validator chain includes _enforce_utc — test by behavior.
-    from agentxp.schemas.brief_seal import ExpectedShape
+    from agentxp.schemas.brief_seal import CohortDefinition, ExpectedShape
 
     with pytest.raises(ValidationError) as exc_info:
         SealedBrief(
@@ -59,7 +59,9 @@ def test_sealed_brief_uses_aware_utc_datetime() -> None:
                 assignment_unit="user_id",
                 arms=["control", "treatment"],
                 expected_arm_count_ratio={"control": 0.5, "treatment": 0.5},
-                cohort_definitions=["all"],
+                cohort_definitions=[
+                    CohortDefinition(name="all", definition="all assigned users"),
+                ],
             ),
             sealed_at=datetime(2026, 1, 1, 12, 0, 0),  # naive
             sealed_by="ci@test",

@@ -9,8 +9,9 @@ the correct statistical test function in agentxp.stats.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from agentxp.stats.ab_tests import proportion_test, ratio_metric_test, welch_test
 
@@ -21,9 +22,13 @@ VALID_TYPES: tuple[str, ...] = ("proportion", "mean", "ratio")
 REQUIRED_FIELDS: tuple[str, ...] = ("name", "type", "numerator", "description")
 
 
-@dataclass
-class MetricDefinition:
+class MetricDefinition(BaseModel):
     """Reusable metric definition loaded from a YAML file.
+
+    W1.4 — converted from dataclass to pydantic ``BaseModel(extra="forbid")``
+    so the canonical type is usable as a bundle field (DesignerBundle.metrics,
+    AnalystNarratorBundle.metrics) without round-tripping through the
+    legacy ``_MetricPlaceholder`` stub that DIAGNOSTIC §B.2 #5 flagged.
 
     Fields:
         name: Unique metric identifier (e.g. "checkout_completion_rate").
@@ -39,6 +44,8 @@ class MetricDefinition:
         tags: Free-form tags for organization.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     type: MetricType
     numerator: str
@@ -49,7 +56,7 @@ class MetricDefinition:
     winsorize: bool = False
     winsorize_bounds: tuple[float, float] = (0.01, 0.99)
     invert: bool = False
-    tags: list[str] = field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
 
 class MetricValidationError(ValueError):

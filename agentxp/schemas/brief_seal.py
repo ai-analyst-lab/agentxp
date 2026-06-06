@@ -85,9 +85,36 @@ class ExpectedShape(BaseModel):
     expected_arm_count_ratio: dict[str, float] = Field(
         description="Per-arm expected share. Must sum to ~1.0; tolerance enforced at compare time, not here."
     )
-    cohort_definitions: list[str] = Field(
+    cohort_definitions: list["CohortDefinition"] = Field(
         default_factory=list,
-        description="Cohort identifiers the brief scopes (e.g., 'new_users', 'us_only').",
+        description=(
+            "Cohort definitions the brief scopes. Pre-W1.3 this was list[str]; "
+            "promoted to structured pairs so the analyzer can match cohort "
+            "definitions against warehouse rows at open time rather than "
+            "round-tripping through stringified labels (DIAGNOSTIC §B.2 #6)."
+        ),
+    )
+
+
+class CohortDefinition(BaseModel):
+    """A structured cohort entry on the sealed brief.
+
+    Each cohort has a ``name`` (the short label used in readouts) and a
+    ``definition`` (the SQL-shaped predicate the analyzer matches against the
+    warehouse). Both required; ``extra="forbid"`` blocks the orchestrator
+    from sneaking extra fields through R10.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, description="Short cohort label, e.g. 'all_assigned'.")
+    definition: str = Field(
+        min_length=1,
+        description=(
+            "Predicate expressible against the assignment + page_event "
+            "semantic models. The analyzer parses this against the warehouse "
+            "at open time."
+        ),
     )
 
 
@@ -317,6 +344,7 @@ def verify_or_raise(
 
 
 __all__ = [
+    "CohortDefinition",
     "ExpectedShape",
     "SealedBrief",
     "VerifyResult",

@@ -87,6 +87,65 @@ class IntentText(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# BundleBase — envelope for every specialist bundle (W1.5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _PriorErrorEntry(BaseModel):
+    """One prior validation failure surfaced to the specialist on retry.
+
+    The orchestrator's ``complete_dispatch`` (W5.2) catches a
+    ``ValidationError`` on the specialist's first output, packs the per-field
+    error list into ``prior_error``, and re-dispatches the bundle so the
+    specialist can repair the output in one retry (CLAUDE.md §10 failure
+    category 2 — malformed specialist output). On second failure the
+    orchestrator raises ``MalformedSpecialistOutput`` rather than looping.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    loc: str = Field(description='Dotted field path, e.g. "primary_metric_candidate".')
+    msg: str = Field(description="Validator message, verbatim from pydantic.")
+    type: str = Field(description='Validator class, e.g. "string_too_short".')
+
+
+class BundleBase(BaseModel):
+    """Envelope shared by every specialist bundle.
+
+    Adds ``prior_error`` as a metadata channel for retry-once-on-malformed
+    (CLAUDE.md §10). The field is *envelope* metadata, not domain content —
+    the recursive ``BLINDNESS_MANIFEST`` walker (W1.9) excludes the
+    ``_ENVELOPE_FIELDS`` frozenset from its forbidden-field traversal so
+    surfacing prior errors does not register as a blindness violation.
+
+    Per-role bundles inherit from this and add their own fields. The
+    bundle assembler (R10) keeps each subclass at ``extra="forbid"`` so the
+    role's surface stays exactly what the schema declares.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    prior_error: Optional[list[_PriorErrorEntry]] = Field(
+        default=None,
+        description=(
+            "Per-field validation errors from the specialist's prior output. "
+            "Populated by complete_dispatch on retry; None on first dispatch. "
+            "Envelope-only — does not count toward R5/R6/R10 blindness."
+        ),
+    )
+
+
+_ENVELOPE_FIELDS: frozenset[str] = frozenset({"prior_error"})
+"""Field names that BundleBase contributes; excluded from BLINDNESS_MANIFEST.
+
+Tests at ``tests/orchestrator/test_bundle_assembler.py`` and
+``tests/schemas/test_blindness_closure.py`` consult this set when walking
+bundle schemas for forbidden-field detection — envelope metadata is not
+domain content and must not register as a blindness violation.
+"""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Placeholder types — superseded by later tasks (see module docstring).
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -367,7 +426,7 @@ class _FailedSqlAttemptPlaceholder(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class UnderstanderBundle(BaseModel):
+class UnderstanderBundle(BundleBase):
     """Bundle for the Understander specialist.
 
     The understander drafts semantic models and metrics from a dataset's
@@ -391,7 +450,7 @@ class UnderstanderBundle(BaseModel):
     #   "intent", "hypothesis", "brief", "experiment_intent", "experiment_id"
 
 
-class DesignerBundle(BaseModel):
+class DesignerBundle(BundleBase):
     """Bundle for the Designer specialist.
 
     The designer drafts hypotheses, briefs, and data plans during the
@@ -415,7 +474,7 @@ class DesignerBundle(BaseModel):
     #   "interpretation", "verdict", "lift", "ci_low", "ci_high", "p_value"
 
 
-class CriticBundle(BaseModel):
+class CriticBundle(BundleBase):
     """Bundle for the Critic specialist.
 
     The critic judges an artifact blind. It sees the artifact and what the
@@ -450,7 +509,7 @@ class CriticBundle(BaseModel):
     #   "conversation_history", "prior_judgments", "user_intent_prose"
 
 
-class SqlSpecialistBundle(BaseModel):
+class SqlSpecialistBundle(BundleBase):
     """Bundle for the SQL Specialist.
 
     The SQL specialist writes and corrects queries. Bounded context (not
@@ -478,7 +537,7 @@ class SqlSpecialistBundle(BaseModel):
     prior_attempt: Optional[_FailedSqlAttemptPlaceholder] = None
 
 
-class AnalystNarratorBundle(BaseModel):
+class AnalystNarratorBundle(BundleBase):
     """Bundle for the Analyst-Narrator.
 
     The narrator writes prose about statistical results that the orchestrator
