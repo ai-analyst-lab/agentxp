@@ -106,11 +106,38 @@ class DispatchDescriptor(BaseModel):
     )
 
 
-# Process-local registry — descriptors live until complete_dispatch consumes
-# them. Re-issuing the same role multiple times in one session gets distinct
-# ids; the harness Agent tool is asynchronous from Python's perspective.
+# Cross-process descriptor registry.
+#
+# Smoke-test finding: a process-local dict broke complete_dispatch when
+# open_dispatch and complete_dispatch ran in different Python invocations
+# (which is the production case — the orchestrator's Bash tool starts a
+# fresh process per call, and the harness Agent runs between the two).
+# Descriptors are persisted to /tmp/agentxp_dispatches/<dispatch_id>.json
+# so the second call can re-hydrate them. complete_dispatch deletes the
+# file on success; on KeyError the orchestrator either retries or
+# surfaces.
 
-_DESCRIPTORS: dict[str, DispatchDescriptor] = {}
+_DISPATCH_REGISTRY_DIR = Path("/tmp") / "agentxp_dispatches"
+
+
+def _persist_descriptor(descriptor: DispatchDescriptor) -> None:
+    _DISPATCH_REGISTRY_DIR.mkdir(parents=True, exist_ok=True)
+    target = _DISPATCH_REGISTRY_DIR / f"{descriptor.dispatch_id}.json"
+    target.write_text(descriptor.model_dump_json(indent=2))
+
+
+def _load_descriptor(dispatch_id: str) -> Optional[DispatchDescriptor]:
+    target = _DISPATCH_REGISTRY_DIR / f"{dispatch_id}.json"
+    if not target.exists():
+        return None
+    payload = json.loads(target.read_text())
+    return DispatchDescriptor.model_validate(payload)
+
+
+def _consume_descriptor(dispatch_id: str) -> None:
+    target = _DISPATCH_REGISTRY_DIR / f"{dispatch_id}.json"
+    if target.exists():
+        target.unlink()
 
 
 def _bundle_to_disk(bundle: AssembledBundle, project_root: Path) -> tuple[Path, str]:
@@ -180,7 +207,7 @@ def open_dispatch(
         subagent_type=subagent_type,
         output_schema_ref=schema_ref,
     )
-    _DESCRIPTORS[descriptor.dispatch_id] = descriptor
+    _persist_descriptor(descriptor)
     return descriptor
 
 
@@ -201,7 +228,7 @@ def complete_dispatch(
     Roles with no canonical output schema (``output_schema_ref is None``)
     skip validation and return the raw_response dict as-is.
     """
-    descriptor = _DESCRIPTORS.pop(dispatch_id, None)
+    descriptor = _load_descriptor(dispatch_id)
     if descriptor is None:
         raise KeyError(
             f"no descriptor registered for dispatch_id {dispatch_id!r}; "
@@ -209,6 +236,7 @@ def complete_dispatch(
         )
 
     if descriptor.output_schema_ref is None:
+        _consume_descriptor(dispatch_id)
         return raw_response
 
     # Resolve the schema class from its dotted-path reference.
@@ -225,6 +253,7 @@ def complete_dispatch(
 
     try:
         validated = schema_cls.model_validate(raw_response)
+        _consume_descriptor(dispatch_id)
         return validated.model_dump()
     except ValidationError as first_err:
         first_errors = [
