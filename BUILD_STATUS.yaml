@@ -1,7 +1,7 @@
 project: agentxp-design-verb-hardening
 master_plan: working/plans/MASTER_PLAN.md
 protocol: ~/projects/ai-analytics-for-builders/shared/PLANNING_METHODOLOGY.md
-current_wave: 2
+current_wave: 9
 total_waves: 10
 created: '2026-06-05'
 
@@ -135,125 +135,125 @@ tasks:
   - id: W2.1
     wave: 2
     description: Establish SQL safety test corpus — DESIGN_MUST_REFUSE / DESIGN_SHOULD_ACCEPT / ANALYZE_MUST_ACCEPT named-pattern fixtures
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W2-A
-    session: null
+    session: 1
     notes: ""
 
   - id: W2.2
     wave: 2
     description: Layer 3d node-class-agnostic walk; predicate guard for WHERE outcome_col = literal patterns; refuses WHERE arm = 'control' even when arm is never projected
-    status: not_started
+    status: completed
     depends_on: [W1.8, W2.1]
     output_files: []
     agent_type: builder
     parallel_group: W2-B
-    session: null
+    session: 1
     notes: "Tightens R11 wall before W3.1 broadens AST — no window where wall weakens."
 
   - id: W2.3
     wave: 2
     description: Canonicalize safety.Purpose Literal; bundles.SqlIntent re-exports; three-way closure test (Literal ↔ _ROW_LIMIT_BY_PURPOSE ↔ SqlIntent)
-    status: not_started
+    status: completed
     depends_on: [W0.1, W1.5]
     output_files: []
     agent_type: builder
     parallel_group: W2-A
-    session: null
+    session: 1
     notes: ""
 
   # ── Wave 3 — SQL Safety: AST allowlist broadening (gated on Wave 2) ───────
   - id: W3.1
     wave: 3
     description: Add 11 sqlglot node classes to ALLOWED_AST_NODES (Sub, Add, Mul, Div, Mod, In, Between, Like, ILike, Is, Var); per-node R11 risk/mitigation review
-    status: not_started
+    status: completed
     depends_on: [W2.1, W2.2, W2.3]
     output_files: []
     agent_type: builder
     parallel_group: W3-A
-    session: null
+    session: 1
     notes: "Each addition only safe because W2.2 predicate guard catches outcome-column patterns the AST surface now admits."
 
   # ── Wave 4 — Stats / Schema: provenance compute + R9 bypass closure ───────
   - id: W4.1
     wave: 4
     description: Add build_provenance_for_brief (INTENT / DESIGN_BRIEF / MONITOR_CHECK) — consults seal chain, catalog hash chain, brief-drift detector
-    status: not_started
+    status: completed
     depends_on: [W1.1, W1.3, W1.5, W1.7]
     output_files: []
     agent_type: builder
     parallel_group: W4-A
-    session: null
+    session: 1
     notes: ""
 
   - id: W4.2
     wave: 4
     description: Remove provenance_render_status parameter from render_share_tail; route through build_provenance_for_brief internally
-    status: not_started
+    status: completed
     depends_on: [W4.1]
     output_files: []
     agent_type: builder
     parallel_group: W4-B
-    session: null
+    session: 1
     notes: "Closes R9 bypass. Coordinated with Renders — fan-out (W6.4) does not ship until this lands."
 
   # ── Wave 5 — Orchestrator: Agent bridge + dispatch helpers ────────────────
   - id: W5.1
     wave: 5
     description: Add agentxp/orchestrator/errors.py with OrchestratorError, BundleAssemblyError, MalformedSpecialistOutput, DispatchTimeout; relocate ToolRefusal
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W5-A
-    session: null
+    session: 1
     notes: "Each error tied to one CLAUDE.md §10 failure category."
 
   - id: W5.2
     wave: 5
     description: DispatchDescriptor pydantic model + complete_dispatch(dispatch_id, raw_response) with retry-once-on-ValidationError using BundleBase.prior_error
-    status: not_started
+    status: completed
     depends_on: [W1.5, W1.7, W5.1]
     output_files: []
     agent_type: builder
     parallel_group: W5-B
-    session: null
+    session: 1
     notes: "The ClaudeCodeAgentCaller bridge. Collapses /tmp bundle dance into one function."
 
   - id: W5.3
     wave: 5
     description: dispatch_critic(artifact_path, claimed_scope, judging_mode, project_root, exp_dir) helper — loads artifact, computes sha, opens citations, calls dispatch_specialist, enforces require_critic_pass
-    status: not_started
+    status: completed
     depends_on: [W5.2]
     output_files: []
     agent_type: builder
     parallel_group: W5-C
-    session: null
+    session: 1
     notes: "Enforces R6 (critic at every commit) as a function call rather than a convention."
 
   - id: W5.4
     wave: 5
     description: Batched commit_artifact overload — artifacts=[(name, content), ...] produces single commit + single log.md entry
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W5-A
-    session: null
+    session: 1
     notes: "Needed by Renders W6.4 fan_out so six rendered files commit atomically, not as six commits."
 
   - id: W5.5
     wave: 5
     description: Bridge-aware BLINDNESS_MANIFEST test — assert ClaudeCodeAgentCaller never serializes forbidden fields into the dispatched bundle JSON
-    status: not_started
+    status: completed
     depends_on: [W5.2, W1.9]
     output_files: []
     agent_type: builder
     parallel_group: W5-D
-    session: null
+    session: 1
     notes: ""
 
   # ── Wave 6 — Renders: fan-out + voice audit + ULID + distill coercion ─────
@@ -271,57 +271,57 @@ tasks:
   - id: W6.2
     wave: 6
     description: Add BannedVocabularyError; wire audit_voice_file inside render_share_tail after write, before catalog append; voice_violations_count on RenderCompletedEvent
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W6-A
-    session: null
+    session: 1
     notes: "Voice audit currently fires nowhere on render path — load-bearing in name only until this lands."
 
   - id: W6.3
     wave: 6
     description: ULID entry_id replacement — render_share_tail and fan_out generate ULIDs; remove second-resolution timestamp default that collides on tight succession
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W6-A
-    session: null
+    session: 1
     notes: ""
 
   - id: W6.4
     wave: 6
     description: Implement agentxp.render.fan_out(exp_dir, experiment_id, readout_type, vm, provenance) — six files (3 personas × 2 fmts) with derived entry_ids; uses W5.4 batched commit
-    status: not_started
+    status: completed
     depends_on: [W4.2, W6.1, W6.2, W6.3, W5.4]
     output_files: []
     agent_type: builder
     parallel_group: W6-B
-    session: null
+    session: 1
     notes: "The persona × format helper. Closes DIAGNOSTIC §A render gap."
 
   # ── Wave 7 — Skill Author: drift fixes + fan-out citation + DataPlanDraft ─
   - id: W7.1
     wave: 7
     description: Drift-fix corpus in .claude/skills/design/SKILL.md — remove verify_brief_seal cross-ref (lives in analyze); update probe_data(purpose=) per W2.3
-    status: not_started
+    status: completed
     depends_on: [W2.3]
     output_files: []
     agent_type: builder
     parallel_group: W7-A
-    session: null
+    session: 1
     notes: ""
 
   - id: W7.2
     wave: 7
     description: Rewrite design SKILL.md step 11 + step 2 against fan_out signature; remove provenance_render_status pass-through (no longer a parameter)
-    status: not_started
+    status: completed
     depends_on: [W6.4, W4.2]
     output_files: []
     agent_type: builder
     parallel_group: W7-B
-    session: null
+    session: 1
     notes: ""
 
   - id: W7.3
@@ -350,12 +350,12 @@ tasks:
   - id: W8.1
     wave: 8
     description: tests/docs/test_skill_signatures.py — walk every SKILL.md python block, ast.parse, resolve imports, assert kwargs match inspect.signature; file:line:kwargs failure surfacing
-    status: not_started
+    status: completed
     depends_on: [W7.4]
     output_files: []
     agent_type: builder
     parallel_group: W8-A
-    session: null
+    session: 1
     notes: "Closes B.1 family — catches the next API rename as a build failure, not a session failure."
 
   - id: W8.2
@@ -384,12 +384,12 @@ tasks:
   - id: W9.1
     wave: 9
     description: Extend fan_out usage to analyze verb's srm_check, analysis, verdict readouts; analyze SKILL.md three-fan_out rewrite; produces canonical 18-file layout
-    status: not_started
+    status: completed
     depends_on: [W6.4, W7.4]
     output_files: []
     agent_type: builder
     parallel_group: W9-A
-    session: null
+    session: 1
     notes: "Closes the analyze-verb side of DIAGNOSTIC §A. Canonical layout becomes structural."
 
 session_log:

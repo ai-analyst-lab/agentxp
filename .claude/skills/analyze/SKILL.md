@@ -199,19 +199,24 @@ provenance = build_provenance(<Report>, exp_dir)
 # Bundle them — every adapter renders against ViewBundle, not raw Report
 bundle = ViewBundle(vm=vm, provenance=provenance)
 
-# W4.2 — render_share_tail no longer accepts provenance_render_status;
-# the status is computed by build_provenance_for_brief at write time.
-# For analyze-verb verdicts the corresponding helper is build_provenance
-# above (computed from the Report); render_share_tail consults it
-# internally for design_brief / intent / monitor_check and is wired
-# through for verdict / audit by the catalog event itself.
-render_share_tail(
+# W9.1 — fan_out also drives the analyze-verb readouts so verdict,
+# srm_check, and analysis each produce the canonical 6-file persona ×
+# format layout in one call. Three fan_out calls = the canonical 18-file
+# experiment-readout layout (3 readout_types × 3 personas × 2 formats).
+# Render status is computed by build_provenance / build_provenance_for_brief
+# internally; the W4.2 R9 bypass closure applies here too.
+from agentxp.render import fan_out
+
+fan_out(
     exp_dir=exp_dir,
     experiment_id=exp_dir.name,
     readout_type="verdict",
     vm=vm,
     vm_sha256=<sha>,
 )
+# Repeat for srm_check (post-SRM) and analysis (post-metric-compute):
+# fan_out(..., readout_type="srm_check", vm=srm_vm, ...)
+# fan_out(..., readout_type="analysis",  vm=analysis_vm, ...)
 ```
 
 Commit `report.md` + `report.json`. Dispatch the critic in `readout_faithfulness` mode against the rendered report. The critic checks every quantitative claim has an `AuditPaths` reference (R7).
