@@ -43,14 +43,40 @@ def test_expected_shape_accepts_structured_cohorts() -> None:
     assert es.cohort_definitions[0].name == "all_assigned"
 
 
-def test_expected_shape_rejects_bare_string_cohorts() -> None:
-    """Post-W1.3 the bare-string convention is gone; callers must pass CohortDefinitions."""
+def test_expected_shape_accepts_legacy_bare_string_cohorts() -> None:
+    """Backwards compat for pre-W1.3 sealed briefs.
+
+    Two sealed briefs in the repo (``exp_6dd72d0b``, ``exp_fb984821``)
+    serialized cohort_definitions as ``list[str]`` because that was the
+    schema at seal time. The integrity lock would change if we re-sealed
+    them, so the validator accepts the old shape and projects:
+
+      "name: definition"  → CohortDefinition(name="name", definition="definition")
+      "bare prose"        → CohortDefinition(name="cohort_<i>", definition="bare prose")
+    """
+    es = ExpectedShape(
+        assignment_unit="user_id",
+        arms=["control", "treatment"],
+        expected_arm_count_ratio={"control": 0.5, "treatment": 0.5},
+        cohort_definitions=[
+            "all_assigned: users with assignment row",
+            "no-colon bare prose cohort",
+        ],
+    )
+    assert es.cohort_definitions[0].name == "all_assigned"
+    assert es.cohort_definitions[0].definition == "users with assignment row"
+    assert es.cohort_definitions[1].name == "cohort_1"
+    assert es.cohort_definitions[1].definition == "no-colon bare prose cohort"
+
+
+def test_expected_shape_rejects_non_string_non_cohort_values() -> None:
+    """Non-string, non-CohortDefinition values still fail (e.g. ints)."""
     with pytest.raises(ValidationError):
         ExpectedShape(
             assignment_unit="user_id",
             arms=["control", "treatment"],
             expected_arm_count_ratio={"control": 0.5, "treatment": 0.5},
-            cohort_definitions=["a stringified cohort"],  # type: ignore[list-item]
+            cohort_definitions=[123],  # type: ignore[list-item]
         )
 
 

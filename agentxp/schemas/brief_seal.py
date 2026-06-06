@@ -95,6 +95,34 @@ class ExpectedShape(BaseModel):
         ),
     )
 
+    @field_validator("cohort_definitions", mode="before")
+    @classmethod
+    def _accept_legacy_string_cohorts(cls, v):
+        """Backwards compat — sealed briefs from pre-W1.3 carry list[str].
+
+        Two pre-W1.3 sealed briefs exist in the repo
+        (``exp_6dd72d0b/brief.sealed.yaml`` and
+        ``exp_fb984821/brief.sealed.yaml``). The integrity lock would
+        change if we re-sealed them, so the validator must accept the
+        old shape and project. Strings of the form ``"name: definition"``
+        split on the first ``": "``; strings without a colon become
+        ``CohortDefinition(name="cohort_{i}", definition=string)`` so the
+        whole prose survives.
+        """
+        if not isinstance(v, list):
+            return v
+        out = []
+        for i, item in enumerate(v):
+            if isinstance(item, str):
+                if ": " in item:
+                    name, _, definition = item.partition(": ")
+                    out.append({"name": name.strip(), "definition": definition.strip()})
+                else:
+                    out.append({"name": f"cohort_{i}", "definition": item.strip()})
+            else:
+                out.append(item)
+        return out
+
 
 class CohortDefinition(BaseModel):
     """A structured cohort entry on the sealed brief.
