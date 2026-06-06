@@ -1,7 +1,7 @@
 project: agentxp-design-verb-hardening
 master_plan: working/plans/MASTER_PLAN.md
 protocol: ~/projects/ai-analytics-for-builders/shared/PLANNING_METHODOLOGY.md
-current_wave: 9
+current_wave: 10
 total_waves: 10
 created: '2026-06-05'
 
@@ -260,12 +260,12 @@ tasks:
   - id: W6.1
     wave: 6
     description: distill_intent / distill_design_brief / distill_mid_run accept datetime via _to_iso_utc coercion; VMs keep str types (formatter contract)
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W6-A
-    session: null
+    session: 1
     notes: "Coordinated landing with W1.2 — neither ships alone."
 
   - id: W6.2
@@ -327,23 +327,23 @@ tasks:
   - id: W7.3
     wave: 7
     description: DataPlanDraft step rewrite — design SKILL.md steps 7+10 collapse to single dispatch+critic; analyze SKILL.md clarifies DataPlanV2 is generated at analyze entry
-    status: not_started
+    status: completed
     depends_on: [W1.6, W5.2]
     output_files: []
     agent_type: builder
     parallel_group: W7-C
-    session: null
+    session: 1
     notes: ""
 
   - id: W7.4
     wave: 7
     description: "Add imports: preamble block to every SKILL.md — explicit call-target resolver for W8.1 signature CI"
-    status: not_started
+    status: completed
     depends_on: [W7.1, W7.2, W7.3]
     output_files: []
     agent_type: builder
     parallel_group: W7-D
-    session: null
+    session: 1
     notes: ""
 
   # ── Wave 8 — Skill Author: drift-prevention CI ────────────────────────────
@@ -361,23 +361,23 @@ tasks:
   - id: W8.2
     wave: 8
     description: tests/docs/test_cross_doc_consistency.py — R-rule citations in SKILL.md and agents/*.md exist in CLAUDE.md §4; every INDEX.md function exists in code
-    status: not_started
+    status: completed
     depends_on: [W7.4]
     output_files: []
     agent_type: builder
     parallel_group: W8-A
-    session: null
+    session: 1
     notes: ""
 
   - id: W8.3
     wave: 8
     description: tests/docs/test_skill_voice.py — banned-vocab lint applied to SKILL.md + agents/*.md; shares CLAUDE.md §12 frozenset with voice_audit
-    status: not_started
+    status: completed
     depends_on: [W6.2, W7.4]
     output_files: []
     agent_type: builder
     parallel_group: W8-A
-    session: null
+    session: 1
     notes: ""
 
   # ── Wave 9 — Renders: analyze-verb fan-out extension ──────────────────────
