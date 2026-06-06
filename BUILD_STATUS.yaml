@@ -1,7 +1,7 @@
 project: agentxp-design-verb-hardening
 master_plan: working/plans/MASTER_PLAN.md
 protocol: ~/projects/ai-analytics-for-builders/shared/PLANNING_METHODOLOGY.md
-current_wave: 1
+current_wave: 2
 total_waves: 10
 created: '2026-06-05'
 
@@ -35,100 +35,100 @@ tasks:
   - id: W1.1
     wave: 1
     description: Add AwareUtcDatetime annotation in agentxp/schemas/_types.py; move _enforce_utc from brief_seal.py inline check
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W1-A
-    session: null
+    session: 1
     notes: ""
 
   - id: W1.2
     wave: 1
     description: Promote IntentText.captured_at to AwareUtcDatetime in bundles.py:80
-    status: not_started
+    status: completed
     depends_on: [W1.1]
     output_files: []
     agent_type: builder
     parallel_group: W1-B
-    session: null
+    session: 1
     notes: "Coordinated landing with W6.1 (Renders distill coercion) — neither ships alone."
 
   - id: W1.3
     wave: 1
     description: Promote ExpectedShape.cohort_definitions from list[str] to list[CohortDefinition] in brief_seal.py:88
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W1-A
-    session: null
+    session: 1
     notes: ""
 
   - id: W1.4
     wave: 1
     description: Convert MetricDefinition from dataclass to pydantic BaseModel(extra="forbid") in agentxp/metrics/schema.py
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W1-A
-    session: null
+    session: 1
     notes: ""
 
   - id: W1.5
     wave: 1
     description: Add BundleBase envelope class with prior_error field; _ENVELOPE_FIELDS BLINDNESS_MANIFEST exclusion
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W1-A
-    session: null
+    session: 1
     notes: "Foundation for Orchestrator's retry-once convention (W5.2)."
 
   - id: W1.6
     wave: 1
     description: Add DataPlanDraft schema (prose data plan) in bundles.py — sibling artifact to BriefDraft, not sub-field
-    status: not_started
+    status: completed
     depends_on: [W1.5]
     output_files: []
     agent_type: builder
     parallel_group: W1-C
-    session: null
+    session: 1
     notes: "DataPlanV2 stays as warehouse binding generated at analyze entry."
 
   - id: W1.7
     wave: 1
     description: Delete _SemanticModelPlaceholder / _MetricPlaceholder / _BriefDraftPlaceholder / _SealedBriefPlaceholder; migrate to canonical loaders; close T70
-    status: not_started
+    status: completed
     depends_on: [W1.4, W1.5]
     output_files: []
     agent_type: builder
     parallel_group: W1-D
-    session: null
+    session: 1
     notes: "Successful grep for _Placeholder must return zero hits."
 
   - id: W1.8
     wave: 1
     description: Promote SemanticModel.outcome_columns from optional to required; add load-time completeness validator + OutcomeColumnsUndeclared error
-    status: not_started
+    status: completed
     depends_on: [W0.1]
     output_files: []
     agent_type: builder
     parallel_group: W1-A
-    session: null
+    session: 1
     notes: "Coordinated with SQL Safety W2.2 — Layer 3d depends on the field being declared."
 
   - id: W1.9
     wave: 1
     description: Harden BLINDNESS_MANIFEST closure test — recursive walk; envelope-field exclusion; bite on transitive forbidden-field inclusion
-    status: not_started
+    status: completed
     depends_on: [W1.5, W1.7]
     output_files: []
     agent_type: builder
     parallel_group: W1-E
-    session: null
+    session: 1
     notes: ""
 
   # ── Wave 2 — SQL Safety: Layer 3d hardening + Purpose canonicalization ────
