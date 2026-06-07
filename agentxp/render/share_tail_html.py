@@ -195,12 +195,14 @@ def html_to_pdf(html: str, out_path: Path) -> bool:
         try:
             page = browser.new_page(viewport={"width": 900, "height": 1300})
             page.set_content(html, wait_until="networkidle")
+            # Margin owned by CSS (`@page { margin: 0 }` + `@media print
+            # body padding`) — see agentxp/render/templates/_base_styles.html.j2.
+            # Passing margins here would override the CSS rule and re-introduce
+            # the unpainted page-edge frame the fix exists to eliminate.
             page.pdf(
                 path=str(out_path),
                 format="Letter",
                 print_background=True,
-                margin={"top": "0.6in", "bottom": "0.6in",
-                        "left": "0.7in", "right": "0.7in"},
                 prefer_css_page_size=True,
             )
         finally:

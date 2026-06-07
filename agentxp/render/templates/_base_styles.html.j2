@@ -7,8 +7,17 @@
 <meta charset="utf-8">
 <title>{{ title }}</title>
 <style>
-@page { size: 8.5in 11in; margin: 0.6in 0.7in; }
+/* PDF rendering: @page margin is paper-edge-to-content; anything inside it
+   is NOT painted by the body background. Setting margin: 0 lets the body
+   background bleed to the page edges; the print-only @media rule below
+   re-creates the content inset via body padding so prose still has
+   breathing room. (Was: margin: 0.6in 0.7in — left visible white frame.) */
+@page { size: 8.5in 11in; margin: 0; }
+@media print {
+  body { padding: 0.6in 0.7in; }
+}
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html { background: #F5F4EE; }   /* paint the page edges through ::root for paginated output */
 html, body { margin: 0; padding: 0; }
 body {
   background: #F5F4EE;
