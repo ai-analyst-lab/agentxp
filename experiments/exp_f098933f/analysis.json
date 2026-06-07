@@ -1,0 +1,75 @@
+{
+  "experiment_id": "exp_f098933f",
+  "srm": {
+    "test": "srm_chi_squared",
+    "chi2_stat": 0.46208,
+    "p_value": 0.4966534835119222,
+    "verdict": "PASS",
+    "observed_counts": [
+      24924,
+      25076
+    ],
+    "expected_counts": [
+      25000,
+      25000
+    ],
+    "observed_ratios": [
+      0.49848,
+      0.50152
+    ],
+    "expected_ratios": [
+      0.5,
+      0.5
+    ],
+    "total": 50000,
+    "threshold": 0.0005,
+    "interpretation": "SRM check: observed [24924, 25076] vs expected [25000, 25000], chi2 = 0.46, p = 0.496653. Verdict: PASS. No evidence of sample ratio mismatch. Proceed with analysis.",
+    "computation_trace": {
+      "inputs": {
+        "observed_counts": [
+          24924,
+          25076
+        ],
+        "expected_ratios": [
+          0.5,
+          0.5
+        ],
+        "threshold": 0.0005
+      },
+      "intermediate_values": {
+        "total": 50000,
+        "expected_counts": [
+          25000,
+          25000
+        ],
+        "chi2_stat": 0.46208,
+        "degrees_of_freedom": 1
+      },
+      "formula_ref": "chi^2 = sum((obs - exp)^2 / exp); p from chi2(df=k-1)",
+      "timestamp": "2026-06-06T23:55:11.695825Z"
+    }
+  },
+  "primary_metric": {
+    "name": "conversion_rate",
+    "test_used": "proportion_test",
+    "point_estimate": 0.000528056080083078,
+    "ci_lower": -0.004668783310024301,
+    "ci_upper": 0.005724895470190457,
+    "p_value": 0.8421435570093327,
+    "computation_trace": {
+      "n_assigned_control": 24924,
+      "n_converted_control": 2420,
+      "n_assigned_treatment": 25076,
+      "n_converted_treatment": 2448
+    }
+  },
+  "verdict": {
+    "word": "NO-LIFT",
+    "step_fired": [
+      "1: SRM gate (pass)",
+      "2: guardrails clear",
+      "3: sample adequacy check (n=50000, required=50000)",
+      "4: well-powered, wide null (CI half-width 0.005197 > 2.0 * mde_absolute 0.002) \u2014 NO-LIFT"
+    ]
+  }
+}

@@ -4,8 +4,14 @@
 <meta charset="utf-8">
 <title>intent · exp_6dd72d0b</title>
 <style>
-@page { size: 8.5in 11in; margin: 0.6in 0.7in; }
+/* PDF: @page margin: 0 lets body background fill page edges;
+   @media print body padding re-creates the content inset. */
+@page { size: 8.5in 11in; margin: 0; }
+@media print {
+  body { padding: 0.6in 0.7in; }
+}
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html { background: #F5F4EE; }
 html, body { margin: 0; padding: 0; }
 body {
   background: #F5F4EE;
