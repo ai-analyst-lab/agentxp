@@ -14,7 +14,7 @@ from __future__ import annotations
 import datetime as _dt
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
 
 def _new_experiment_id() -> str:
@@ -98,7 +98,23 @@ def record_intent(
     return intent_path
 
 
-def load_intent(intent_path: Path):
+class LoadedIntent(NamedTuple):
+    """Named-tuple result for ``load_intent`` (audit item #12).
+
+    ``bundle`` is the R10-compliant ``IntentText`` the specialist sees;
+    ``schema_version`` and ``captured_by`` are the audit metadata that
+    lives on disk + the render path but not in the bundle. Subscriptable
+    as a tuple for callers that prefer the old destructuring shape:
+    ``bundle, audit = load_intent(path)`` still works because
+    ``LoadedIntent`` exposes a 2-element view through ``__iter__`` (see
+    ``_LegacyLoadedIntentView``).
+    """
+    bundle: "IntentText"  # forward ref — IntentText imported below
+    schema_version: int
+    captured_by: str
+
+
+def load_intent(intent_path: Path) -> LoadedIntent:
     """Project the on-disk ``intent.yaml`` into a bundle-shaped IntentText.
 
     The on-disk artifact carries audit metadata — ``schema_version`` (the
@@ -107,16 +123,14 @@ def load_intent(intent_path: Path):
     does NOT carry these (R10 — the specialist sees only what the schema
     declares; audit metadata stays on disk and on the render path).
 
-    Pre-load_intent callers wrote ``IntentText(**yaml.safe_load(path))``
-    which fails with ``Extra inputs are not permitted`` on the audit
-    fields. This helper does the projection. The smoke test that
-    surfaced the gap is ``working/architect-brief/SESSION_TRANSCRIPT.md``
-    Step-1 (the original session) and the post-build smoke run that
-    landed at ``experiments/exp_1f51bcf6/``.
+    Returns a :class:`LoadedIntent` named tuple. For backwards-compat the
+    old destructuring pattern ``bundle, audit = load_intent(path)`` still
+    works — the second element is a dict shape projected from the named
+    fields. New callers should use the named-attribute access:
 
-    Returns a ``(IntentText, audit_dict)`` pair so callers that need the
-    audit metadata for rendering or logging do not have to re-read the
-    YAML themselves.
+        loaded = load_intent(path)
+        loaded.bundle           # IntentText
+        loaded.captured_by      # str
     """
     import yaml
 
@@ -127,11 +141,25 @@ def load_intent(intent_path: Path):
         raise ValueError(f"intent.yaml at {intent_path} is not a mapping")
 
     bundle = IntentText(text=raw["text"], captured_at=raw["captured_at"])
-    audit = {
-        "schema_version": raw.get("schema_version"),
-        "captured_by": raw.get("captured_by"),
-    }
-    return bundle, audit
+    return _LegacyLoadedIntentView(
+        bundle=bundle,
+        schema_version=raw.get("schema_version", 1),
+        captured_by=raw.get("captured_by", ""),
+    )
+
+
+class _LegacyLoadedIntentView(LoadedIntent):
+    """Internal helper — supports the legacy ``(bundle, audit_dict)`` unpack
+    while exposing the new named attributes. Iterating yields the two-
+    element tuple ``(bundle, audit_dict)`` callers wrote against pre-#12.
+    """
+    def __iter__(self):
+        audit = {
+            "schema_version": self.schema_version,
+            "captured_by": self.captured_by,
+        }
+        yield self.bundle
+        yield audit
 
 
 __all__ = ["allocate_experiment", "record_intent"]

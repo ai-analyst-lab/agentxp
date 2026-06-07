@@ -10,6 +10,7 @@ PDF backend is Playwright (lifted from ``scratch/walk_experiment.py``).
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Optional
 
@@ -173,16 +174,46 @@ def render_mid_run_html(*, vm: MidRunVM, audience: str = "exec") -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def html_to_pdf(html: str, out_path: Path) -> bool:
+def _render_one_pdf(browser, html: str, out_path: Path) -> None:
+    """Render a single HTML → PDF through an already-launched Chromium browser.
+
+    The page is created and closed per call; the browser stays alive,
+    which avoids the ~5–8s Chromium launch cost. Margin is owned by CSS
+    (``@page { margin: 0 }`` + ``@media print body padding`` in
+    ``_base_styles.html.j2``); passing margins to ``page.pdf()`` would
+    override the CSS rule and re-introduce the unpainted page-edge frame.
+    """
+    page = browser.new_page(viewport={"width": 900, "height": 1300})
+    try:
+        page.set_content(html, wait_until="networkidle")
+        page.pdf(
+            path=str(out_path),
+            format="Letter",
+            print_background=True,
+            prefer_css_page_size=True,
+        )
+    finally:
+        page.close()
+
+
+def html_to_pdf(html: str, out_path: Path, browser=None) -> bool:
     """Rasterize HTML to PDF using Playwright Chromium.
 
     Returns True on success, False if Playwright (or Chromium) is not
-    available. Document flows naturally; pages break at 8.5x11 with
-    standard margins.
+    available.
+
+    Audit item #1: pre-fix this launched a fresh Chromium per call. Six
+    calls per ``fan_out`` was six ~5–8s launches stacked on top of each
+    other. Pass a ``browser`` (from :func:`pdf_session`) to reuse one
+    Chromium across multiple renders; backwards-compat single-shot path
+    is preserved for callers that don't batch.
     """
     global _PLAYWRIGHT_AVAILABLE
     if _PLAYWRIGHT_AVAILABLE is False:
         return False
+    if browser is not None:
+        _render_one_pdf(browser, html, out_path)
+        return True
     try:
         from playwright.sync_api import sync_playwright  # type: ignore
     except ImportError:
@@ -191,23 +222,40 @@ def html_to_pdf(html: str, out_path: Path) -> bool:
     _PLAYWRIGHT_AVAILABLE = True
 
     with sync_playwright() as p:
+        b = p.chromium.launch()
+        try:
+            _render_one_pdf(b, html, out_path)
+        finally:
+            b.close()
+    return True
+
+
+@contextlib.contextmanager
+def pdf_session():
+    """Context manager — open one Chromium for the duration of a batch render.
+
+    Audit item #1. Usage::
+
+        from agentxp.render.share_tail_html import pdf_session, html_to_pdf
+        with pdf_session() as browser:
+            for html, out_path in batch:
+                html_to_pdf(html, out_path, browser=browser)
+
+    The browser yields ``None`` if Playwright is not installed, so
+    callers can fall through to the single-shot path without a separate
+    capability check.
+    """
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore
+    except ImportError:
+        yield None
+        return
+    with sync_playwright() as p:
         browser = p.chromium.launch()
         try:
-            page = browser.new_page(viewport={"width": 900, "height": 1300})
-            page.set_content(html, wait_until="networkidle")
-            # Margin owned by CSS (`@page { margin: 0 }` + `@media print
-            # body padding`) — see agentxp/render/templates/_base_styles.html.j2.
-            # Passing margins here would override the CSS rule and re-introduce
-            # the unpainted page-edge frame the fix exists to eliminate.
-            page.pdf(
-                path=str(out_path),
-                format="Letter",
-                print_background=True,
-                prefer_css_page_size=True,
-            )
+            yield browser
         finally:
             browser.close()
-    return True
 
 
 __all__ = [

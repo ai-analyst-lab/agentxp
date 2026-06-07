@@ -112,12 +112,18 @@ Open the `confirm_intent` gate: ask the user "the intent looks like this — doe
 
 Read `<project_root>/semantic_models/`. If empty (or missing the entities the user's intent implies), dispatch the **understander** specialist for `task="draft_semantic_models"`.
 
+Profiling is done inline via the ``agentxp.profiler.duckdb_summarize.run_duckdb_summarize``
+entry point (or the equivalent for the wired adapter); there is no
+single ``profile_warehouse`` wrapper. Build the ``WarehouseProfile``
+payload directly from the summarizer output before dispatch.
+
 ```python
 from agentxp.orchestrator.loop import dispatch_specialist
 from agentxp.schemas.bundles import UnderstanderBundle, WarehouseProfile
-from agentxp.profiler.driver import profile_warehouse  # or similar
 
-profile = profile_warehouse(exp_dir.read_text(".data_path"))
+# warehouse_profile is the summarizer output projected into the
+# WarehouseProfile schema; shape depends on the wired adapter.
+profile = WarehouseProfile(tables=..., flags=[])
 
 proposals = dispatch_specialist(
     role="understander",

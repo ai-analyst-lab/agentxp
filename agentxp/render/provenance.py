@@ -261,6 +261,14 @@ def build_provenance(report: Report, exp_dir: Path) -> Provenance:
 # ──────────────────────────────────────────────────────────────────────────
 
 
+_BRIEF_STATUS_CACHE: dict[tuple[str, str, float], RenderStatus] = {}
+"""Audit item #9 — memoize the seal verification per (exp_dir, readout_type,
+seal_mtime) tuple. fan_out calls render_share_tail six times, which
+called build_provenance_for_brief six times, which re-verified the seal
+six times. The mtime keys the cache so a re-sealed brief invalidates
+automatically without an explicit cache.clear() in callers."""
+
+
 def build_provenance_for_brief(
     exp_dir: Path,
     readout_type: str,
@@ -301,6 +309,14 @@ def build_provenance_for_brief(
     if not sealed_path.exists():
         return RenderStatus.DRAFT_UNVERIFIED
 
+    # Audit item #9 — cache keyed on (exp_dir, readout_type, seal_mtime).
+    # fan_out's six render calls hit the same exp_dir + readout_type, so
+    # without the cache verify_or_raise ran six times (sha256 over log.md
+    # each call). The mtime auto-invalidates when the seal changes.
+    cache_key = (str(exp_dir.resolve()), readout_type, sealed_path.stat().st_mtime)
+    if cache_key in _BRIEF_STATUS_CACHE:
+        return _BRIEF_STATUS_CACHE[cache_key]
+
     try:
         import yaml
 
@@ -319,8 +335,10 @@ def build_provenance_for_brief(
             metric_paths=metric_paths,
         )
     except Exception:  # noqa: BLE001 — any verification failure → not VERIFIED
+        _BRIEF_STATUS_CACHE[cache_key] = RenderStatus.DRAFT_UNVERIFIED
         return RenderStatus.DRAFT_UNVERIFIED
 
+    _BRIEF_STATUS_CACHE[cache_key] = RenderStatus.VERIFIED
     return RenderStatus.VERIFIED
 
 

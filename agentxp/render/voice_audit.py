@@ -33,14 +33,19 @@ def _load_check():
         return lambda _text: []
 
 
-def audit_voice(text: str, source_label: str = "<rendered>") -> list:
+def audit_voice(text: str, source_label: str = "<rendered>", verbose: bool = False) -> list:
     """Run the voice CI on rendered text.
 
-    Prints every violation to stderr with a uniform format and returns
-    the violation list for programmatic inspection. ALWAYS returns
-    (never raises) — per D5, voice CI is advisory-only.
+    Returns the violation list for programmatic inspection. ALWAYS
+    returns (never raises) — per D5, voice CI is advisory-only.
 
-    Format on stderr:
+    Audit item #3: when ``verbose`` is False (the default), violations
+    are returned silently — callers decide what to surface. Pre-fix this
+    always printed every violation to stderr, producing dozens of noise
+    lines per render. Callers that want the stderr trail can pass
+    ``verbose=True`` or surface specific violations themselves.
+
+    Format on stderr (verbose mode):
       [voice_audit] {source_label}: rule {N} ({rule_name}) — {detail}
     """
     check = _load_check()
@@ -53,23 +58,25 @@ def audit_voice(text: str, source_label: str = "<rendered>") -> list:
         )
         return []
 
-    for v in violations:
-        print(
-            f"[voice_audit] {source_label}: rule {v.rule_id} ({v.rule_name}) — {v.detail}",
-            file=sys.stderr,
-        )
+    if verbose:
+        for v in violations:
+            print(
+                f"[voice_audit] {source_label}: rule {v.rule_id} ({v.rule_name}) — {v.detail}",
+                file=sys.stderr,
+            )
     return violations
 
 
-def audit_voice_file(path: Path) -> list:
+def audit_voice_file(path: Path, verbose: bool = False) -> list:
     """Read file at `path` and audit its content.
 
     Convenience wrapper around audit_voice. Uses str(path) as the
-    source_label so stderr lines point at the offending file.
+    source_label so stderr lines (when ``verbose=True``) point at the
+    offending file.
     """
     path = Path(path)
     text = path.read_text(encoding="utf-8")
-    return audit_voice(text, source_label=str(path))
+    return audit_voice(text, source_label=str(path), verbose=verbose)
 
 
 class BannedVocabularyError(Exception):

@@ -96,10 +96,15 @@ For each guardrail in `sealed.brief_content["guardrails"]`:
 ```python
 from agentxp.stats.guardrails import guardrail_test
 
+# Real signature: control + treatment arrays, metric_type, nim_relative,
+# alpha, invert. The brief's guardrail.direction maps to invert=True for
+# lower_is_better metrics; higher_is_better leaves invert default False.
 result = guardrail_test(
-    observed=<from query>,
-    direction=guardrail.direction,
+    control=<arm-control observations>,
+    treatment=<arm-treatment observations>,
+    metric_type=guardrail.metric_type,
     nim_relative=guardrail.nim_relative,
+    invert=(guardrail.direction == "lower_is_better"),
 )
 ```
 
@@ -111,9 +116,10 @@ For each primary metric in the brief:
 
 ```python
 from agentxp.metrics.registry import load_metric
+from agentxp.metrics.schema import to_test_function
 
-metric = load_metric(<project_root>, name=metric_name)
-test_fn = metric.to_test_function()
+metric = load_metric(<project_root> / "metrics" / f"{metric_name}.yaml")
+test_fn = to_test_function(metric)
 # E.g. proportion_test for type=proportion
 result = test_fn(c_success=..., c_n=..., t_success=..., t_n=...)
 ```
@@ -139,9 +145,11 @@ adjusted = adjust_pvalues(
 from agentxp.interpret.confidence import map_confidence
 
 label = map_confidence(
-    ci_low=result.ci_95_lower,
-    ci_high=result.ci_95_upper,
-    orientation=metric.direction,
+    ci_lower_95=result.ci_95_lower,
+    ci_upper_95=result.ci_95_upper,
+    ci_lower_90=result.ci_90_lower,
+    ci_upper_90=result.ci_90_upper,
+    direction=metric.direction,
 )
 ```
 

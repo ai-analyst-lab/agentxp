@@ -108,12 +108,20 @@ class ExpectedShape(BaseModel):
         split on the first ``": "``; strings without a colon become
         ``CohortDefinition(name="cohort_{i}", definition=string)`` so the
         whole prose survives.
+
+        Audit item #8: emits a ``DeprecationWarning`` on the legacy path
+        so live usage is visible. Can be deleted six months after the
+        last legacy sealed brief is retired.
         """
         if not isinstance(v, list):
             return v
+        import warnings
+
+        legacy_seen = False
         out = []
         for i, item in enumerate(v):
             if isinstance(item, str):
+                legacy_seen = True
                 if ": " in item:
                     name, _, definition = item.partition(": ")
                     out.append({"name": name.strip(), "definition": definition.strip()})
@@ -121,6 +129,14 @@ class ExpectedShape(BaseModel):
                     out.append({"name": f"cohort_{i}", "definition": item.strip()})
             else:
                 out.append(item)
+        if legacy_seen:
+            warnings.warn(
+                "ExpectedShape.cohort_definitions received a pre-W1.3 "
+                "list[str] payload; projected to list[CohortDefinition]. "
+                "Re-seal the brief to drop this back-compat path.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return out
 
 

@@ -24,12 +24,21 @@ def test_audit_voice_clean_text(capsys):
 def test_audit_voice_banned_word_flagged(capsys):
     # "powerful" is a rule-5 banned phrase; CLEAN_TEXT base keeps rules 1/3/6 clean.
     text = "wrote: bundles/profiler.out.yaml\n\nThis is a powerful result. What now?\n"
-    violations = audit_voice(text)
+    # Audit item #3: stderr printing is opt-in via verbose=True.
+    violations = audit_voice(text, verbose=True)
     assert len(violations) >= 1
     assert any(v.rule_id == 5 for v in violations)
     err = capsys.readouterr().err
     assert "[voice_audit]" in err
     assert "rule 5" in err
+
+
+def test_audit_voice_silent_by_default(capsys):
+    """Audit item #3 — default is no stderr output; return list is the contract."""
+    text = "wrote: bundles/profiler.out.yaml\n\nThis is a powerful result. What now?\n"
+    violations = audit_voice(text)  # verbose=False default
+    assert any(v.rule_id == 5 for v in violations)
+    assert capsys.readouterr().err == ""
 
 
 def test_audit_voice_returns_list():
@@ -50,7 +59,8 @@ def test_audit_voice_file_reads_file(tmp_path: Path, capsys):
         "wrote: bundles/profiler.out.yaml\n\nThis is a powerful result. What now?\n",
         encoding="utf-8",
     )
-    violations = audit_voice_file(p)
+    # Audit item #3: verbose=True opts into stderr trail.
+    violations = audit_voice_file(p, verbose=True)
     assert len(violations) >= 1
     err = capsys.readouterr().err
     assert str(p) in err
@@ -58,6 +68,6 @@ def test_audit_voice_file_reads_file(tmp_path: Path, capsys):
 
 def test_audit_voice_source_label_in_stderr(capsys):
     text = "wrote: bundles/profiler.out.yaml\n\nThis is a powerful result. What now?\n"
-    audit_voice(text, source_label="my_doc")
+    audit_voice(text, source_label="my_doc", verbose=True)
     err = capsys.readouterr().err
     assert "my_doc" in err

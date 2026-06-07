@@ -79,27 +79,34 @@ def fan_out(
     """
     # Import here to avoid the module-load circular: tools imports render.
     from agentxp.orchestrator.tools import _new_entry_id, render_share_tail
+    from agentxp.render.share_tail_html import pdf_session
 
     ts = timestamp or datetime.now(timezone.utc)
     base = entry_id_base or _new_entry_id(prefix="fan")
 
+    # Audit item #1: open one Chromium for the whole batch instead of
+    # paying the ~5–8s launch cost three times (once per PDF). The
+    # context yields None when Playwright is unavailable so the
+    # single-shot fallback path still works.
     out_paths: list[Path] = []
-    for audience in PERSONAS:
-        for fmt in FORMATS:
-            entry_id = f"{base}-{audience}-{fmt}"
-            p = render_share_tail(
-                exp_dir=exp_dir,
-                experiment_id=experiment_id,
-                readout_type=readout_type,  # type: ignore[arg-type]
-                vm=vm,
-                vm_sha256=vm_sha256,
-                audience=audience,  # type: ignore[arg-type]
-                fmt=fmt,  # type: ignore[arg-type]
-                entry_id=entry_id,
-                timestamp=ts,
-                strict_voice=strict_voice,
-            )
-            out_paths.append(p)
+    with pdf_session() as browser:
+        for audience in PERSONAS:
+            for fmt in FORMATS:
+                entry_id = f"{base}-{audience}-{fmt}"
+                p = render_share_tail(
+                    exp_dir=exp_dir,
+                    experiment_id=experiment_id,
+                    readout_type=readout_type,  # type: ignore[arg-type]
+                    vm=vm,
+                    vm_sha256=vm_sha256,
+                    audience=audience,  # type: ignore[arg-type]
+                    fmt=fmt,  # type: ignore[arg-type]
+                    entry_id=entry_id,
+                    timestamp=ts,
+                    strict_voice=strict_voice,
+                    pdf_browser=browser,
+                )
+                out_paths.append(p)
     return out_paths
 
 

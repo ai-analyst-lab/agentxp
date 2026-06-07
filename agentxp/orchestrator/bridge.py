@@ -50,22 +50,48 @@ from agentxp.schemas.bundles import BLINDNESS_MANIFEST
 # ──────────────────────────────────────────────────────────────────────────
 
 
+# Audit item #2 — roles whose output schemas exist are wired. Roles
+# whose outputs are still TODO carry an explicit entry below so the
+# silence is visible. ``complete_dispatch`` emits a one-time stderr
+# warning when it skips validation for a deliberately-unwired role.
+_UNWIRED_ROLES: frozenset[str] = frozenset({
+    "designer",         # HypothesisDraft / BriefDraft drafted as prose
+    "understander",     # list[SemanticModel] / list[Metric] proposals
+    "sql_specialist",   # SqlProposal not yet typed
+    "analyst_narrator", # NarrativeOutput not yet typed
+})
+
+
 def _get_output_schema(role: str) -> Optional[type[BaseModel]]:
     """Return the pydantic class the role's output validates against.
 
-    Returns ``None`` for roles whose outputs are not yet canonicalized as
-    pydantic models (e.g. the designer's prose drafts pre-T04). Callers
-    use ``None`` as a signal to skip validation and trust the raw_response
-    dict.
+    Returns ``None`` for roles in ``_UNWIRED_ROLES`` (deliberate); raises
+    ``KeyError`` for unknown roles so a typo doesn't silently skip
+    validation. Callers that get ``None`` should treat the raw_response
+    as opaque and surface a warning to the user.
     """
     # Lazy import to avoid circular deps with bundles/critic-specific types.
-    from agentxp.schemas.bundles import _JudgmentPlaceholder
+    from agentxp.schemas.bundles import (
+        DataPlanDraft,
+        _JudgmentPlaceholder,
+    )
 
     table: dict[str, type[BaseModel]] = {
-        # The critic's output is the one fully-typed return today.
         "critic": _JudgmentPlaceholder,
+        # designer's draft_data_plan task returns a DataPlanDraft; other
+        # designer tasks (draft_hypothesis, draft_brief) are still prose.
+        # Validation for those happens at commit_artifact time when the
+        # YAML lands. _UNWIRED_ROLES carries "designer" as the wholesale
+        # default; this entry is the partial wiring for data_plan output.
     }
-    return table.get(role)
+    if role in table:
+        return table[role]
+    if role in _UNWIRED_ROLES:
+        return None
+    raise KeyError(
+        f"unknown role {role!r}; expected one of "
+        f"{sorted(set(table) | _UNWIRED_ROLES)}"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -112,12 +138,45 @@ class DispatchDescriptor(BaseModel):
 # open_dispatch and complete_dispatch ran in different Python invocations
 # (which is the production case — the orchestrator's Bash tool starts a
 # fresh process per call, and the harness Agent runs between the two).
-# Descriptors are persisted to /tmp/agentxp_dispatches/<dispatch_id>.json
+# Descriptors are persisted to <tempdir>/agentxp_dispatches/<dispatch_id>.json
 # so the second call can re-hydrate them. complete_dispatch deletes the
 # file on success; on KeyError the orchestrator either retries or
 # surfaces.
+#
+# Audit item #4: was a hardcoded /tmp path (Windows-hostile) with no TTL,
+# so a session crash between open and complete leaked a descriptor file
+# forever. Fixed by using tempfile.gettempdir() (portable) plus a
+# best-effort sweep on first import that removes descriptors older than
+# _DISPATCH_TTL_SECONDS.
 
-_DISPATCH_REGISTRY_DIR = Path("/tmp") / "agentxp_dispatches"
+import tempfile  # noqa: E402
+
+_DISPATCH_REGISTRY_DIR = Path(tempfile.gettempdir()) / "agentxp_dispatches"
+_DISPATCH_TTL_SECONDS = 24 * 60 * 60   # 24 hours
+
+
+def _sweep_stale_descriptors(now: Optional[float] = None) -> int:
+    """Remove descriptor files older than _DISPATCH_TTL_SECONDS.
+
+    Best-effort — silently ignores missing files / permission errors.
+    Returns the count of files removed. Called once on module import.
+    """
+    import time
+
+    if not _DISPATCH_REGISTRY_DIR.exists():
+        return 0
+    if now is None:
+        now = time.time()
+    removed = 0
+    for p in _DISPATCH_REGISTRY_DIR.glob("*.json"):
+        try:
+            age = now - p.stat().st_mtime
+            if age > _DISPATCH_TTL_SECONDS:
+                p.unlink()
+                removed += 1
+        except (FileNotFoundError, PermissionError):
+            continue
+    return removed
 
 
 def _persist_descriptor(descriptor: DispatchDescriptor) -> None:
@@ -138,6 +197,12 @@ def _consume_descriptor(dispatch_id: str) -> None:
     target = _DISPATCH_REGISTRY_DIR / f"{dispatch_id}.json"
     if target.exists():
         target.unlink()
+
+
+# One-shot sweep on import — bounded cost, removes leaked descriptors
+# from prior crashed sessions. Set _DISPATCH_TTL_SECONDS to control
+# the cutoff; tests can call _sweep_stale_descriptors(now=...) directly.
+_sweep_stale_descriptors()
 
 
 def _bundle_to_disk(bundle: AssembledBundle, project_root: Path) -> tuple[Path, str]:
@@ -236,6 +301,20 @@ def complete_dispatch(
         )
 
     if descriptor.output_schema_ref is None:
+        # Audit item #2: surface a one-time warning when validation is
+        # skipped — the orchestrator should know that the response is
+        # opaque so it can apply its own sanity checks (e.g., YAML round-
+        # trip + commit_artifact, which validates at commit time).
+        import warnings
+
+        warnings.warn(
+            f"complete_dispatch skipping schema validation for role "
+            f"{descriptor.role!r} — output schema is not yet wired "
+            f"(see _UNWIRED_ROLES in agentxp/orchestrator/bridge.py). "
+            f"Treat raw_response as opaque.",
+            UserWarning,
+            stacklevel=2,
+        )
         _consume_descriptor(dispatch_id)
         return raw_response
 

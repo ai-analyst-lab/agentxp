@@ -48,7 +48,39 @@ SYMBOL_IMPORTS: dict[str, str] = {
     "complete_dispatch":   "agentxp.orchestrator.bridge:complete_dispatch",
     "dispatch_critic":     "agentxp.orchestrator.bridge:dispatch_critic",
     "probe_data":          "agentxp.orchestrator.tools:probe_data",
+    "dispatch_specialist": "agentxp.orchestrator.loop:dispatch_specialist",
+    "distill_verdict":     "agentxp.render.distill:distill_verdict",
+    "build_provenance":    "agentxp.render.provenance:build_provenance",
+    "srm_check":           "agentxp.stats.srm:srm_check",
+    "map_confidence":      "agentxp.interpret.confidence:map_confidence",
+    # Classes / view models cited in skill examples
+    "AssignmentSurface":   "agentxp.schemas.bundles:AssignmentSurface",
+    "ViewBundle":          "agentxp.render.viewmodel:ViewBundle",
+    "WarehouseProfile":    "agentxp.schemas.bundles:WarehouseProfile",
+    # AgentXP helpers cited by the analyze/audit/connect/readouts skills.
+    "adjust_pvalues":      "agentxp.stats.corrections:adjust_pvalues",
+    "guardrail_test":      "agentxp.stats.guardrails:guardrail_test",
+    "load_metric":         "agentxp.metrics.registry:load_metric",
+    "to_test_function":    "agentxp.metrics.schema:to_test_function",
+    "walk_log":            "agentxp.workflows.audit:walk_log",
+    "diff_logs":           "agentxp.workflows.audit:diff_logs",
+    "run_wizard":          "agentxp.workflows.connect:run_wizard",
+    "build_index":         "agentxp.render.catalog:build_index",
+    "list_catalog":        "agentxp.workflows.readouts:list_catalog",
+    "validate_catalog":    "agentxp.render.catalog:validate_catalog",
+    # SystemExit is a builtin exception, not a helper
 }
+# Generic example names that appear in skill code blocks (e.g.
+# `test_fn = to_test_function(metric)` — `test_fn` is a local var, not
+# a helper). Listed here to keep _UNTRACKED_SYMBOLS focused on real drift.
+_EXAMPLE_LOCALS: frozenset[str] = frozenset({
+    "test_fn", "vm", "sm", "metric", "intent",
+})
+# Names that are builtins / exceptions / common kwarg-less classes; do not flag.
+_BUILTIN_OR_KWARG_LESS: frozenset[str] = frozenset({
+    "SystemExit", "KeyError", "ValueError", "TypeError", "RuntimeError",
+    "Path", "datetime", "timedelta", "Decimal",
+})
 
 
 def _iter_python_blocks(md_text: str) -> Iterable[str]:
@@ -79,9 +111,26 @@ def _parse_skill_imports(md_text: str) -> dict[str, str]:
     return {str(k): str(v) for k, v in imports.items()}
 
 
-def _resolve(name: str, skill_imports: dict[str, str]):
+_UNTRACKED_SYMBOLS: set[tuple[str, str]] = set()
+
+
+def _resolve(name: str, skill_imports: dict[str, str], skill_path: Path):
+    """Audit item #7: previously returned None silently when a symbol was
+    unknown, which meant the test couldn't tell "this kwarg is valid" from
+    "I don't know this function." Now we record every unresolved name so
+    the test can fail loudly listing all of them.
+    """
     spec = skill_imports.get(name) or SYMBOL_IMPORTS.get(name)
     if spec is None:
+        # Common stdlib / builtin names that show up in code blocks but
+        # aren't AgentXP helpers we need to validate.
+        if name in _BUILTIN_OR_KWARG_LESS or name in _EXAMPLE_LOCALS or name in {
+                    "print", "open", "len", "str", "int", "float", "list", "dict",
+                    "tuple", "set", "range", "enumerate", "zip", "isinstance",
+                    "getattr", "hasattr", "yaml", "json",
+                    "Optional", "Literal", "Field", "BaseModel", "ConfigDict"}:
+            return None
+        _UNTRACKED_SYMBOLS.add((str(skill_path), name))
         return None
     module_path, qualname = spec.split(":")
     try:
@@ -99,11 +148,17 @@ def _iter_calls(tree: ast.AST) -> Iterable[ast.Call]:
 
 
 def _call_name(node: ast.Call) -> str | None:
-    """Get the bare function name from a Call node, or None."""
+    """Get the bare function name from a Call node, or None.
+
+    Audit item #7: only direct function calls (``ast.Name``) are
+    validatable. Method calls (``ast.Attribute`` — e.g.
+    ``path.read_text()``, ``Path.cwd()``, ``vm.model_dump()``) are
+    called on instances or classes that the test cannot resolve to a
+    static signature, so we skip them. The strict-symbols test only
+    fires on direct top-level function references.
+    """
     if isinstance(node.func, ast.Name):
         return node.func.id
-    if isinstance(node.func, ast.Attribute):
-        return node.func.attr
     return None
 
 
@@ -132,7 +187,7 @@ def _collect_drift_violations() -> list[tuple[Path, str, str, list[str]]]:
                 name = _call_name(call)
                 if name is None:
                     continue
-                target = _resolve(name, skill_imports)
+                target = _resolve(name, skill_imports, skill_md)
                 if target is None:
                     continue
                 try:
@@ -160,6 +215,7 @@ def _collect_drift_violations() -> list[tuple[Path, str, str, list[str]]]:
 
 def test_skill_signatures_match_live_api() -> None:
     """Every kwarg cited in every SKILL.md code block exists in the live signature."""
+    _UNTRACKED_SYMBOLS.clear()
     violations = _collect_drift_violations()
     if violations:
         lines = []
@@ -174,4 +230,30 @@ def test_skill_signatures_match_live_api() -> None:
             f"Skill text drift detected ({len(violations)} kwargs):\n{details}\n"
             "Either update the SKILL.md to use the current kwarg name or "
             "extend SYMBOL_IMPORTS in tests/docs/test_skill_signatures.py."
+        )
+
+
+def test_skill_signatures_no_unknown_symbols() -> None:
+    """Audit item #7: a symbol cited in a SKILL.md code block must resolve.
+
+    Pre-fix the walker returned None for unknown symbols and the test
+    quietly passed — that meant "I don't know this function" looked
+    identical to "this function is fine." Either declare the symbol in
+    the skill's ``imports:`` preamble or extend the global
+    ``SYMBOL_IMPORTS`` map; this test fails if neither names it.
+    """
+    _UNTRACKED_SYMBOLS.clear()
+    _collect_drift_violations()  # populates _UNTRACKED_SYMBOLS as a side effect
+    if _UNTRACKED_SYMBOLS:
+        by_skill: dict[str, list[str]] = {}
+        for skill_path, name in sorted(_UNTRACKED_SYMBOLS):
+            by_skill.setdefault(skill_path, []).append(name)
+        lines = []
+        for skill, names in sorted(by_skill.items()):
+            rel = Path(skill).relative_to(Path(__file__).resolve().parents[2])
+            lines.append(f"  {rel}: {sorted(set(names))}")
+        pytest.fail(
+            f"Skill text cites symbols neither declared in the skill's "
+            f"`imports:` preamble nor in SYMBOL_IMPORTS:\n"
+            + "\n".join(lines)
         )

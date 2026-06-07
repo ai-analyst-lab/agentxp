@@ -114,22 +114,23 @@ def test_load_yaml_raises_on_malformed_yaml(tmp_path: Path) -> None:
 
 def test_load_yaml_raises_validation_error_on_schema_violation(tmp_path: Path) -> None:
     target = tmp_path / "bad.yaml"
-    # schema_version mismatch (1 expected for SemanticModel; assignment shape too).
+    # Real schema violation: outcome_columns is required (W1.8) — omitting
+    # it must raise. (Pre-audit-#5 we used the primary_key/dimensions
+    # mismatch to trigger this; that path is now a UserWarning, not an
+    # error, so the test was rewritten to exercise a real ValidationError.)
     target.write_text(
         yaml.safe_dump(
             {
                 "schema_version": 1,
                 "name": "user_events",
                 "description": "x",
-                # T70-RECONCILE: primary_key references a column that
-                # is not declared in dimensions[] — the model validator
-                # catches it and raises ValidationError.
-                "primary_key": "ghost",
+                "primary_key": "user_id",
                 "source_table": "user_events",
                 "dimensions": [
                     {"name": "user_id", "type": "string"},
                 ],
-                "outcome_columns": [],
+                # outcome_columns: deliberately omitted to trigger the
+                # required-field validator.
             }
         )
     )

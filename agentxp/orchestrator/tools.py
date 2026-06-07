@@ -264,6 +264,7 @@ def render_share_tail(
     entry_id: Optional[str] = None,
     timestamp: Optional[datetime] = None,
     strict_voice: bool = False,
+    pdf_browser: Optional[object] = None,
 ) -> Path:
     """Render a share-tail readout to disk and append to the catalog.
 
@@ -322,7 +323,9 @@ def render_share_tail(
         else:  # pdf
             html_path = out_path.with_suffix(".html")
             html_path.write_text(html)
-            pdf_ok = share_tail_html.html_to_pdf(html, out_path)
+            # Audit item #1: pdf_browser lets fan_out reuse one Chromium
+            # across all 3 PDF renders in the batch.
+            pdf_ok = share_tail_html.html_to_pdf(html, out_path, browser=pdf_browser)
             if not pdf_ok:
                 # Playwright unavailable — surface the html, mark the gap.
                 (out_dir / f"{audience}.pdf.unrendered.txt").write_text(
@@ -347,19 +350,35 @@ def render_share_tail(
 
     computed_status = build_provenance_for_brief(exp_dir, readout_type)
 
-    # W6.2 — voice audit fires before the catalog row appends. Advisory by
-    # default (D5); strict_voice=True raises BannedVocabularyError and refuses
-    # the catalog row so the failed render never lands in the chain.
+    # W6.2 — voice audit fires before the catalog row appends. Only rule 5
+    # (banned vocabulary per CLAUDE.md §12) is enforceable; the other voice
+    # rules (paragraph length, sentence variance) are author-register
+    # advice that does not apply to rendered templates and produced
+    # constant stderr noise on every render (audit item #3 — fixed).
+    # Audit also skipped on binary formats (PDF, PNG, JSON) — these can't
+    # decode as utf-8, so the previous wrapper silently caught the
+    # UnicodeDecodeError and the audit ran on nothing.
     from agentxp.render.voice_audit import (
         BannedVocabularyError,
         audit_voice_file,
     )
 
     voice_violations: list = []
-    try:
-        voice_violations = audit_voice_file(out_path)
-    except Exception:  # noqa: BLE001 — voice audit must never crash render
-        pass
+    if fmt in ("md", "html"):
+        try:
+            all_violations = audit_voice_file(out_path) or []
+            # Filter to banned-vocabulary rule (rule_id 5) only — the
+            # others are noise on rendered templates.
+            voice_violations = [v for v in all_violations if getattr(v, "rule_id", None) == 5]
+        except Exception as exc:  # noqa: BLE001 — voice audit must never crash render
+            # Audit item #3: was a silent pass; now surfaces the error to
+            # stderr so a real audit bug is at least visible.
+            import sys
+            print(
+                f"[render_share_tail] voice audit raised "
+                f"{type(exc).__name__}; render proceeds. {exc}",
+                file=sys.stderr,
+            )
     if strict_voice and voice_violations:
         raise BannedVocabularyError(out_path, voice_violations)
 
@@ -385,6 +404,28 @@ def render_share_tail(
 # ─────────────────────────────────────────────────────────────────────────────
 # Commit artifact — atomic file write + log.md + git
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+_GIT_TOPLEVEL_CACHE: dict[str, Path] = {}
+"""Audit item #10 — cache ``git rev-parse --show-toplevel`` per resolved
+exp_dir parent so commit_artifact + commit_artifacts share one lookup
+per project root. ``git rev-parse`` is cheap but shells out; six
+batched commits is six unnecessary subprocess starts."""
+
+
+def _project_root_for(exp_dir: Path) -> Path:
+    """Resolve the git worktree root for ``exp_dir``, with a process-local cache."""
+    key = str(exp_dir.resolve().parent)
+    cached = _GIT_TOPLEVEL_CACHE.get(key)
+    if cached is not None:
+        return cached
+    toplevel = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=exp_dir, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    root = Path(toplevel)
+    _GIT_TOPLEVEL_CACHE[key] = root
+    return root
 
 
 def commit_artifact(
@@ -429,11 +470,7 @@ def commit_artifact(
     # `rev-parse --show-toplevel` (works at any depth, agnostic to whether
     # exp_dir IS the repo or is nested under it), then make the artifact
     # and log paths relative to that root.
-    toplevel = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=exp_dir, check=True, capture_output=True, text=True,
-    ).stdout.strip()
-    project_root = Path(toplevel)
+    project_root = _project_root_for(exp_dir)
     rel_art = art_path.resolve().relative_to(project_root.resolve())
     rel_log = log_path.resolve().relative_to(project_root.resolve())
     git_msg = git_message or f"{artifact_name}: {safe_entry}"
@@ -511,11 +548,7 @@ def commit_artifacts(
     with log_path.open("a") as f:
         f.write(f"- `{ts}` — {safe_entry}\n")
 
-    toplevel = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=exp_dir, check=True, capture_output=True, text=True,
-    ).stdout.strip()
-    project_root = Path(toplevel)
+    project_root = _project_root_for(exp_dir)
     rels = [
         str(p.resolve().relative_to(project_root.resolve()))
         for p in written_paths

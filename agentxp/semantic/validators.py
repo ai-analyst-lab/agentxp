@@ -166,14 +166,19 @@ class SemanticModel(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _primary_key_columns_appear_in_dimensions(self):
-        """Every column the primary key names must be declared as a dimension.
+    def _warn_on_primary_key_not_in_dimensions(self):
+        """Soft check — warn if primary_key columns are not declared as dimensions.
 
-        Catches the case where a YAML author types ``primary_key: user_id``
-        but forgets to add ``user_id`` to ``dimensions[]`` — the SQL
-        pipeline would later reject queries against the entity because
-        the column is undeclared.
+        Audit item #5: was previously a hard raise, which forced YAML
+        authors to redundantly list every primary-key column in
+        ``dimensions[]`` even when the column was already named by
+        ``primary_key``. That's a real opinion the schema shouldn't
+        impose. Emits a ``UserWarning`` so the missing declaration is
+        visible at load time but does not block the model from
+        constructing.
         """
+        import warnings
+
         pk_names = (
             [self.primary_key] if isinstance(self.primary_key, str)
             else list(self.primary_key)
@@ -181,10 +186,13 @@ class SemanticModel(BaseModel):
         dim_names = {d.name for d in self.dimensions}
         missing = [n for n in pk_names if n not in dim_names]
         if missing:
-            raise ValueError(
-                f"primary_key column(s) {missing!r} not declared in "
-                f"dimensions[]; either add the dimension or correct the "
-                f"primary_key field."
+            warnings.warn(
+                f"SemanticModel {self.name!r}: primary_key column(s) "
+                f"{missing!r} are not declared in dimensions[]. "
+                f"This is allowed but unusual — consider adding the "
+                f"dimensions so downstream tools can introspect them.",
+                UserWarning,
+                stacklevel=2,
             )
         return self
 

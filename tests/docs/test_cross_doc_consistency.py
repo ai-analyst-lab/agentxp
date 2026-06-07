@@ -76,8 +76,14 @@ def test_every_cited_rule_exists_in_claude_md(doc_path: Path) -> None:
 # ──────────────────────────────────────────────────────────────────────────
 
 
+# Audit item #11 — pattern intentionally requires `- `module.path.fn(`
+# to match. INDEX.md uses several formats (bullets with `(`, module
+# headers without `(`, prose code spans inside paragraphs). Only the
+# bullet+paren form names a callable we can resolve; the other forms
+# refer to modules and sub-pages. Document the skip explicitly here
+# instead of pretending coverage we don't have.
 _INDEX_FN_PATTERN = re.compile(
-    r"^- `([a-zA-Z_][\w.]*)\(",   # ``- `module.path.fn(``
+    r"^- `([a-zA-Z_][\w.]*)\(",   # bullet form: ``- `module.path.fn(``
     flags=re.MULTILINE,
 )
 

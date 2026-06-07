@@ -137,8 +137,14 @@ class BundleBase(BaseModel):
     )
 
 
-_ENVELOPE_FIELDS: frozenset[str] = frozenset({"prior_error"})
+_ENVELOPE_FIELDS: frozenset[str] = frozenset(BundleBase.model_fields.keys())
 """Field names that BundleBase contributes; excluded from BLINDNESS_MANIFEST.
+
+Derived directly from ``BundleBase.model_fields`` so the two stay in
+sync automatically — adding a future envelope field to BundleBase
+(e.g. a retry counter) propagates here without a second edit. Audit
+item #6: removed the hand-maintained frozenset that risked drifting from
+the class.
 
 Tests at ``tests/orchestrator/test_bundle_assembler.py`` and
 ``tests/schemas/test_blindness_closure.py`` consult this set when walking

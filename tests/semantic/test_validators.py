@@ -130,11 +130,18 @@ def test_semantic_model_rejects_unknown_field():
         SemanticModel.model_validate(payload)
 
 
-def test_semantic_model_rejects_primary_key_not_in_dimensions():
+def test_semantic_model_warns_on_primary_key_not_in_dimensions():
+    """Audit item #5 — was a hard raise, softened to UserWarning so the
+    schema does not impose redundancy on YAML authors."""
+    import warnings
     payload = _semantic_model_payload()
     payload["primary_key"] = "ghost_id"
-    with pytest.raises(ValidationError, match="ghost_id"):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         SemanticModel.model_validate(payload)
+    assert any("ghost_id" in str(w.message) for w in caught), (
+        f"expected UserWarning naming ghost_id; got {[str(w.message) for w in caught]}"
+    )
 
 
 def test_semantic_model_accepts_compound_primary_key():
