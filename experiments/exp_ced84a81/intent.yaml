@@ -1,0 +1,5 @@
+schema_version: 1
+text: |
+  B analyze benchmark intent.
+captured_at: 2026-06-09T05:37:17.810061+00:00
+captured_by: bench@test.local

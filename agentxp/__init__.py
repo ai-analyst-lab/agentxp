@@ -36,4 +36,21 @@ from agentxp.data import load_data, discover_schema
 
 __version__ = "0.1.0"
 
+
+# Sweep stale /tmp/agentxp_dispatches/ and /tmp/agentxp_bundles/ files
+# on package import. The benchmark surfaced two leak surfaces:
+#   - dispatches/ was swept on bridge.py import but NOT when a tool
+#     imported only workflows or orchestrator.tools (the sweep never
+#     fired)
+#   - bundles/ was never swept by anything at all
+# Best-effort; silently ignores missing dirs / permission errors so
+# this can never block import.
+try:
+    from agentxp.orchestrator.bridge import sweep_all_tmp_dirs as _sweep_all_tmp_dirs
+
+    _sweep_all_tmp_dirs()
+except Exception:  # noqa: BLE001 — never block agentxp import on a sweep failure
+    pass
+
+
 __all__ = ["load_data", "discover_schema"]

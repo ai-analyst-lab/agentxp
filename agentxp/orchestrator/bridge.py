@@ -147,12 +147,6 @@ class DispatchDescriptor(BaseModel):
 # so the second call can re-hydrate them. complete_dispatch deletes the
 # file on success; on KeyError the orchestrator either retries or
 # surfaces.
-#
-# Audit item #4: was a hardcoded /tmp path (Windows-hostile) with no TTL,
-# so a session crash between open and complete leaked a descriptor file
-# forever. Fixed by using tempfile.gettempdir() (portable) plus a
-# best-effort sweep on first import that removes descriptors older than
-# _DISPATCH_TTL_SECONDS.
 
 import tempfile  # noqa: E402
 
@@ -160,28 +154,57 @@ _DISPATCH_REGISTRY_DIR = Path(tempfile.gettempdir()) / "agentxp_dispatches"
 _DISPATCH_TTL_SECONDS = 24 * 60 * 60   # 24 hours
 
 
-def _sweep_stale_descriptors(now: Optional[float] = None) -> int:
-    """Remove descriptor files older than _DISPATCH_TTL_SECONDS.
+def _sweep_dir(directory: Path, ttl_seconds: int, glob: str, now: Optional[float] = None) -> int:
+    """Generic best-effort sweep — remove files older than ttl_seconds.
 
-    Best-effort — silently ignores missing files / permission errors.
-    Returns the count of files removed. Called once on module import.
+    Used for both /tmp/agentxp_dispatches/ (descriptors written by
+    open_dispatch) and /tmp/agentxp_bundles/ (bundle JSONs the harness
+    Agent reads). Benchmark surfaced that the bundles dir was never
+    swept by anyone; this generic helper covers both. Returns the count
+    of files removed; silently ignores FileNotFoundError /
+    PermissionError so import-time sweep never crashes.
     """
     import time
 
-    if not _DISPATCH_REGISTRY_DIR.exists():
+    if not directory.exists():
         return 0
     if now is None:
         now = time.time()
     removed = 0
-    for p in _DISPATCH_REGISTRY_DIR.glob("*.json"):
+    for p in directory.glob(glob):
         try:
             age = now - p.stat().st_mtime
-            if age > _DISPATCH_TTL_SECONDS:
+            if age > ttl_seconds:
                 p.unlink()
                 removed += 1
         except (FileNotFoundError, PermissionError):
             continue
     return removed
+
+
+def _sweep_stale_descriptors(now: Optional[float] = None) -> int:
+    """Sweep the dispatch-registry dir. Kept as a named function for the
+    existing test that calls it; defers to _sweep_dir."""
+    return _sweep_dir(_DISPATCH_REGISTRY_DIR, _DISPATCH_TTL_SECONDS, "*.json", now=now)
+
+
+def sweep_all_tmp_dirs(now: Optional[float] = None) -> dict[str, int]:
+    """Sweep both /tmp/agentxp_dispatches/ and /tmp/agentxp_bundles/.
+
+    Called from ``agentxp/__init__.py`` so any AgentXP usage triggers
+    the cleanup, not just bridge-importing code. Returns a dict with
+    per-dir removed counts for caller observability (today nobody
+    inspects the return; the count is for tests / logs).
+    """
+    bundles_dir = Path(tempfile.gettempdir()) / "agentxp_bundles"
+    return {
+        "dispatches_removed": _sweep_dir(
+            _DISPATCH_REGISTRY_DIR, _DISPATCH_TTL_SECONDS, "*.json", now=now
+        ),
+        "bundles_removed": _sweep_dir(
+            bundles_dir, _DISPATCH_TTL_SECONDS, "**/*.json", now=now
+        ),
+    }
 
 
 def _persist_descriptor(descriptor: DispatchDescriptor) -> None:
@@ -204,10 +227,10 @@ def _consume_descriptor(dispatch_id: str) -> None:
         target.unlink()
 
 
-# One-shot sweep on import — bounded cost, removes leaked descriptors
-# from prior crashed sessions. Set _DISPATCH_TTL_SECONDS to control
-# the cutoff; tests can call _sweep_stale_descriptors(now=...) directly.
-_sweep_stale_descriptors()
+# Sweep moved to agentxp/__init__.py via sweep_all_tmp_dirs(), so any
+# agentxp usage triggers the cleanup — not just bridge-importing code.
+# The benchmark surfaced that bridge-only sweep missed the case where a
+# tool or benchmark uses agentxp without importing bridge directly.
 
 
 def _bundle_to_disk(bundle: AssembledBundle, project_root: Path) -> tuple[Path, str]:
@@ -222,7 +245,10 @@ def _bundle_to_disk(bundle: AssembledBundle, project_root: Path) -> tuple[Path, 
     # Use the project_root as a prefix in the tmp filename so concurrent
     # projects in the same workstation cannot collide on dispatch ids.
     safe_root = project_root.name.replace("/", "_") or "anon"
-    tmp_dir = Path("/tmp") / "agentxp_bundles" / safe_root
+    # Match the sweep path (audit benchmark surfaced that hardcoded /tmp
+    # vs `tempfile.gettempdir()` produced two parallel registries on macOS,
+    # so the sweep never saw the bundle JSONs it was supposed to clean).
+    tmp_dir = Path(tempfile.gettempdir()) / "agentxp_bundles" / safe_root
     tmp_dir.mkdir(parents=True, exist_ok=True)
     bundle_id = uuid.uuid4().hex
     out = tmp_dir / f"{bundle.role}_{bundle_id}.json"

@@ -1,0 +1,5 @@
+schema_version: 1
+judging_mode: brief_consistency
+passed: true
+severity: warn
+reasons: []

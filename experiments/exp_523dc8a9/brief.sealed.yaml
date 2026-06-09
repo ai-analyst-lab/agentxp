@@ -1,0 +1,46 @@
+schema_version: 1
+brief_content:
+  schema_version: 1
+  hypothesis: Relocating Buy Now above the fold raises conversion_rate.
+  primary_metric: conversion_rate
+  primary_metric_type: proportion
+  primary_decision_rule: "Ship if ci_low > 0 on \u0394conversion_rate AND no guardrail\
+    \ breaches NIM.\n"
+  mde_text: 5.0% relative
+  mde_pct: 5.0
+  baseline: 0.1
+  n_required: 115518
+  guardrails:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    nim_relative: -0.01
+  cohorts_summary:
+  - all assigned users in the window
+  cohorts:
+  - name: all_assigned
+    definition: users assigned to the experiment in the window
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_ratio_text: 50/50
+  primary_direction: higher_is_better
+  late_ratio: null
+design_chain_hash: e068772aecb6afa33de148b67f5abca3c7a49d979f8f4dd6211584af951d2cf2
+metric_snapshot:
+  conversion_rate: f775e246e2992c91fa7a04f5d22bb93d2cb9ed5078144479b7792e6cdf9a5fe1
+  revenue_per_user: c4742f81560b2836b851f2c17bdd1bd3cb102fdf14a69a04cd9170b3cf9d69ae
+expected_shape:
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_count_ratio:
+    control: 0.5
+    treatment: 0.5
+  cohort_definitions:
+  - name: all_assigned
+    definition: users assigned to the experiment in the window
+sealed_at: '2026-06-09T05:34:52.327395Z'
+sealed_by: bench@test.local
+agentxp_version: 0.1.0

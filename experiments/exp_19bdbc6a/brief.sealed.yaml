@@ -1,0 +1,40 @@
+schema_version: 1
+brief_content:
+  schema_version: 1
+  hypothesis: Benchmark
+  primary_metric: conversion_rate
+  primary_metric_type: proportion
+  primary_decision_rule: ci_low > 0
+  mde_pct: 2.0
+  mde_text: 2.0% relative
+  baseline: 0.1
+  n_required: 40000
+  guardrails: []
+  cohorts_summary:
+  - all
+  cohorts:
+  - name: all
+    definition: all assigned
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_ratio_text: 50/50
+  primary_direction: higher_is_better
+design_chain_hash: 824443d61c419fc1752e402da36ea0915cf3fc657bfd93d637d9f84bc0373a5b
+metric_snapshot:
+  conversion_rate: f775e246e2992c91fa7a04f5d22bb93d2cb9ed5078144479b7792e6cdf9a5fe1
+expected_shape:
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_count_ratio:
+    control: 0.5
+    treatment: 0.5
+  cohort_definitions:
+  - name: all
+    definition: all assigned
+sealed_at: '2026-06-09T14:55:28.870543Z'
+sealed_by: bench@test.local
+agentxp_version: 0.1.0
