@@ -1,0 +1,73 @@
+schema_version: 1
+
+hypothesis: >
+  Repositioning the buy_now_button above the fold on the product detail page,
+  such that the call-to-action is visible without scrolling on the assignment
+  surface's prevailing viewports, will increase the rate at which assigned
+  users (cohort: general segment, randomized on user_id at first exposure)
+  proceed to a completed purchase within the exposure window, relative to
+  users assigned to the unchanged control layout. The mechanism is one of
+  reduced friction and elevated salience: with the action surface visible at
+  page arrival, interested users encounter the conversion affordance earlier
+  in the session and require fewer interaction steps to express purchase
+  intent, which is expected to manifest first as a lift in click_buy_now
+  events on element_id = 'buy_now_button', propagate through begin_checkout,
+  and resolve as a lift in completed orders. The expected direction on the
+  primary metric is positive; magnitude is deferred to the brief stage,
+  where it will be set against minimum detectable effect and available units.
+
+primary_metric_candidate: conversion_rate
+primary_direction: increase
+rationale: >
+  conversion_rate is the canonical purchase metric defined over distinct
+  users with one or more orders at or after first_exposure_at, denominated
+  by users assigned to the experiment. Because the manipulation alters the
+  visibility of the buy_now_button — an element situated late in the
+  product-page funnel but upstream of checkout — the causal pathway
+  terminates at order placement, which conversion_rate measures directly
+  on the unit of randomization (user_id). Proxy metrics on the same surface
+  (buy_now_click_rate, begin_checkout_rate) are mechanistically closer to
+  the manipulation but do not by themselves justify the change; only a
+  lift that survives to completed orders constitutes the intended outcome.
+
+leading_indicators:
+  - buy_now_click_rate
+  - begin_checkout_rate
+  - add_to_cart_rate
+
+guardrail_candidates:
+  - metric_name: revenue_per_user
+    direction: non_decrease
+    why: >
+      A repositioned call-to-action could accelerate purchases of lower-value
+      items by interrupting cart-building behavior; revenue_per_user catches
+      the case in which conversion_rate rises while per-user revenue falls,
+      which would invalidate the apparent win.
+  - metric_name: average_order_value
+    direction: non_decrease
+    why: >
+      Complementary to revenue_per_user: surfaces the specific failure mode
+      in which the treatment shifts the basket mix toward smaller orders
+      even when total converting users grows.
+  - metric_name: page_load_time
+    direction: non_increase
+    why: >
+      The repositioning is a layout change and may alter render order or
+      above-the-fold asset loading; the p95 latency_ms guardrail across
+      page_view events catches performance regressions that would suppress
+      downstream conversion independent of the design intent.
+  - metric_name: pages_per_session
+    direction: non_decrease
+    why: >
+      An above-the-fold buy_now_button may funnel users out of the product
+      page before they explore related items; a sharp decline in
+      pages_per_session would indicate that the treatment is harvesting
+      intent rather than creating it, with implications for long-run
+      engagement that conversion_rate alone cannot detect.
+  - metric_name: support_ticket_rate
+    direction: non_increase
+    why: >
+      Layout changes to a high-traffic surface occasionally produce UX
+      regressions (misclicks, accidental purchases, confusion about pricing
+      placement); the 7-day support_ticket_rate is the standing
+      quality-and-safety guardrail for user-facing flow changes.
