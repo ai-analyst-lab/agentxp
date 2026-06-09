@@ -67,7 +67,7 @@ brief_content:
   - metric_name: support_ticket_rate
     direction: non_increase
     nim_relative: 0.1
-design_chain_hash: 1f735323b85f19f4f49106b5a3bbb32f725afe9c17043d5d35c9a8e4ac4560c9
+design_chain_hash: 4ccd1d8dc08aa5912e76861441e42f104551085f0d85a18dc88986e17293ff53
 metric_snapshot:
   conversion_rate: f775e246e2992c91fa7a04f5d22bb93d2cb9ed5078144479b7792e6cdf9a5fe1
 expected_shape:
@@ -85,6 +85,6 @@ expected_shape:
       \ first_exposure_at count toward the experiment. No segment, geography, or device-class\
       \ filter is applied; the user.segment field is predominantly 'general' until\
       \ the segmentation pipeline lands and is not used to subset the analysis cohort.\n"
-sealed_at: '2026-06-09T16:06:40.357455Z'
+sealed_at: '2026-06-09T16:07:07.093604Z'
 sealed_by: bench-A@test.local
 agentxp_version: 0.1.0
