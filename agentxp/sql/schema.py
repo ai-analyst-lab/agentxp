@@ -34,7 +34,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # canonical-module table, FactSourceBinding's home stays in data_plan; this is
 # a flat re-export, not a redefinition.
 from agentxp.schemas.data_plan import FactSourceBinding
-from agentxp.schemas.state import _enforce_utc
+from agentxp.schemas._types import _enforce_utc
 
 
 # ──────────────────────────────────────────────────────────────────────────

@@ -17,8 +17,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from agentxp.schemas._types import Sha256Hex
-from agentxp.schemas.state import _enforce_utc
+from agentxp.schemas._types import Sha256Hex, _enforce_utc
 
 
 # ──────────────────────────────────────────────────────────────────────────
