@@ -1,0 +1,10 @@
+schema_version: 2
+experiment_id: exp_6b9c9732
+status: draft
+source_type: duckdb
+source_path: sample-data/agentxp_demo.duckdb
+registered_as: agentxp_demo
+fact_source_bindings: []
+ready_for_analysis: false
+pruned: false
+optional_useful_events: []
