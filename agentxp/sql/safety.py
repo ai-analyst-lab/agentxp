@@ -263,47 +263,35 @@ def assert_no_dialect_hazard(tree: exp.Expression, dialect: str) -> None:
 # Layer 3d — design-mode outcome-column reject (T20, R11)
 #
 # In ``agentxp design``, the orchestrator pre-registers an experiment. It
-# must not be able to read assignment- or outcome-bearing columns, because
-# knowing those numbers contaminates judgment: a designer who has seen the
-# split or the lift will subtly draft toward what's there. We enforce the
-# wall at the SQL layer rather than relying on prompt discipline.
+# must not be able to read assignment- or outcome-bearing columns. We
+# enforce the wall at the SQL layer rather than relying on prompt
+# discipline.
 #
-# The forbidden-column set is the assignment-revealing names common across
-# real warehouses. The set is a closed list per v0.2; if a warehouse uses
-# a non-standard name (e.g. ``bucket_id`` instead of ``variant``), the
-# semantic-model layer is the right place to declare it as outcome-bearing
-# — that's a future extension. v0.2 starts with the standard names.
+# Audit removal Round 5 (S11.A): pre-Round-5 this layer ALSO carried a
+# hardcoded set of standard outcome-column names (`variant`, `arm`,
+# `treatment`, ...) as a defense-in-depth fallback. W1.8 already makes
+# `outcome_columns` required on every SemanticModel, so the fallback was
+# duplication — and worse, a user who renamed `arm` to `assignment_arm`
+# would still hit the hardcoded `arm` check incorrectly. Layer 3d now
+# consults only the semantic-models declaration: the canonical source.
+#
+# Callers MUST pass `semantic_models` for the wall to fire. If the
+# orchestrator dispatches design-mode queries without semantic_models,
+# the wall is silent — but the surrounding workflow (load semantic_models
+# on dispatch) makes that bug visible at the layer that loaded the
+# context, not here.
 # ──────────────────────────────────────────────────────────────────────────
-
-
-_DESIGN_MODE_FORBIDDEN_COLUMNS: frozenset[str] = frozenset({
-    "variant",
-    "treatment",
-    "treatment_group",
-    "arm",
-    "assigned_arm",
-    "exposure_arm",
-    "experiment_arm",
-    "cohort_assignment",
-    "bucket",
-})
-"""Column names whose appearance in a design-mode query triggers
-``DesignModePeekViolation``. Lowercase; the check is case-insensitive."""
 
 
 def _outcome_columns_from_semantic_models(semantic_models: Optional[list]) -> frozenset[str]:
     """Collect lowercased outcome-column names declared in semantic models.
 
-    W2.2 — reads the ``outcome_columns`` field from each semantic model
-    (whether dict-shaped from ``yaml.safe_load`` or a pydantic
-    ``BundleSemanticModel`` instance). Augments the hard-coded
-    ``_DESIGN_MODE_FORBIDDEN_COLUMNS`` set so warehouses with non-standard
-    column names (e.g. ``bucket_id`` instead of ``variant``) declare them
-    structurally rather than hoping the closed list happens to cover them.
-
-    Per W1.8, ``outcome_columns`` is required-not-optional at semantic-model
-    load time. A semantic model with a missing field fails to construct,
-    so reaching here with a missing field is a contract bug.
+    Reads the ``outcome_columns`` field from each semantic model (whether
+    dict-shaped from ``yaml.safe_load`` or a pydantic
+    ``SemanticModel`` instance). Per W1.8, ``outcome_columns`` is
+    required-not-optional at semantic-model load time — a semantic model
+    with a missing field fails to construct, so reaching here with a
+    missing field is a contract bug.
     """
     if not semantic_models:
         return frozenset()
@@ -327,14 +315,9 @@ def layer_3d_design_mode_outcome_reject(
     """Raise :class:`DesignModePeekViolation` on outcome-bearing column refs.
 
     Walks every :class:`exp.Column` node and matches its name (lowercase)
-    against the union of two sources:
-
-    1. The hard-coded ``_DESIGN_MODE_FORBIDDEN_COLUMNS`` set (the standard
-       assignment-revealing names common across warehouses).
-    2. ``outcome_columns`` declared on each semantic model in
-       ``semantic_models`` (W2.2 — lets a warehouse declare non-standard
-       outcome names structurally rather than hoping the closed set covers
-       them).
+    against ``outcome_columns`` declared on each semantic model in
+    ``semantic_models``. The semantic-model declaration is the canonical
+    source (audit Round 5 removed the duplicate hardcoded set).
 
     The first match aborts the query — the user receives a clear refusal
     with the specific column name and the path forward (use
@@ -342,9 +325,12 @@ def layer_3d_design_mode_outcome_reject(
 
     Called only when ``mode == "design"``; analyze mode skips this layer.
     """
-    forbidden = _DESIGN_MODE_FORBIDDEN_COLUMNS | _outcome_columns_from_semantic_models(
-        semantic_models
-    )
+    forbidden = _outcome_columns_from_semantic_models(semantic_models)
+    if not forbidden:
+        # No declared outcome columns means the layer is a no-op. This
+        # is honest — the wall fires from the semantic-model declaration,
+        # so without it there's nothing to enforce.
+        return
     for node in walk_ast(tree):
         if not isinstance(node, exp.Column):
             continue

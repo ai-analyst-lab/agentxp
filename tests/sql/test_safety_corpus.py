@@ -62,11 +62,14 @@ DESIGN_MUST_REFUSE: list[tuple[str, str]] = [
             "(SELECT user_id FROM assignments WHERE arm = 'treatment')"
         ),
     ),
-    (
-        "variant_column_alternate_name",
-        "SELECT variant, COUNT(*) FROM assignments GROUP BY variant",
-    ),
 ]
+
+
+# Post-Round-5: Layer 3d consults only semantic_models.outcome_columns.
+# A query against a column NOT declared as outcome on any semantic model
+# is permitted in design mode even if the column name was on the old
+# hardcoded list (e.g. `variant` is not declared in the repo's
+# assignment.yaml; the canonical declaration is `arm`).
 
 
 DESIGN_SHOULD_ACCEPT: list[tuple[str, str]] = [
@@ -146,32 +149,53 @@ ANALYZE_MUST_ACCEPT: list[tuple[str, str]] = [
 # ──────────────────────────────────────────────────────────────────────────
 
 
+@pytest.fixture(scope="module")
+def repo_semantic_models() -> list:
+    """Load every shipped semantic model so Layer 3d has its canonical
+    outcome-column declarations. Post-Round-5 (S11.A), the hardcoded
+    `_DESIGN_MODE_FORBIDDEN_COLUMNS` is gone; the wall fires from
+    semantic_models.outcome_columns or not at all.
+    """
+    import yaml as _yaml
+    from agentxp.semantic.validators import SemanticModel
+    from pathlib import Path as _Path
+
+    root = _Path(__file__).resolve().parents[2]
+    out: list = []
+    for p in sorted((root / "semantic_models").glob("*.yaml")):
+        if p.stem.startswith("_"):
+            continue
+        raw = _yaml.safe_load(p.read_text())
+        out.append(SemanticModel.model_validate(raw))
+    return out
+
+
 @pytest.mark.parametrize("name,sql", DESIGN_MUST_REFUSE, ids=[n for n, _ in DESIGN_MUST_REFUSE])
-def test_design_mode_refuses_outcome_patterns(name: str, sql: str) -> None:
-    """Layer 3d (R11) rejects every outcome-touching pattern in design mode."""
+def test_design_mode_refuses_outcome_patterns(name: str, sql: str, repo_semantic_models) -> None:
+    """Layer 3d (R11) rejects every outcome-touching pattern in design mode.
+
+    Post-Round-5: callers must pass semantic_models for the wall to fire.
+    """
     with pytest.raises((DesignModePeekViolation, ToolRefusal)):
-        probe_data(sql, mode="design", dialect="duckdb", purpose="profile")
+        probe_data(sql, mode="design", dialect="duckdb", purpose="profile",
+                   semantic_models=repo_semantic_models)
 
 
 @pytest.mark.parametrize("name,sql", ANALYZE_MUST_ACCEPT, ids=[n for n, _ in ANALYZE_MUST_ACCEPT])
-def test_analyze_mode_accepts_outcome_patterns(name: str, sql: str) -> None:
+def test_analyze_mode_accepts_outcome_patterns(name: str, sql: str, repo_semantic_models) -> None:
     """Same outcome-bearing queries pass in analyze mode (Layer 3d skipped)."""
-    # No raise expected; profile-purpose is fine for shape-probing analyze queries.
-    probe_data(sql, mode="analyze", dialect="duckdb", purpose="profile")
+    probe_data(sql, mode="analyze", dialect="duckdb", purpose="profile",
+               semantic_models=repo_semantic_models)
 
 
 @pytest.mark.parametrize("name,sql", DESIGN_SHOULD_ACCEPT, ids=[n for n, _ in DESIGN_SHOULD_ACCEPT])
-def test_design_mode_accepts_shape_probes(name: str, sql: str) -> None:
+def test_design_mode_accepts_shape_probes(name: str, sql: str, repo_semantic_models) -> None:
     """Routine shape probes pass design-mode safety.
 
     Pre-W3.1: several of these fail with DenyListViolation on AST nodes
     like ``Sub`` (date arithmetic), ``Var`` (DATE_TRUNC format-string
     slot), ``In``, ``Between``, ``Like``, ``Is``. The corpus marks the
     contract; W3.1 broadens ``ALLOWED_AST_NODES`` to satisfy it.
-
-    This test is the W3.1 acceptance gate. Run pre-W3.1 to see the
-    current refusals; run post-W3.1 to confirm the broadening admits
-    them without breaking Layer 3d (which the DESIGN_MUST_REFUSE cases
-    above already verify).
     """
-    probe_data(sql, mode="design", dialect="duckdb", purpose="profile")
+    probe_data(sql, mode="design", dialect="duckdb", purpose="profile",
+               semantic_models=repo_semantic_models)
