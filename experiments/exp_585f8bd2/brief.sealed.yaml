@@ -1,0 +1,90 @@
+schema_version: 1
+brief_content:
+  schema_version: 1
+  hypothesis: 'Repositioning the buy_now_button above the fold on the product detail
+    page, such that the call-to-action is visible without scrolling on the assignment
+    surface''s prevailing viewports, will increase the rate at which assigned users
+    (randomized on user_id at first exposure, cohort: general segment) proceed to
+    a completed purchase within the exposure window, relative to users assigned to
+    the unchanged control layout. The mechanism is one of reduced friction and elevated
+    salience: with the action surface visible at page arrival, interested users encounter
+    the conversion affordance earlier in the session and require fewer interaction
+    steps to express purchase intent, which is expected to manifest first as a lift
+    in click_buy_now events on element_id = ''buy_now_button'', propagate through
+    begin_checkout, and resolve as a lift in completed orders. The expected direction
+    on the primary metric is positive.
+
+    '
+  primary_metric: conversion_rate
+  primary_metric_type: proportion
+  primary_direction: higher_is_better
+  primary_decision_rule: ci_low > 0
+  mde_pct: 10.0
+  mde_text: 'Minimum detectable effect is a 10% relative lift in conversion_rate (absolute
+    lift of 0.008 over the 0.08 baseline), two-sided at alpha=0.05 with 80% power.
+    This is the smallest effect we commit to being able to distinguish from zero given
+    the available unit pool; smaller true effects may exist but the test is not powered
+    to surface them.
+
+    '
+  baseline: 0.08
+  n_required: 18400
+  n_required_basis: 'Per arm. Two-proportion z-test at baseline p=0.08, absolute delta=0.008
+    (10% relative MDE), alpha=0.05 two-sided, power=0.80. Total across both arms:
+    36,800 users. Assignment surface reports 50,000 units available with accrual of
+    2,500/day, so the required pool fits with margin and the test reaches power in
+    approximately 15 days from first assignment.
+
+    '
+  arms:
+  - control
+  - treatment
+  expected_arm_ratio_text: 50/50
+  assignment_unit: user_id
+  cohorts_summary:
+  - All users in the general segment exposed to the product detail page during the
+    experiment window.
+  cohorts:
+  - name: all_assigned
+    definition: "All user_id values present in the assignment table for this experiment.\
+      \ Attribution follows first-exposure semantics \u2014 only events at or after\
+      \ first_exposure_at count toward the experiment. No segment, geography, or device-class\
+      \ filter is applied; the user.segment field is predominantly 'general' until\
+      \ the segmentation pipeline lands and is not used to subset the analysis cohort.\n"
+  guardrails:
+  - metric_name: revenue_per_user
+    direction: non_decrease
+    nim_relative: 0.02
+  - metric_name: average_order_value
+    direction: non_decrease
+    nim_relative: 0.03
+  - metric_name: page_load_time
+    direction: non_increase
+    nim_relative: 0.05
+  - metric_name: pages_per_session
+    direction: non_decrease
+    nim_relative: 0.05
+  - metric_name: support_ticket_rate
+    direction: non_increase
+    nim_relative: 0.1
+design_chain_hash: 1f735323b85f19f4f49106b5a3bbb32f725afe9c17043d5d35c9a8e4ac4560c9
+metric_snapshot:
+  conversion_rate: f775e246e2992c91fa7a04f5d22bb93d2cb9ed5078144479b7792e6cdf9a5fe1
+expected_shape:
+  assignment_unit: user_id
+  arms:
+  - control
+  - treatment
+  expected_arm_count_ratio:
+    control: 0.5
+    treatment: 0.5
+  cohort_definitions:
+  - name: all_assigned
+    definition: "All user_id values present in the assignment table for this experiment.\
+      \ Attribution follows first-exposure semantics \u2014 only events at or after\
+      \ first_exposure_at count toward the experiment. No segment, geography, or device-class\
+      \ filter is applied; the user.segment field is predominantly 'general' until\
+      \ the segmentation pipeline lands and is not used to subset the analysis cohort.\n"
+sealed_at: '2026-06-09T16:06:40.357455Z'
+sealed_by: bench-A@test.local
+agentxp_version: 0.1.0
