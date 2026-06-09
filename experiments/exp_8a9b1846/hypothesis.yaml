@@ -1,0 +1,78 @@
+schema_version: 1
+
+hypothesis: >-
+  Relocating the Buy Now control (semantic_models.page_event.element_id =
+  'buy_now_button') above the fold on the product detail page increases the
+  share of assigned users who place at least one order during the exposure
+  window, relative to control. The manipulation is purely positional: the same
+  click_buy_now affordance is rendered higher in the viewport so that it is
+  visible without scrolling on first paint. The cohort is the full assigned
+  surface (assignment_surface.segments = ['general'], assignment_unit =
+  user_id), since the change ships site-wide on the product page rather than
+  to a behavioral subgroup. The expected direction on the primary metric is
+  positive (higher conversion_rate in treatment than in control), under the
+  mechanism that reducing visual search cost and scroll-to-action friction
+  increases the conditional probability of intent-formation (click_buy_now)
+  and, downstream, of checkout completion. Magnitude is deferred to the
+  brief's MDE selection at power-check.
+
+primary_metric_candidate: conversion_rate
+
+primary_direction: higher_is_better
+
+rationale: >-
+  conversion_rate is the canonical e-commerce purchase metric defined over
+  distinct users with one or more orders where ordered_at ≥ first_exposure_at
+  (metrics.conversion_rate), and the user's intent names "conversion" as the
+  outcome of interest, so any other primary would require redefining the
+  question. buy_now_click_rate is rejected as primary because it sits one step
+  before purchase in the funnel and a button-placement treatment is most prone
+  to lifting clicks without lifting orders — promoting it to primary would
+  reward intent-formation rather than completed purchases. begin_checkout_rate
+  is similarly mid-funnel; it informs but does not decide. revenue_per_user is
+  not primary because the manipulation does not alter price, mix, or
+  discounting and would mainly add variance (heavy-tailed order_value per
+  semantic_models.order) without adding signal on the question asked.
+
+leading_indicators:
+  - buy_now_click_rate
+  - add_to_cart_rate
+  - begin_checkout_rate
+
+guardrail_candidates:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    why: >-
+      Catches the case in which conversion_rate rises but per-user revenue
+      falls, e.g., a more prominent Buy Now control shifting users toward
+      lower-value single-item purchases or away from cart-building
+      (metrics.revenue_per_user description).
+  - metric_name: average_order_value
+    direction: higher_is_better
+    why: >-
+      Complements revenue_per_user at the order grain (semantic_models.order):
+      a positional treatment that increases impulse single-item buys would be
+      expected to depress average_order_value even if it leaves
+      revenue_per_user roughly flat.
+  - metric_name: page_load_time
+    direction: lower_is_better
+    why: >-
+      Standard performance guardrail (p95 latency_ms across page_view events,
+      per metrics.page_load_time); ensures the layout change has not regressed
+      time-to-interactive on the product page enough to harm downstream
+      behavior independently of placement.
+  - metric_name: pages_per_session
+    direction: higher_is_better
+    why: >-
+      Catches the engagement-degradation case in which an above-the-fold Buy
+      Now funnels users out of the browse loop faster (fewer page_view events
+      per session per metrics.pages_per_session), which can mask longer-term
+      harm to discovery even when short-window conversion lifts.
+  - metric_name: support_ticket_rate
+    direction: lower_is_better
+    why: >-
+      UX-regression guardrail: a layout change to the primary purchase
+      control is the class of edit that can produce confused or
+      mis-clicking users; metrics.support_ticket_rate within 7 days of first
+      exposure surfaces that class of harm even when funnel metrics look
+      positive.
