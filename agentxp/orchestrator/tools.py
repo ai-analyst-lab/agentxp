@@ -88,7 +88,7 @@ class ExperimentSnapshot(BaseModel):
     brief_sealed: bool
     has_analysis: bool
     has_interpretation: bool
-    has_report: bool
+    has_verdict: bool                # readouts/verdict/ dir exists with at least one rendered file
     last_log_entry: Optional[str] = None
     git_head_sha: Optional[str] = None
 
@@ -121,6 +121,9 @@ def read_experiment_dir(exp_dir: Path) -> ExperimentSnapshot:
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
+    verdict_dir = exp_dir / "readouts" / "verdict"
+    has_verdict = verdict_dir.exists() and any(verdict_dir.rglob("*.html"))
+
     return ExperimentSnapshot(
         experiment_id=exp_dir.name,
         exp_dir=exp_dir,
@@ -129,7 +132,7 @@ def read_experiment_dir(exp_dir: Path) -> ExperimentSnapshot:
         brief_sealed=(exp_dir / "brief.sealed.yaml").exists(),
         has_analysis=(exp_dir / "analysis.json").exists(),
         has_interpretation=(exp_dir / "interpretation.json").exists(),
-        has_report=(exp_dir / "report.md").exists(),
+        has_verdict=has_verdict,
         last_log_entry=last_entry,
         git_head_sha=git_head,
     )

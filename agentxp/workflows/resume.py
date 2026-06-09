@@ -59,7 +59,7 @@ def classify(snapshot: ExperimentSnapshot) -> ResumeState:
 
     The classification is by artifact presence, not by enum transitions:
 
-      - report.md present                          -> complete
+      - verdict readout present                    -> complete
       - brief.sealed.yaml present + analysis lands -> analysis_in_progress
       - brief.sealed.yaml present                  -> brief_sealed
       - brief.yaml present                         -> brief_drafted
@@ -69,8 +69,13 @@ def classify(snapshot: ExperimentSnapshot) -> ResumeState:
     The orchestrator routes each state to the right verb: complete is a
     terminal no-op; analysis_in_progress + brief_sealed → /analyze;
     everything earlier → /design.
+
+    Note (clarification pass): pre-clarification this classifier checked
+    for `report.md`. No experiment in the repo emits report.md — the
+    analyze verb terminates with the verdict share-tail under
+    `readouts/verdict/`. The classifier now matches reality.
     """
-    if snapshot.has_report:
+    if snapshot.has_verdict:
         return "complete"
     if snapshot.brief_sealed and snapshot.has_analysis:
         return "analysis_in_progress"

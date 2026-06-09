@@ -35,7 +35,7 @@ def _snapshot(exp_dir: Path, **flags) -> "ExperimentSnapshot":
         brief_sealed=False,
         has_analysis=False,
         has_interpretation=False,
-        has_report=False,
+        has_verdict=False,
     )
     defaults.update(flags)
     return ExperimentSnapshot(**defaults)
@@ -85,6 +85,6 @@ def test_classify_complete():
         exp = Path(tmp)
         snap = _snapshot(
             exp, has_intent=True, has_brief=True,
-            brief_sealed=True, has_analysis=True, has_report=True,
+            brief_sealed=True, has_analysis=True, has_verdict=True,
         )
         assert classify(snap) == "complete"

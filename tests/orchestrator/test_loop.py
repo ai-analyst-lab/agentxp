@@ -61,7 +61,7 @@ def test_read_experiment_dir_returns_empty_state_for_fresh_dir():
         assert not snap.has_brief
         assert not snap.brief_sealed
         assert not snap.has_analysis
-        assert not snap.has_report
+        assert not snap.has_verdict
 
 
 def test_read_experiment_dir_detects_artifacts():

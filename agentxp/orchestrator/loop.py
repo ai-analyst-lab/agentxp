@@ -50,12 +50,13 @@ class VerbContext(BaseModel):
     def terminal(self) -> bool:
         """Has the verb reached its termination condition?
 
-        - design  terminates when the brief seals
-        - analyze terminates when report.md is committed
+        - design  terminates when the brief seals (brief.sealed.yaml present)
+        - analyze terminates when the verdict share-tail lands
+          (readouts/verdict/<persona>/<persona>.html present)
         """
         if self.verb == "design":
             return self.snapshot.brief_sealed
-        return self.snapshot.has_report
+        return self.snapshot.has_verdict
 
 
 # ─────────────────────────────────────────────────────────────────────────────
