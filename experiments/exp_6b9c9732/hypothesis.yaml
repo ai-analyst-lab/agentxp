@@ -1,0 +1,15 @@
+schema_version: 1
+hypothesis: |
+  Relocating the Buy Now button above the fold on the product detail page
+  raises per-user probability of placing an order during the exposure window.
+primary_metric_candidate: conversion_rate
+primary_direction: higher_is_better
+rationale: |
+  The intent names conversion as the target.
+leading_indicators:
+  - buy_now_click_rate
+  - add_to_cart_rate
+guardrail_candidates:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    why: catches conversion-up-revenue-down
