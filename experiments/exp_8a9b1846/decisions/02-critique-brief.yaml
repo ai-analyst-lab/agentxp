@@ -1,0 +1,8 @@
+passed: true
+reasons:
+- file_path: experiments/exp_8a9b1846/brief.yaml
+  location: guardrails[0].nim_relative
+  rule_violated: R1
+  what: revenue_per_user NIM 2% vs catalog default 1%
+  why: treatment is order-driving; loosened revenue floor is internally tense.
+severity: warn

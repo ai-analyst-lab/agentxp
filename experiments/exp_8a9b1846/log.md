@@ -5,3 +5,4 @@
 - `2026-06-09T15:48:34.616026+00:00` — hypothesis drafted; critic passed (brief_consistency)
 - `2026-06-09T15:48:34.817652+00:00` — critic judgment on hypothesis: passed (warn, no reasons)
 - `2026-06-09T15:52:29.187193+00:00` — brief drafted; critic passed (warn — revenue NIM tension flagged)
+- `2026-06-09T15:52:29.399406+00:00` — critic judgment on brief: passed (severity warn)
