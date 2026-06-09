@@ -1,0 +1,115 @@
+# =============================================================================
+# MDE derivation (two-proportion power, alpha=0.05 two-sided, power=0.80)
+# =============================================================================
+# Inputs
+#   baseline p1                = 0.10  (midpoint of metrics.conversion_rate.baseline_range)
+#   alpha (two-sided)          = 0.05  -> z_{alpha/2} = 1.9600
+#   power                      = 0.80  -> z_beta      = 0.8416
+#   (z_{alpha/2} + z_beta)^2   = (2.8016)^2 = 7.849
+#   assignment surface (total) = 137,500  (assignment_surface.units_available)
+#   allocation                 = 50 / 50  -> n per arm cap = 68,750
+#
+# Formula (per arm)
+#   n = (z_{alpha/2} + z_beta)^2 * [ p1*(1-p1) + p2*(1-p2) ] / (p2 - p1)^2
+#
+# Search for tightest relative MDE that fits the surface (n_total <= 137,500),
+# stepping by 0.1pp on the relative lift:
+#
+#   rel MDE   p2        p2(1-p2)    n/arm     n_total    fits?
+#   --------  --------  ----------  --------  ---------  -------
+#   4.5%      0.10450   0.093580    71,167    142,334    NO
+#   4.6%      0.10460   0.093659    68,117    136,234    YES   <- chosen
+#   4.7%      0.10470   0.093737    65,202    130,404    YES (looser)
+#   5.0%      0.10500   0.093975    57,761    115,522    YES (looser)
+#
+# Tightest 0.1pp-resolution relative MDE that fits 137,500: 4.6%
+# Absolute lift detectable: 0.46 percentage points (0.1000 -> 0.1046)
+# n_required (total, both arms): 136,234
+# Headroom vs surface:           137,500 - 136,234 = 1,266 units (~0.9%)
+#
+# Decision-rule tightness check (R1)
+#   The accept band is centred at the MDE we are powered for, not at zero,
+#   so a real treatment effect that comes in below ~0.30 percentage points
+#   absolute will fail to clear the rule even at point-estimate level.
+#   That is the asymmetry R1 demands: the rule can refuse a real lift.
+# =============================================================================
+
+schema_version: 1
+
+hypothesis: >-
+  Relocating the click_buy_now affordance (page_event.element_id =
+  'buy_now_button') above the fold on the product detail page increases
+  conversion_rate — the share of assigned users with one or more orders where
+  ordered_at >= first_exposure_at — relative to control, across the full
+  assigned surface (assignment_surface.segments = ['general']). The treatment
+  is purely positional; the same button is rendered higher in the viewport so
+  that it is visible without scrolling on first paint. Expected direction is
+  positive on conversion_rate; magnitude at or above the brief's MDE.
+
+primary_metric: conversion_rate
+primary_metric_type: proportion
+primary_direction: higher_is_better
+
+primary_decision_rule: >-
+  Ship if and only if the two-proportion test of conversion_rate (treatment
+  minus control) yields a 95% confidence interval whose lower bound is at
+  least +0.30 absolute percentage points (i.e., CI_low >= 0.0030 in
+  proportion units, equivalent to roughly +3.0% relative lift on a 0.10
+  baseline) and whose point estimate is positive. A CI that spans zero, a
+  CI entirely below the +0.30pp floor, or a negative point estimate fails
+  the rule and the treatment does not ship. The floor sits below the MDE
+  (0.46pp absolute) so the test can succeed at the powered effect size,
+  and sits well above zero so a small-but-significant lift driven by noise
+  near the powered boundary does not auto-ship.
+
+mde_text: >-
+  Minimum detectable effect: +4.6% relative lift on conversion_rate, i.e.,
+  an absolute increase from 0.1000 (control baseline) to 0.1046 (treatment),
+  detectable at alpha = 0.05 two-sided with 80% power under a two-proportion
+  test. This is the tightest 0.1-percentage-point-resolution relative MDE
+  that fits within the available assignment surface of 137,500 users at
+  50/50 allocation; tightening to +4.5% relative would require 142,334
+  users and exceeds the surface.
+mde_pct: 4.6
+baseline: 0.10
+n_required: 136234
+
+guardrails:
+  - metric_name: revenue_per_user
+    direction: higher_is_better
+    nim_relative: 0.02
+  - metric_name: average_order_value
+    direction: higher_is_better
+    nim_relative: 0.02
+  - metric_name: page_load_time
+    direction: lower_is_better
+    nim_relative: 0.05
+  - metric_name: pages_per_session
+    direction: higher_is_better
+    nim_relative: 0.03
+  - metric_name: support_ticket_rate
+    direction: lower_is_better
+    nim_relative: 0.10
+
+cohorts_summary: >-
+  Single cohort: all users assigned to the experiment via assignment.arm,
+  drawn from the 'general' segment that comprises the full assignment
+  surface (assignment_surface.segments = ['general'], assignment_unit =
+  user_id). The treatment is a site-wide product-page layout change, so
+  no behavioral pre-filtering is applied; eligibility is exposure on the
+  product detail page after first_exposure_at.
+
+cohorts:
+  - name: all_assigned
+    definition: >-
+      All users with a row in assignment for this experiment_id, attributed
+      from first_exposure_at onward (first-exposure attribution per the
+      assignment semantic model). No segment, geography, device, or tenure
+      restriction. assignment_surface.segments = ['general'] is the only
+      segment present.
+
+assignment_unit: user_id
+arms:
+  - control
+  - treatment
+expected_arm_ratio_text: "50 / 50"
