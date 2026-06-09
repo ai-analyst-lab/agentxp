@@ -1,29 +1,29 @@
-"""Orchestrator tool surface (T81) — the typed tools the agent calls.
+"""Orchestrator tool surface — the typed tools the agent calls.
 
-The orchestrator is a Claude Code session running with rebuild/CLAUDE.md
-as its system prompt. It uses these tools to do everything the worldview
-permits (R1-R11). Each tool wraps a load-bearing module that the agent
+The orchestrator is a Claude Code session running with CLAUDE.md as its
+system prompt. It uses these tools to do everything the worldview
+permits (R1–R11). Each tool wraps a load-bearing module that the agent
 must NOT reimplement.
 
-Tool roster (CLAUDE.md §6):
-  - read_experiment_dir(exp_id)         dir state -> ExperimentSnapshot
+Tool roster (post-audit-Round-3):
+  - read_experiment_dir(exp_dir)        dir state -> ExperimentSnapshot
   - probe_data(sql, mode)               -> through agentxp.sql.safety
-  - run_stat(test_name, **args)         -> through agentxp.stats.*
-  - decision_tree(tree_input)           -> agentxp.interpret.tree.walk_tree
-  - map_confidence(ci_low, ci_high, orientation) -> ConfidenceLabel
-  - seal_brief(...)                     -> agentxp.schemas.brief_seal
-  - verify_brief_seal(...)              -> agentxp.schemas.brief_seal
-  - render(readout_type, vm, provenance) -> distill + catalog + write
-  - commit_artifact(name, content)      -> file + log.md + git commit
-  - confirm_with_user(question, options) -> the only gate primitive
+  - render_share_tail(...)              distill + catalog + write
+  - commit_artifact(name, content)      file + log.md + git commit
+  - commit_artifacts([(name, content)]) batched form (W5.4)
 
-Each tool either succeeds and returns a typed result, raises a typed
-exception the agent should surface to the user, or refuses with a
-ToolRefusal that names the rule it enforces.
+R3/R4/R8/R11 enforcers (decision_tree, map_confidence, seal_brief,
+verify_brief_seal) used to live here as no-op wrappers around the
+upstream modules. Audit removal Round 3 deleted them; callers import
+the upstream directly:
 
-The actual specialist dispatch (assembling a bundle, sending a prompt
-to a sub-agent) is in dispatch.py (T82); this module is the
-discipline-enforcing tool layer.
+  - decision_tree    -> agentxp.interpret.tree.walk_tree
+  - map_confidence   -> agentxp.interpret.confidence.map_confidence
+  - seal_brief       -> agentxp.schemas.brief_seal.seal_brief
+  - verify_brief_seal -> agentxp.schemas.brief_seal.verify_or_raise
+
+Specialist dispatch lives in agentxp.orchestrator.bridge
+(open_dispatch + complete_dispatch).
 """
 from __future__ import annotations
 
@@ -35,9 +35,6 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, ConfigDict
 
 from agentxp.audit.redactor import redact_message
-from agentxp.interpret.confidence import ConfidenceLabel
-from agentxp.interpret.confidence import map_confidence as _map_confidence_impl
-from agentxp.interpret.tree import TreeInput, TreeResult, walk_tree
 from agentxp.render.catalog import (
     RenderCompletedEvent,
     catalog_append,
@@ -53,13 +50,6 @@ from agentxp.render.viewmodel import (
     IntentVM,
     MidRunVM,
     VerdictVM,
-)
-from agentxp.schemas.brief_seal import (
-    ExpectedShape,
-    SealedBrief,
-    VerifyResult,
-    seal_brief as _seal_brief_impl,
-    verify_brief_seal as _verify_brief_seal_impl,
 )
 from agentxp.sql.safety import SafetyMode, SafetyResult, run_pipeline
 
@@ -173,62 +163,13 @@ def probe_data(
     )
 
 
-def decision_tree(tree_input: TreeInput) -> TreeResult:
-    """Run the 8-step verdict tree. The verdict is the function's output;
-    R3 forbids the orchestrator from improvising one. UNVERIFIABLE on null
-    required inputs (T10)."""
-    return walk_tree(tree_input)
-
-
-def map_confidence(
-    ci_low: float,
-    ci_high: float,
-    orientation: Literal["higher_is_better", "lower_is_better", "neither"],
-) -> ConfidenceLabel:
-    """Compute the seven-value confidence label deterministically. R8 forbids
-    upgrading the label through prose."""
-    return _map_confidence_impl(ci_low, ci_high, orientation)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Brief seal wrappers
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def seal_brief_tool(
-    *,
-    brief_content: dict,
-    design_chain_path: Path,
-    metric_paths: dict[str, Path],
-    expected_shape: ExpectedShape,
-    sealed_by: str,
-    agentxp_version: str,
-) -> SealedBrief:
-    """Compute the three-part integrity lock. R11 wall. No --force."""
-    return _seal_brief_impl(
-        brief_content=brief_content,
-        design_chain_path=design_chain_path,
-        metric_paths=metric_paths,
-        expected_shape=expected_shape,
-        sealed_by=sealed_by,
-        agentxp_version=agentxp_version,
-    )
-
-
-def verify_brief_seal_tool(
-    *,
-    sealed: SealedBrief,
-    design_chain_path: Path,
-    metric_paths: dict[str, Path],
-) -> VerifyResult:
-    """Re-check all three lock components. Never raises — returns a
-    structured VerifyResult. The orchestrator decides whether to proceed
-    or refuse based on the result."""
-    return _verify_brief_seal_impl(
-        sealed=sealed,
-        design_chain_path=design_chain_path,
-        metric_paths=metric_paths,
-    )
+# Audit removal Round 3 (S4.B / C0.D): removed no-op wrapper functions
+# decision_tree, map_confidence, seal_brief_tool, verify_brief_seal_tool.
+# Each was a one-line forward to its upstream function in
+# agentxp.interpret.tree / agentxp.interpret.confidence /
+# agentxp.schemas.brief_seal. Skills now import the upstream directly.
+# probe_data kept — it has real default kwargs (dialect, purpose) and a
+# wide call surface, so the wrapper carries ergonomic value.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -579,10 +520,6 @@ __all__ = [
     "read_experiment_dir",
     # Wrappers
     "probe_data",
-    "decision_tree",
-    "map_confidence",
-    "seal_brief_tool",
-    "verify_brief_seal_tool",
     "render_share_tail",
     "commit_artifact",
     "commit_artifacts",
