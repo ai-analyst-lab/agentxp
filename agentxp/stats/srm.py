@@ -12,7 +12,7 @@ from scipy import stats
 from agentxp.stats._trace import is_trace_enabled, trace_dict
 
 
-def srm_check(observed_counts, expected_ratios=None, threshold=0.01):
+def srm_check(observed_counts, expected_ratios=None, threshold=0.0005):
     """Chi-squared goodness-of-fit test for sample ratio mismatch.
 
     Args:
@@ -20,8 +20,9 @@ def srm_check(observed_counts, expected_ratios=None, threshold=0.01):
             (e.g., [4800, 5200] for control/treatment).
         expected_ratios: list of expected allocation ratios
             (e.g., [0.5, 0.5]). Defaults to equal split.
-        threshold: p-value threshold for verdicts. Default 0.01.
-            Microsoft uses 0.0005 for production experiments.
+        threshold: p-value threshold for verdicts. Default 0.0005, matching
+            CLAUDE.md R2. (Pre-clarification-pass the default was 0.01,
+            looser than the rule. Audit item C12.A aligned them.)
 
     Returns:
         dict with: chi2_stat, p_value, verdict (PASS/WARNING/BLOCK),

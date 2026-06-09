@@ -111,26 +111,33 @@ def _parse_skill_imports(md_text: str) -> dict[str, str]:
     return {str(k): str(v) for k, v in imports.items()}
 
 
-_UNTRACKED_SYMBOLS: set[tuple[str, str]] = set()
+_KNOWN_NON_HELPERS: frozenset[str] = _BUILTIN_OR_KWARG_LESS | _EXAMPLE_LOCALS | frozenset({
+    "print", "open", "len", "str", "int", "float", "list", "dict",
+    "tuple", "set", "range", "enumerate", "zip", "isinstance",
+    "getattr", "hasattr", "yaml", "json",
+    "Optional", "Literal", "Field", "BaseModel", "ConfigDict",
+})
 
 
-def _resolve(name: str, skill_imports: dict[str, str], skill_path: Path):
-    """Audit item #7: previously returned None silently when a symbol was
-    unknown, which meant the test couldn't tell "this kwarg is valid" from
-    "I don't know this function." Now we record every unresolved name so
-    the test can fail loudly listing all of them.
+def _resolve(
+    name: str,
+    skill_imports: dict[str, str],
+    skill_path: Path,
+    untracked: set[tuple[str, str]],
+):
+    """Resolve a name to its callable target, or None.
+
+    Audit clarification #l: previously this function mutated a module-
+    level `_UNTRACKED_SYMBOLS` set as a side effect, which made the two
+    consumer tests race-prone under pytest parallelism / reordering.
+    Untracked names now flow through an explicit `untracked` parameter
+    that the caller (a fixture) owns the lifecycle of.
     """
     spec = skill_imports.get(name) or SYMBOL_IMPORTS.get(name)
     if spec is None:
-        # Common stdlib / builtin names that show up in code blocks but
-        # aren't AgentXP helpers we need to validate.
-        if name in _BUILTIN_OR_KWARG_LESS or name in _EXAMPLE_LOCALS or name in {
-                    "print", "open", "len", "str", "int", "float", "list", "dict",
-                    "tuple", "set", "range", "enumerate", "zip", "isinstance",
-                    "getattr", "hasattr", "yaml", "json",
-                    "Optional", "Literal", "Field", "BaseModel", "ConfigDict"}:
+        if name in _KNOWN_NON_HELPERS:
             return None
-        _UNTRACKED_SYMBOLS.add((str(skill_path), name))
+        untracked.add((str(skill_path), name))
         return None
     module_path, qualname = spec.split(":")
     try:
@@ -162,32 +169,36 @@ def _call_name(node: ast.Call) -> str | None:
     return None
 
 
-def _collect_drift_violations() -> list[tuple[Path, str, str, list[str]]]:
-    """Walk every SKILL.md and return any kwarg drifts.
+def _walk_skills() -> tuple[
+    list[tuple[Path, str, str, list[str]]],
+    set[tuple[str, str]],
+]:
+    """Walk every SKILL.md once; collect both kwarg drifts AND untracked
+    symbols in a single pass. Returns ``(violations, untracked)`` as a
+    pair the two tests below consume.
 
-    Returns ``[(skill_path, function_name, drift_kwarg, valid_kwargs), ...]``.
+    No module-level mutable state — both outputs flow through the return
+    value, so the tests are race-free under pytest parallelism /
+    reordering (audit clarification #l).
     """
     violations: list[tuple[Path, str, str, list[str]]] = []
+    untracked: set[tuple[str, str]] = set()
 
     for skill_md in SKILLS_DIR.glob("**/SKILL.md"):
         text = skill_md.read_text()
         skill_imports = _parse_skill_imports(text)
         for block in _iter_python_blocks(text):
-            # Strip leading prompt placeholders like `<from intent.yaml>`,
-            # which break ast.parse. Allow lines that start with these
-            # placeholders by replacing them with `None` for parsing only.
             cleaned = re.sub(r"<[^>]+>", "None", block)
             try:
                 tree = ast.parse(cleaned)
             except SyntaxError:
-                # Code block is illustrative, not executable. Skip.
                 continue
 
             for call in _iter_calls(tree):
                 name = _call_name(call)
                 if name is None:
                     continue
-                target = _resolve(name, skill_imports, skill_md)
+                target = _resolve(name, skill_imports, skill_md, untracked)
                 if target is None:
                     continue
                 try:
@@ -195,8 +206,6 @@ def _collect_drift_violations() -> list[tuple[Path, str, str, list[str]]]:
                 except (TypeError, ValueError):
                     continue
                 params = set(sig.parameters)
-                # Accept VAR_KEYWORD targets (e.g. **kwargs); we cannot
-                # statically validate against them.
                 has_kwargs = any(
                     p.kind is inspect.Parameter.VAR_KEYWORD
                     for p in sig.parameters.values()
@@ -204,19 +213,25 @@ def _collect_drift_violations() -> list[tuple[Path, str, str, list[str]]]:
                 if has_kwargs:
                     continue
                 for kw in call.keywords:
-                    if kw.arg is None:  # **kwargs splat
+                    if kw.arg is None:
                         continue
                     if kw.arg not in params:
                         violations.append(
                             (skill_md, name, kw.arg, sorted(params))
                         )
-    return violations
+    return violations, untracked
 
 
-def test_skill_signatures_match_live_api() -> None:
+@pytest.fixture(scope="module")
+def skill_walk_results():
+    """Module-scoped fixture so both consumer tests share one walk
+    (the walk is the expensive part — ~30 SKILL.md code blocks to ast.parse)."""
+    return _walk_skills()
+
+
+def test_skill_signatures_match_live_api(skill_walk_results) -> None:
     """Every kwarg cited in every SKILL.md code block exists in the live signature."""
-    _UNTRACKED_SYMBOLS.clear()
-    violations = _collect_drift_violations()
+    violations, _ = skill_walk_results
     if violations:
         lines = []
         for path, fn, drift, valid in violations:
@@ -233,20 +248,17 @@ def test_skill_signatures_match_live_api() -> None:
         )
 
 
-def test_skill_signatures_no_unknown_symbols() -> None:
-    """Audit item #7: a symbol cited in a SKILL.md code block must resolve.
+def test_skill_signatures_no_unknown_symbols(skill_walk_results) -> None:
+    """A symbol cited in a SKILL.md code block must resolve.
 
-    Pre-fix the walker returned None for unknown symbols and the test
-    quietly passed — that meant "I don't know this function" looked
-    identical to "this function is fine." Either declare the symbol in
-    the skill's ``imports:`` preamble or extend the global
-    ``SYMBOL_IMPORTS`` map; this test fails if neither names it.
+    Either declare the symbol in the skill's ``imports:`` preamble or
+    extend the global ``SYMBOL_IMPORTS`` map; this test fails if neither
+    names it.
     """
-    _UNTRACKED_SYMBOLS.clear()
-    _collect_drift_violations()  # populates _UNTRACKED_SYMBOLS as a side effect
-    if _UNTRACKED_SYMBOLS:
+    _, untracked = skill_walk_results
+    if untracked:
         by_skill: dict[str, list[str]] = {}
-        for skill_path, name in sorted(_UNTRACKED_SYMBOLS):
+        for skill_path, name in sorted(untracked):
             by_skill.setdefault(skill_path, []).append(name)
         lines = []
         for skill, names in sorted(by_skill.items()):

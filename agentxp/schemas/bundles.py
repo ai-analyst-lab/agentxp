@@ -81,9 +81,12 @@ class IntentText(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
     captured_at: AwareUtcDatetime = Field(
         description=(
-            "Timezone-aware UTC datetime. yaml.safe_load emits datetime "
-            "directly, so callers no longer need to re-parse ISO strings "
-            "(DIAGNOSTIC §B.2 #4)."
+            "Timezone-aware UTC datetime. Pydantic v2 auto-parses ISO "
+            "strings into datetime before the AfterValidator runs, so "
+            "callers can pass either a datetime instance (yaml.safe_load "
+            "output) or an ISO-8601 string — DIAGNOSTIC §B.2 #4 worked "
+            "around an issue that was actually upstream's natural "
+            "behavior. Both forms produce the same datetime."
         )
     )
 

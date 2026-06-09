@@ -54,10 +54,15 @@ from agentxp.schemas.bundles import BLINDNESS_MANIFEST
 # whose outputs are still TODO carry an explicit entry below so the
 # silence is visible. ``complete_dispatch`` emits a one-time stderr
 # warning when it skips validation for a deliberately-unwired role.
+#
+# `sql_specialist` was previously listed here but is also not dispatched
+# by any skill (CLAUDE.md §3 — "reserved / not yet dispatched"). It is
+# left out of `_UNWIRED_ROLES` deliberately: a `complete_dispatch` call
+# for `sql_specialist` is a bug, not a tolerated TODO, and `_get_output_schema`
+# will raise KeyError. (Audit clarification C5.B.)
 _UNWIRED_ROLES: frozenset[str] = frozenset({
     "designer",         # HypothesisDraft / BriefDraft drafted as prose
     "understander",     # list[SemanticModel] / list[Metric] proposals
-    "sql_specialist",   # SqlProposal not yet typed
     "analyst_narrator", # NarrativeOutput not yet typed
 })
 

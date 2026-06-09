@@ -131,24 +131,31 @@ NOTE: `resume` is NOT a slash command (conflicts with Claude Code's built-in `/r
 
 | Function | Signature | Notes |
 |---|---|---|
-| `dispatch_specialist` | `(*, role, sources, project_root, llm_caller=...) -> dict` | Validates bundle, calls LLM with role prompt + bundle. |
-| `dispatch_critic` | `(*, artifact_ref, artifact_payload, claimed_scope, cited_inputs, judging_mode, project_root, llm_caller=...) -> dict` | Blind critic dispatch (R6). |
-| `require_critic_pass` | `(*, judgment: dict) -> None` | Raises `ToolRefusal` on block, no-op on warn. |
 | `design_verb_initial_snapshot` | `(exp_dir: Path) -> VerbContext` | Constructs VerbContext for design CLI entry. |
 | `analyze_verb_initial_snapshot` | `(*, exp_dir, sealed_brief_path) -> VerbContext` | Same for analyze. |
+
+The pre-audit `dispatch_specialist` / `dispatch_critic` / `require_critic_pass` / `LLMCaller` dispatch path was removed in audit removal Round 2 — the bridge (`agentxp.orchestrator.bridge`) replaced it. See the bridge entry below.
+
+### `agentxp.orchestrator.bridge`
+
+| Function | Signature | Notes |
+|---|---|---|
+| `open_dispatch` | `(*, role, sources, project_root, subagent_type="general-purpose") -> DispatchDescriptor` | Phase 1 of two-phase specialist dispatch: assembles + validates the bundle, persists a descriptor to disk for cross-process pickup. |
+| `complete_dispatch` | `(*, dispatch_id, raw_response, project_root) -> dict` | Phase 2: validates response against the role's output schema, consumes the descriptor. |
+| `dispatch_critic` | `(*, artifact_ref, artifact_payload, claimed_scope, cited_inputs, judging_mode, project_root, subagent_type="general-purpose") -> DispatchDescriptor` | W5.3 ergonomic wrapper around `open_dispatch` for the CLAUDE.md §6 "critic at every commit" pattern. |
+| `reopen_dispatch_with_prior_error` | `(*, role, sources, project_root, prior_error, subagent_type="general-purpose") -> DispatchDescriptor` | Retry-once on MalformedSpecialistOutput (CLAUDE.md §10). |
 
 ### `agentxp.orchestrator.tools`
 
 | Function | Signature | Notes |
 |---|---|---|
 | `read_experiment_dir` | `(exp_dir: Path) -> ExperimentSnapshot` | Disk → state, no mutation. |
-| `probe_data` | `(sql, *, mode: SafetyMode, dialect='duckdb', purpose='shape_probe', semantic_models=None) -> SafetyResult` | Wrapper for `run_pipeline`. |
-| `decision_tree` | `(tree_input: TreeInput) -> TreeResult` | Wrapper for `walk_tree`. |
-| `map_confidence` | `(ci_low, ci_high, orientation) -> ConfidenceLabel` | Wrapper. |
-| `seal_brief_tool` | `(*, brief_content, design_chain_path, metric_paths, expected_shape, sealed_by, agentxp_version) -> SealedBrief` | Wrapper. |
-| `verify_brief_seal_tool` | `(*, sealed, design_chain_path, metric_paths) -> VerifyResult` | Wrapper. |
-| `render_share_tail` | `(*, exp_dir, experiment_id, readout_type, vm, vm_sha256, provenance_render_status, audience='exec', fmt='md', entry_id=None, timestamp=None) -> Path` | distill + catalog + write. |
+| `probe_data` | `(sql, *, mode: SafetyMode, dialect='duckdb', purpose='shape_probe', semantic_models=None) -> SafetyResult` | Wrapper for `run_pipeline` with default dialect + purpose. |
+| `render_share_tail` | `(*, exp_dir, experiment_id, readout_type, vm, vm_sha256, audience='exec', fmt='md', entry_id=None, timestamp=None, strict_voice=False, pdf_browser=None) -> Path` | distill + catalog + write. The catalog's `provenance_render_status` is computed by `build_provenance_for_brief`, not passed by the caller (R9). |
 | `commit_artifact` | `(*, exp_dir, artifact_name, content, log_entry, git_message=None) -> str` | Atomic file + log.md + git commit. Returns SHA. |
+| `commit_artifacts` | `(*, exp_dir, artifacts, log_entry, git_message) -> str` | Batched form: writes a list of (name, content) pairs as one commit + one log row. |
+
+The pre-audit `decision_tree` / `map_confidence` / `seal_brief_tool` / `verify_brief_seal_tool` no-op wrappers were removed in audit removal Round 3. Callers import the upstream directly (`agentxp.interpret.tree.walk_tree`, `agentxp.interpret.confidence.map_confidence`, `agentxp.schemas.brief_seal.seal_brief`, `agentxp.schemas.brief_seal.verify_or_raise`).
 
 ---
 
