@@ -6,3 +6,4 @@
 - `2026-06-09T15:48:34.817652+00:00` — critic judgment on hypothesis: passed (warn, no reasons)
 - `2026-06-09T15:52:29.187193+00:00` — brief drafted; critic passed (warn — revenue NIM tension flagged)
 - `2026-06-09T15:52:29.399406+00:00` — critic judgment on brief: passed (severity warn)
+- `2026-06-09T15:52:29.769090+00:00` — data plan written (warehouse-binding stub)
