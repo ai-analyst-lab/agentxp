@@ -56,7 +56,7 @@ Notably absent — and structurally enforced by `BLINDNESS_MANIFEST`:
 - `format_confidence_interval(ci_low, ci_high)` — render a CI in canonical form
 - `map_confidence(ci_low, ci_high, orientation)` — for verifying a confidence label, never for choosing one (the labels in your bundle are already computed)
 
-You do not have `run_stat`, `decision_tree`, `probe_data`, or anything that produces new numbers.
+You do not have the `agentxp.stats.*` helpers, `walk_tree`, `probe_data`, or anything that produces new numbers.
 
 ## Output
 

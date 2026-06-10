@@ -5,6 +5,7 @@ imports:
   allocate_experiment: agentxp.workflows.design:allocate_experiment
   record_intent:       agentxp.workflows.design:record_intent
   load_intent:         agentxp.workflows.design:load_intent
+  finalize_brief:      agentxp.workflows.design:finalize_brief
   distill_intent:      agentxp.render.distill:distill_intent
   distill_design_brief: agentxp.render.distill:distill_design_brief
   fan_out:             agentxp.render.fan_out:fan_out
@@ -12,7 +13,8 @@ imports:
   commit_artifact:     agentxp.orchestrator.tools:commit_artifact
   commit_artifacts:    agentxp.orchestrator.tools:commit_artifacts
   probe_data:          agentxp.orchestrator.tools:probe_data
-  seal_brief:          agentxp.schemas.brief_seal:seal_brief
+  check_power_feasibility: agentxp.workflows.design:check_power_feasibility
+  seal_and_commit_brief: agentxp.workflows.design:seal_and_commit_brief
   verify_or_raise:     agentxp.schemas.brief_seal:verify_or_raise
   open_dispatch:       agentxp.orchestrator.bridge:open_dispatch
   complete_dispatch:   agentxp.orchestrator.bridge:complete_dispatch
@@ -176,12 +178,19 @@ Commit `hypothesis.yaml` via `commit_artifact`. Dispatch the critic in `brief_co
 Same shape as step 5 but `task="draft_brief"`. The brief must declare:
 
 - A primary metric (one, by name)
-- A decision rule that is **tight enough that a real treatment effect could fail it** (R1)
-- An MDE
+- A **structured** decision rule (`primary_decision_rule` as a `DecisionRule` mapping with `applies_to` + `threshold` + `direction` + `severity`), tight enough that a real treatment effect could fail it (R1)
+- `baseline` + `mde_pct` (the designer's judgments — see `agents/designer.md`)
 - Cohort definitions expressible against the assignment surface
 - A list of guardrails (each with direction + nim_relative)
 
-Commit `brief.yaml`. Dispatch critic.
+**After the designer writes `brief.yaml` and before committing, call `finalize_brief(exp_dir)`** from `agentxp.workflows.design`. This:
+- Computes `n_required` deterministically from `baseline + mde_pct` via `power_proportion` / `power_mean` (replaces whatever the LLM wrote).
+- Validates `primary_decision_rule` against the `DecisionRule` schema. Rejects free-text rules with `ValueError`.
+- Stamps `alpha`, `power`, `n_required_total`, `n_required_computed_by` and writes the brief back to disk.
+
+The reason this step exists: an Option-A benchmark showed two LLM runs of the same intent picked `n_required` values 7.4× apart and wrote the decision rule in qualitatively different shapes. Moving the arithmetic to a deterministic helper closes that gap. R1's pre-registration claim depends on the magnitude layer being reproducible, not just the categorical layer.
+
+Then commit the finalized `brief.yaml`. Dispatch critic.
 
 ### 7. Dispatch the designer for the data plan
 
@@ -220,7 +229,15 @@ declares.
 
 ### 8. Run the power-feasibility check
 
-Required-n vs available units. The `seal_brief` step refuses with a math-rich message if required-n exceeds the surface; **no `--force`** (R11). If it would fail, either widen the MDE or expand the surface — return to step 6.
+Required-n vs available units. `seal_and_commit_brief` (step 10) runs this check before any side effect and refuses with a math-rich message — including the smallest MDE the surface can power — if `n_required_total` exceeds `units_available`; **no `--force`** (R11). To preview the refusal before the seal gate, call it directly:
+
+```python
+from agentxp.workflows.design import check_power_feasibility
+
+check_power_feasibility(<dict from brief.yaml>, units_available=<surface.units_available>)
+```
+
+If it would fail, either widen the MDE or expand the surface — return to step 6 and re-run `finalize_brief`.
 
 ### 9. Confirm seal gate with user
 
@@ -234,13 +251,14 @@ This is the **`confirm_brief_seal`** gate. Closing it crosses the design/analyze
 ### 10. Seal the brief
 
 ```python
-from agentxp.schemas.brief_seal import seal_brief, ExpectedShape
+from agentxp.schemas.brief_seal import ExpectedShape
 
 # W1.3 — cohort_definitions is list[CohortDefinition], not list[str].
 # Pre-W1.3 sealed briefs in the repo carry list[str]; the schema accepts
 # them via a backwards-compat validator and projects "name: definition"
 # strings. New seals should pass structured CohortDefinitions directly.
 from agentxp.schemas.brief_seal import CohortDefinition
+from agentxp.workflows.design import seal_and_commit_brief
 
 expected_shape = ExpectedShape(
     assignment_unit=<from brief>,
@@ -252,22 +270,17 @@ expected_shape = ExpectedShape(
     ],
 )
 
-sealed = seal_brief(
-    brief_content=<dict from brief.yaml>,
-    design_chain_path=exp_dir / "log.md",
+sealed = seal_and_commit_brief(
+    exp_dir,
     metric_paths={name: project_root / "metrics" / f"{name}.yaml"
                   for name in <metric names from brief>},
     expected_shape=expected_shape,
     sealed_by=<user>,
-    agentxp_version=agentxp.__version__,
+    units_available=<surface.units_available>,
 )
-
-# Write the sealed brief
-import yaml
-(exp_dir / "brief.sealed.yaml").write_text(yaml.safe_dump(sealed.model_dump(mode="json"), sort_keys=False))
 ```
 
-Then `commit_artifact("brief.sealed.yaml", ..., "brief sealed")`.
+Do NOT seal via `seal_brief` + `commit_artifact`. That ordering is self-invalidating: `seal_brief` hashes `log.md` into `design_chain_hash`, then `commit_artifact` appends its own log row — so the committed `log.md` never matches the hash and the seal can never verify as VERIFIED. `seal_and_commit_brief` appends the seal log row *before* hashing, writes `brief.sealed.yaml`, runs the power-feasibility refusal, and commits with no further log mutation.
 
 ### 11. Render the design-brief share-tail
 
@@ -312,7 +325,8 @@ The design verb is done.
 | `allocate_experiment` / `record_intent` | `agentxp.workflows.design` |
 | `dispatch_specialist` / `dispatch_critic` / `require_critic_pass` | `agentxp.orchestrator.loop` |
 | `probe_data(mode="design")` | `agentxp.orchestrator.tools` |
-| `seal_brief` / `verify_or_raise` | `agentxp.schemas.brief_seal` |
+| `finalize_brief` / `check_power_feasibility` / `seal_and_commit_brief` | `agentxp.workflows.design` |
+| `verify_or_raise` | `agentxp.schemas.brief_seal` |
 | `commit_artifact` / `commit_artifacts` (batched) / `render_share_tail` | `agentxp.orchestrator.tools` |
 | `fan_out` (persona × format share-tails) | `agentxp.render.fan_out` |
 | `dispatch_critic` / `open_dispatch` / `complete_dispatch` | `agentxp.orchestrator.bridge` |
@@ -347,7 +361,7 @@ See `agents/<role>.md` for each system prompt.
 
 ## Terminal artifact
 
-`experiments/<id>/brief.sealed.yaml` exists, was produced by `seal_brief()`, and the user has confirmed it. From this moment the design verb is closed; the user invokes `/analyze --brief experiments/<id>/brief.sealed.yaml` to continue.
+`experiments/<id>/brief.sealed.yaml` exists, was produced by `seal_and_commit_brief()`, and the user has confirmed it. From this moment the design verb is closed; the user invokes `/analyze --brief experiments/<id>/brief.sealed.yaml` to continue.
 
 ## Banned vocabulary
 

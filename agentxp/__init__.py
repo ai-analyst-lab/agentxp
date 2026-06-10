@@ -1,7 +1,7 @@
 """
 AgentXP — Open-source agentic experimentation platform.
 
-Statsig gives you a dashboard. AgentXP gives you a colleague who knows statistics.
+Statsig gives you a dashboard. AgentXP gives you an analyst that shows its work.
 
 Production-grade statistical functions for A/B testing: hypothesis tests,
 power analysis, SRM detection, effect sizes, and multiple comparison corrections.

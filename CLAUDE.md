@@ -87,7 +87,7 @@ A 19-step checklist. Each step is one sentence pointing at a skill or specialist
 10. Critic — dispatch on the data plan.
 11. Power check — verify required-n vs available units; refuse seal on failure (no `--force`).
 12. Confirm seal — `confirm_brief_seal` gate; this crosses the R11 wall.
-13. Seal — `agentxp.schemas.brief_seal.seal_brief(...)`; render `DesignBriefVM` share-tail.
+13. Seal — `agentxp.workflows.design.seal_and_commit_brief(...)` (log row before hash, then seal + commit); render `DesignBriefVM` share-tail.
 14. Analyze — user invokes `/analyze --brief <path>`; verify the three-part integrity lock (R11).
 15. SRM — `srm_check` first (R2).
 16. Stats — guardrails, primary metric(s), segments (R4 whitelist).
@@ -135,28 +135,31 @@ The disk is the truth. Read the dir, look at git log, ask the user where to cont
 ## 10. Failure handling
 
 Three categories. Everything else collapses to one of these.
-- **Tool refusal** — `run_stat(welch, binary_metric)` raises, `probe_data` in design mode rejects an outcome query, `seal_brief` refuses on power-feasibility. Surface the reason, pick another tool or revise inputs.
+- **Tool refusal** — `probe_data` in design mode rejects an outcome query, `seal_and_commit_brief` refuses on power-feasibility, a stats helper raises on inputs it cannot test. Surface the reason, pick another tool or revise inputs.
 - **Specialist returns malformed output** — pydantic `ValidationError`. Retry once with the error attached; on second failure, ask the user.
 - **Crash** — process died. Next turn, read the dir and ask "we were doing X, want to retry or pivot?"
 
 ## 11. What you never do
 
-The rules below split into **structurally enforced** (the system refuses) and **discipline** (the system trusts you). Knowing which is which matters: if the rule is structural and you can't, the orchestrator surfaces the refusal with the rule cited. If the rule is discipline, you have to remember.
+The rules below split into **structurally enforced** (the system refuses) and **discipline** (the system trusts you). Knowing which is which matters: if the rule is structural and you can't, the orchestrator surfaces the refusal with the rule cited. If the rule is discipline, you have to remember. A 2026-06-09 audit found several claims in the old structural list did not hold at the code level; they are reclassified below rather than papered over — an honest discipline rule beats a fictional structural one.
 
 **Structurally enforced (the system refuses):**
 
-- Compute a statistic outside the whitelist. — every quantitative claim resolves to a named `agentxp.stats.*` function; calling something else produces no `TestResult` to quote.
-- Let a specialist see something its bundle schema did not authorize. — bundle assembler refuses (R10).
-- Read an outcome-bearing column in design mode. — Layer 3d refuses against semantic-models `outcome_columns` (R11).
-- Open `analyze` without verifying the brief's three-part seal. — `verify_or_raise` refuses (R11).
-- Improvise a verdict. — `walk_tree(TreeInput)` is the only function that returns a `Verdict`; you can't construct one any other way.
-- Promote `DRAFT_UNVERIFIED` to `VERIFIED`. — `build_provenance_for_brief` computes the status from disk; the parameter to override it was removed.
+- Read an outcome-bearing column in design mode. — Layer 3d refuses against semantic-model `outcome_columns` (R11). `probe_data` auto-loads `semantic_models/*.yaml` in design mode, so the wall fires without the caller remembering to pass them; a project with no semantic models refuses every table read in design mode.
+- Let a specialist see a field its bundle schema did not declare. — bundle assembler + `extra="forbid"` refuse (R10). Known gap: `CriticBundle.artifact_payload` is an open dict; *which* content you place inside it is discipline (see below).
+- Seal a brief the surface cannot power. — `seal_and_commit_brief` refuses when `n_required_total` exceeds `units_available`, with the math in the message; no `--force`.
+- Promote `DRAFT_UNVERIFIED` to `VERIFIED`. — `build_provenance` / `build_provenance_for_brief` compute the status from disk; the override parameter was removed and the verdict HTML quotes the computed value.
 
 **Discipline (the system trusts you):**
 
+- Compute a statistic outside the whitelist. — nothing refuses; `agentxp.stats.*` functions are ordinary callables and Python will run any arithmetic you write. R4 is a citation discipline: every quantitative claim quotes a named `agentxp.stats.*` result, and an uncited number is detectable in review, not prevented.
+- Improvise a verdict. — `Verdict` is a `typing.Literal` alias and `TreeResult` a plain dataclass; the type system does not stop you constructing either. R3 is a quoting discipline: the only verdict you narrate is the one `walk_tree(TreeInput)` returned. (Provenance partially backstops this: a readout whose verdict does not reproduce from the recorded tree inputs resolves to `DRAFT_UNVERIFIED`.)
+- Open `analyze` without verifying the brief's seal. — `verify_or_raise` refuses *when called*, but nothing forces the call. The analyze skill's first step is calling it; skipping that step is a discipline failure the audit trail surfaces after the fact.
+- Smuggle context through an open payload field. — `CriticBundle.artifact_payload` (or any `dict`-typed field) accepts whatever you put in it; blindness (R5) holds only if you pass the committed artifact and nothing else.
+- Override `srm_check`'s threshold. — `0.0005` is a keyword default, not a locked constant. R2 names the value; the function does not pin it.
 - Skip the critic on a commit-worthy artifact. — the system can dispatch the critic but doesn't force you to.
 - Bridge the design / analyze wall mid-session. — convention; the verbs are separate skills, but you choose when to switch.
-- Use `commit_artifact` for every artifact write. — preferred path; the actual observable signal is "`log.md` row without corresponding git commit," which `agentxp audit <id>` surfaces. A caller who bypasses `commit_artifact` is detectable, not prevented.
+- Use `commit_artifact` for every artifact write. — preferred path; the actual observable signal is "`log.md` row without corresponding git commit," which `agentxp audit <id>` surfaces. A caller who bypasses `commit_artifact` is detectable, not prevented. Exception: the seal itself goes through `seal_and_commit_brief`, because `commit_artifact`'s post-seal log append would invalidate the design-chain hash.
 - Soften a `Verdict` or upgrade a `ConfidenceLabel` through adjective choice. — the voice audit catches some banned phrases; nuance still requires you to quote what the function returned.
 - Narrate work you did not do. — readout claims should cite (R7), but no automated check refuses an uncited claim today.
 - Add a field to a ViewModel that carries outcome information without a visible schema edit. — convention against silent expansion.

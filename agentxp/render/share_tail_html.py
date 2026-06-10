@@ -125,7 +125,12 @@ def render_design_brief_html(*, vm: DesignBriefVM, audience: str = "exec") -> st
     )
 
 
-def render_verdict_html(*, vm: VerdictVM, audience: str = "exec") -> str:
+def render_verdict_html(
+    *,
+    vm: VerdictVM,
+    audience: str = "exec",
+    render_status: str = "UNVERIFIABLE",
+) -> str:
     """Render the verdict share-tail using analysis.html.j2.
 
     The analysis template expects a rich context that ReportVM does not
@@ -135,13 +140,18 @@ def render_verdict_html(*, vm: VerdictVM, audience: str = "exec") -> str:
     a dedicated VerdictDistill step that mirrors the walk's
     ``_analysis_context`` builder; this is a placeholder until that
     lands.
+
+    ``render_status`` must be the status the caller computed from disk
+    (R9). This renderer is pure and cannot verify anything itself, so the
+    default is ``UNVERIFIABLE`` — pre-audit this was hardcoded
+    ``"VERIFIED"``, which let an unverified render wear the green badge.
     """
     ctx = {
         "title": f"verdict · {vm.experiment_id}",
         "audience": audience,
         "experiment_id": vm.experiment_id,
         "generated_at": vm.generated_at,
-        "render_status": "VERIFIED",
+        "render_status": render_status,
         "primary_metric_name": vm.metric_table[0].name if vm.metric_table else "",
     }
     return _env().get_template("analysis.html.j2").render(**ctx)

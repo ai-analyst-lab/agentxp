@@ -143,6 +143,38 @@ def read_experiment_dir(exp_dir: Path) -> ExperimentSnapshot:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _load_project_semantic_models(project_root: Path) -> list:
+    """Load and validate every ``semantic_models/*.yaml`` under ``project_root``.
+
+    Underscore-prefixed files (``_TEMPLATE.yaml``) are skipped. A file
+    that fails to parse or validate raises :class:`ToolRefusal` rather
+    than being skipped — a silently dropped model would silently drop
+    its ``outcome_columns`` from the Layer 3d forbidden set, which is a
+    fail-open hole in a fail-closed pipeline.
+    """
+    import yaml
+
+    from agentxp.semantic.validators import SemanticModel
+
+    sm_dir = Path(project_root) / "semantic_models"
+    models: list = []
+    if not sm_dir.is_dir():
+        return models
+    for path in sorted(sm_dir.glob("*.yaml")):
+        if path.stem.startswith("_"):
+            continue
+        try:
+            raw = yaml.safe_load(path.read_text())
+            models.append(SemanticModel.model_validate(raw))
+        except Exception as exc:
+            raise ToolRefusal(
+                f"semantic model {path} failed to load ({type(exc).__name__}); "
+                f"refusing the probe rather than running with a partial "
+                f"outcome-column set. Fix or remove the file."
+            ) from exc
+    return models
+
+
 def probe_data(
     sql: str,
     *,
@@ -150,13 +182,23 @@ def probe_data(
     dialect: str = "duckdb",
     purpose: str = "shape_probe",
     semantic_models: Optional[list] = None,
+    project_root: Optional[Path] = None,
 ) -> SafetyResult:
     """Run a query through the 5- or 6-layer safety pipeline.
 
     R11 enforcement: ``mode="design"`` activates Layer 3d (outcome-column
     reject). ``mode="analyze"`` is the v0.1 behavior. The pipeline is
     fail-closed — any layer that rejects raises a SafetyViolation.
+
+    When ``semantic_models`` is ``None`` and ``mode="design"``, the models
+    are loaded from ``<project_root>/semantic_models/*.yaml`` (default
+    ``Path.cwd()``). Pre-audit, the ``None`` default made Layer 3d a
+    silent no-op unless the orchestrator remembered to pass the models —
+    R11 enforcement depended on caller memory. Pass an explicit list
+    (possibly empty) to skip the auto-load.
     """
+    if semantic_models is None and mode == "design":
+        semantic_models = _load_project_semantic_models(project_root or Path.cwd())
     return run_pipeline(
         sql,
         dialect=dialect,
@@ -238,6 +280,18 @@ def render_share_tail(
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{audience}.{fmt}"
 
+    # W4.2 — render status is COMPUTED, not passed. Pre-W4.2 callers passed
+    # provenance_render_status as a Literal string; render_share_tail trusted
+    # the label. That was the R9 bypass (DIAGNOSTIC §A / debate §3.4). Now the
+    # status is a function of the on-disk state (sealed brief verification +
+    # readout type), so a caller cannot upgrade a render to VERIFIED by
+    # passing the wrong label. Computed BEFORE rendering so the HTML badge
+    # and the catalog row come from the same value (the verdict renderer
+    # previously hardcoded "VERIFIED" while the catalog said otherwise).
+    from agentxp.render.provenance import build_provenance_for_brief
+
+    computed_status = build_provenance_for_brief(exp_dir, readout_type)
+
     if fmt == "json":
         out_path.write_text(vm.model_dump_json(indent=2))
     elif fmt == "md":
@@ -261,7 +315,12 @@ def render_share_tail(
                 f"no html renderer wired for readout_type={readout_type!r}; "
                 f"share_tail_html exposes: {sorted(renderers)}"
             )
-        html = renderer(vm=vm, audience=audience)
+        renderer_kwargs: dict = {"vm": vm, "audience": audience}
+        if readout_type == "verdict":
+            # The verdict renderer is pure; it quotes the status computed
+            # above rather than claiming one (R9).
+            renderer_kwargs["render_status"] = computed_status.value.upper()
+        html = renderer(**renderer_kwargs)
         if fmt == "html":
             out_path.write_text(html)
         else:  # pdf
@@ -283,16 +342,6 @@ def render_share_tail(
         json_path = out_path.with_suffix(".json")
         json_path.write_text(vm.model_dump_json(indent=2))
         out_path = json_path
-
-    # W4.2 — render status is COMPUTED, not passed. Pre-W4.2 callers passed
-    # provenance_render_status as a Literal string; render_share_tail trusted
-    # the label. That was the R9 bypass (DIAGNOSTIC §A / debate §3.4). Now the
-    # status is a function of the on-disk state (sealed brief verification +
-    # readout type), so a caller cannot upgrade a render to VERIFIED by
-    # passing the wrong label.
-    from agentxp.render.provenance import build_provenance_for_brief
-
-    computed_status = build_provenance_for_brief(exp_dir, readout_type)
 
     # W6.2 — voice audit fires before the catalog row appends. Only rule 5
     # (banned vocabulary per CLAUDE.md §12) is enforceable; the other voice

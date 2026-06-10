@@ -124,7 +124,7 @@ test_fn = to_test_function(metric)
 result = test_fn(c_success=..., c_n=..., t_success=..., t_n=...)
 ```
 
-Use `run_stat(test_name, **args)` if available for the refusal-on-invalid-combo discipline.
+`to_test_function` is the invalid-combo gate: it resolves the metric's declared type to its whitelisted test and raises on a type/test mismatch. (There is no `run_stat` dispatcher — earlier docs referenced one that was never built.)
 
 ### 5. Segments (Holm-Bonferroni adjustment if > 1)
 

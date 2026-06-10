@@ -213,22 +213,6 @@ class AssignmentSurface(BaseModel):
     assignment_unit: Literal["user_id", "session_id", "device_id", "account_id"]
 
 
-class _BriefDraftPlaceholder(BaseModel):
-    """Draft form of a brief, before sealing.
-
-    TODO(T04): replace with the canonical BriefDraft schema in
-    ``agentxp.schemas.experiment`` once that module is tweaked.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    hypothesis: str
-    primary_metric: str
-    decision_rules: list[str]
-    mde: float
-    cohorts: list[str]
-
-
 class DataPlanDraft(BaseModel):
     """Prose data plan produced by the designer (W1.6).
 
@@ -278,37 +262,50 @@ class DataPlanDraft(BaseModel):
     )
 
 
-class _SealedBriefPlaceholder(BaseModel):
-    """Sealed brief carrying the three-part integrity lock.
-
-    TODO(T02): replace with ``agentxp.schemas.brief_seal.SealedBrief`` once
-    that module exists. The three-part lock is the gate that the analyze
-    verb verifies before opening.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    draft: _BriefDraftPlaceholder
-    design_chain_hash: Sha256Hex
-    metric_snapshot: dict[str, Sha256Hex]
-    expected_shape: dict[str, object]
-    sealed_at: str
-
-
 class DecisionRule(BaseModel):
     """A pre-registered decision rule from the sealed brief.
 
-    Used by the analyst-narrator. The narrator sees decision rules so it can
-    cite them; it does *not* see the hypothesis prose (which would bias the
-    narrative direction).
+    Used by the analyst-narrator and by the design verb's brief.yaml.
+    The narrator sees decision rules so it can cite them; it does *not* see
+    the hypothesis prose (which would bias the narrative direction).
+
+    ``applies_to`` disambiguates what the threshold is compared against —
+    free-text decision rules ("ci_low > 0", "ci_low > +0.30pp") collapsed
+    several distinct meanings into prose that the analyze verb had to
+    re-interpret. The structured form removes that re-interpretation.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     metric_name: str
-    threshold: float
+    applies_to: Literal[
+        "point_estimate",
+        "ci_lower_95",
+        "ci_upper_95",
+        "ci_lower_90",
+        "ci_upper_90",
+    ] = Field(
+        description=(
+            "Which derived quantity the threshold is compared against. "
+            "Typical 'lift > 0' rule uses ci_lower_95."
+        ),
+    )
+    threshold: float = Field(
+        description=(
+            "Numeric threshold in the same units as the metric (e.g. 0.003 "
+            "for a +0.30pp lift on a proportion). Direction tells you which "
+            "side of the threshold ships."
+        ),
+    )
     direction: Literal["above", "below"]
     severity: Literal["primary", "guardrail", "secondary"]
+    rationale: str = Field(
+        default="",
+        description=(
+            "Optional one-line gloss explaining the threshold choice. "
+            "Not parsed by walk_tree; preserved for readouts."
+        ),
+    )
 
 
 class MetricResult(BaseModel):

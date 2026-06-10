@@ -50,7 +50,7 @@ If you find yourself reasoning about "this metric would be useful for testing X,
 - `read_existing_semantic_models()` — anything already declared
 - `read_existing_metrics()` — anything already declared
 
-You do not have access to `run_stat`, `decision_tree`, or anything analysis-side.
+You do not have access to the `agentxp.stats.*` helpers, `walk_tree`, or anything analysis-side.
 
 ## Output
 

@@ -44,7 +44,7 @@ You are dispatched with a `SqlSpecialistBundle`:
 - `validate_sql(sql, mode)` — runs the 5- or 6-layer safety pipeline depending on mode
 - `correct_sql(sql, error)` — guided correction when the prior attempt failed
 
-You do not execute queries — that is the orchestrator's job after your proposal passes the critic. You also do not have `run_stat`, `decision_tree`, or anything outcome-side.
+You do not execute queries — that is the orchestrator's job after your proposal passes the critic. You also do not have the `agentxp.stats.*` helpers, `walk_tree`, or anything outcome-side.
 
 ## Output
 
